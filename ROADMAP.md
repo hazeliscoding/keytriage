@@ -28,7 +28,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - **Honest limits.** Software sees what the firmware reports after its own debounce, and timing resolution depends on the keyboard's polling rate. Reports say so where it matters.
 - **The UI design comes from the owner.** Beyond the M0 placeholder, no UI code (templates, styles or layout) until that design is in `docs/design/`.
 - **License:** Apache-2.0. The repo is public.
-- **Brand** is option B, "Focus": viewfinder corners around a single key, for isolating the fault. The wordmark is Schibsted Grotesk Bold, lowercase, with -0.02em letter spacing, converted to vector paths. Ink is `#17161a` with a signal-orange accent `#c2410c`. The dark variants use `#ecebe6` and `#f59e62`. The assets are in `docs/brand/`.
+- **Brand** is option 2a, "Frame" (2026.09.26, replacing "Focus"): two heavy corner jaws holding a single red key. The wordmark reads `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with 0.08em letter spacing, converted to vector paths. Ink is `#1b1812`, and the key and the slashes use the red accent `#9e2b2b`. The dark variants use `#e8e1d2` and `#b5383a`. The assets are in `docs/brand/`.
 
 ## M0: Placeholder (as soon as possible)
 

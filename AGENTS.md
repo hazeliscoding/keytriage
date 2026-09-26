@@ -41,7 +41,7 @@ The owner brings the UI design. Beyond the M0 placeholder, don't write UI (templ
 ## Brand
 
 - The assets are in `docs/brand/`. `-dark` files are for dark backgrounds.
-- The wordmark is Schibsted Grotesk Bold, lowercase, converted to vector paths. Use the SVGs, and don't re-typeset the wordmark with a web font.
+- The wordmark is `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with the slashes in the accent color, converted to vector paths. Use the SVGs, and don't re-typeset the wordmark with a web font.
 
 ## Commands
 
