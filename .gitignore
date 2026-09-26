@@ -1,0 +1,27 @@
+# Build output
+/dist
+/out-tsc
+/.angular
+/coverage
+/target
+/src-tauri/target
+/src-tauri/gen
+
+# Dependencies
+/node_modules
+npm-debug.log
+
+# Editors
+.idea/
+.vscode/
+
+# Local tool output
+.playwright-mcp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Agent guidelines are committed; this overrides the global gitignore
+!AGENTS.md
+!CLAUDE.md
