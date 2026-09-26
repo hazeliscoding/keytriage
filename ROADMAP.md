@@ -33,11 +33,11 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 ## M0: Placeholder (as soon as possible)
 
 - [x] Add `LICENSE` (Apache-2.0).
-- [ ] Scaffold Angular + Tauri v2, plus the Rust workspace with `crates/input` and `crates/diagnostics`.
-- [ ] Generate the app and installer icons from `docs/brand/mark.svg`.
+- [x] Scaffold Angular + Tauri v2, plus the Rust workspace with `crates/input` and `crates/diagnostics`.
+- [x] Generate the app and installer icons from `docs/brand/mark.svg`. The source is `docs/brand/app-icon.svg`, with the mark on a paper-colored tile, because its dark jaws disappear on a dark taskbar.
 - [ ] A plain placeholder window that shows one canned finding as text: the key, the evidence, the causes and the next test. It gets no styling until the design lands.
 - [ ] Turn on the guardrails from the first commit:
-  - [ ] a Content Security Policy that blocks outbound connections, and no HTTP or updater plugins;
+  - [x] a Content Security Policy that blocks outbound connections, and no HTTP or updater plugins;
   - [ ] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` or `sendBeacon` in the frontend, and on HTTP crates in the Rust workspace;
   - [ ] a CI check that fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`.
 
