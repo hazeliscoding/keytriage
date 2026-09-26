@@ -2,7 +2,7 @@
 
 keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first) that diagnoses keyboard faults from evidence and guides the tests that isolate them. This file tracks what gets built, in what order, and the decisions already made.
 
-## Decisions (2026-09-25)
+## Decisions (2026.09.25)
 
 - **Position:** a diagnostic and repair assistant, not another keyboard tester. Testers exist (chatter-cli, HIDTester, KeyboardTest.tech), and so do chatter filters (Keyboard Chatter Blocker) and keyboard databases (SonixQMK, QMK, VIA). Nothing yet goes from a symptom to its likely cause and then to the repair. keytriage reuses those sources rather than rebuilding them.
 - **Evidence, not verdicts.** Every finding carries its evidence, a confidence level (Low, Medium, High, Very high), alternative causes and a recommended next test. Scores can exist internally, but users see words. Never say a part is broken.
