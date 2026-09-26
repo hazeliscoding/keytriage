@@ -1,0 +1,11 @@
+[workspace]
+members = ["crates/diagnostics", "crates/input"]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.0"
+authors = ["Hazel Granados"]
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/hazeliscoding/keytriage"
+publish = false

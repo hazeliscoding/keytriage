@@ -1,0 +1,9 @@
+[package]
+name = "keytriage-input"
+description = "Foreground keyboard capture, starting with Windows Raw Input"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
