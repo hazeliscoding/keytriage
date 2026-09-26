@@ -29,6 +29,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - **The UI design comes from the owner.** Beyond the M0 placeholder, no UI code (templates, styles or layout) until that design is in `docs/design/`.
 - **License:** Apache-2.0. The repo is public.
 - **Brand** is option 2a, "Frame" (2026.09.26, replacing "Focus"): two heavy corner jaws holding a single red key. The wordmark reads `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with 0.08em letter spacing, converted to vector paths. Ink is `#1b1812`, and the key and the slashes use the red accent `#9e2b2b`. The dark variants use `#e8e1d2` and `#b5383a`. The assets are in `docs/brand/`.
+- **Scaffold** (2026.09.26): `crates/diagnostics` forbids `unsafe` code, which keeps FFI and OS calls out of the engine. The Tauri template's log plugin is left out, because it writes log files to disk.
 
 ## M0: Placeholder (as soon as possible)
 

@@ -42,10 +42,14 @@ The owner brings the UI design. Beyond the M0 placeholder, don't write UI (templ
 
 - The assets are in `docs/brand/`. `-dark` files are for dark backgrounds.
 - The wordmark is `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with the slashes in the accent color, converted to vector paths. Use the SVGs, and don't re-typeset the wordmark with a web font.
+- App icons put the mark on a paper-colored tile (`#f2ede2`), because the dark jaws disappear on a dark taskbar. The source is `docs/brand/app-icon.svg`. Regenerate the icons with `npx tauri icon docs/brand/app-icon.svg -o src-tauri/icons`, then delete the `android` and `ios` folders it adds.
 
 ## Commands
 
-Added in M0.
+- `npm start` serves the UI in a browser. `npm run tauri dev` runs the desktop app.
+- `npm test -- --watch=false` runs the UI unit tests. `cargo test --workspace` runs the Rust tests.
+- `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --all --check` lint the Rust code.
+- `npm run tauri build -- --no-bundle` builds the release binary without an installer.
 
 ## Working style
 
