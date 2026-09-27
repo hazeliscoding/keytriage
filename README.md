@@ -9,7 +9,7 @@
 
 A key that double-types, drops presses or sticks could be the switch, the socket or solder joint, the PCB or the firmware. Keyboard testers show that something is wrong, but not what to do about it. So people replace the wrong part, or the whole keyboard.
 
-> **Status:** planning. There is no code yet. Windows comes first. See [ROADMAP.md](ROADMAP.md).
+> **Status:** planning. There is nothing to install yet. Windows comes first. See [ROADMAP.md](ROADMAP.md).
 
 ## What a finding will look like
 
