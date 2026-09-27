@@ -15,11 +15,12 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - **Capture only in the foreground.**
   - Raw Input is registered on the app's own window, with no input sink. It receives input only while the app is focused and a test is running.
   - No low-level keyboard hooks.
+  - Tauri's own Raw Input registration is off (`DeviceEventFilter::Always`). tao otherwise registers every keyboard at startup, and `Never` adds an input sink.
   - A CI check fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` and `WH_KEYBOARD_LL`, with a positive control.
 - **Only aggregates are saved.** The ordered event stream lives in memory for the live view and the running test. Reports and anything else written to disk hold per-key counts and timing statistics only, because an ordered list of keys is the text that was typed.
 - **No network in the app.**
   - There is no networking code and no auto-updater.
-  - The Content Security Policy blocks outbound connections.
+  - The Content Security Policy blocks outbound requests from the page, and a navigation guard keeps the window on the app.
   - A CI check fails on web request APIs and HTTP crates, with a positive control.
   - Data such as prices ships inside the app, and links open in the browser.
 - **Prices come from a CI snapshot.** A scheduled GitHub workflow reads public retailer product feeds, such as Shopify's `/products.json`. It respects robots.txt and each shop's terms, and commits a price and stock file with an "as of" date. The app bundles that file. Prices refresh with releases.
@@ -38,15 +39,17 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [x] Generate the app and installer icons from `docs/brand/mark.svg`. The source is `docs/brand/app-icon.svg`, with the mark on a paper-colored tile, because its dark jaws disappear on a dark taskbar.
 - [ ] A plain placeholder window that shows one canned finding as text: the key, the evidence, the causes and the next test. It gets no styling until the design lands.
 - [ ] Turn on the guardrails from the first commit:
-  - [x] a Content Security Policy that blocks outbound connections, and no HTTP or updater plugins;
-  - [ ] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` or `sendBeacon` in the frontend, and on HTTP crates in the Rust workspace;
-  - [ ] a CI check that fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`.
+  - [x] a Content Security Policy that blocks outbound requests from the page, a navigation guard that keeps the window on the app, and no HTTP or updater plugins;
+  - [ ] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection` in the frontend, and on HTTP crates in the Rust workspace. `RTCPeerConnection` is on the list because the CSP does not cover WebRTC. The crate check runs `cargo tree --workspace` for the Windows target, because `Cargo.lock` also lists `reqwest` for mobile targets;
+  - [ ] a CI check that fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`, and on a Tauri `DeviceEventFilter` other than `Always`, because `Never` makes tao register with `RIDEV_INPUTSINK`. A planted `DeviceEventFilter::Never` is one of its positive controls.
 
 **Done when:** CI builds the app on Windows, the placeholder renders, and test PRs that add `fetch(` or `RIDEV_INPUTSINK` each fail their check.
 
 ## M1: Input
 
-- [ ] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here.
+- [ ] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here. Raw Input registration is per process and the last call wins, so nothing may call `set_device_event_filter` once capture has registered.
+- [ ] Before capture lands, turn off WebView2's browser shortcuts and default context menu (`SetAreBrowserAcceleratorKeysEnabled`, `SetAreDefaultContextMenusEnabled`) through `with_webview`. The key test presses F5, Ctrl+R and Ctrl+P, which reload or print the page. Tauri has no setting for this.
+- [ ] Decide how crash output stays local. WebView2 sends renderer crash reports to Microsoft by default (`IsCustomCrashReportingEnabled` is off), and a renderer dump can hold the live event stream.
 - [ ] Device list: name, VID/PID, device path, and manufacturer and product strings.
 - [ ] Live event view: key position, down or up, a high-resolution timestamp and the source device, held in memory only.
 - [ ] Capture starts only with a test and stops when the test ends or the window loses focus.
@@ -84,9 +87,12 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 ## M5: v0.1.0
 
 - [ ] A release workflow for Windows: an NSIS installer on GitHub Releases, unsigned, with SHA-256 checksums.
+  - Set `bundle.publisher` to the name a future code-signing certificate would carry, before the first installer ships. It defaults to "github" from the identifier, and the installer keys its registry entry on it, so changing it later loses the previous install location.
+  - Decide `bundle.windows.webviewInstallMode`. The default downloads the WebView2 bootstrapper from Microsoft when WebView2 is missing.
+  - Ship the third-party notices: Angular's `3rdpartylicenses.txt`, which sits outside `frontendDist`, and the Rust crates' licenses.
 - [ ] README with install steps, a note on unsigned builds and screenshots of the live app.
 - [ ] `CONTRIBUTING.md`: how to add a detector and its fixtures.
-- [ ] `SECURITY.md`, plus a privacy contract document that lists each promise and how it is enforced.
+- [ ] `SECURITY.md`, plus a privacy contract document that lists each promise and how it is enforced. It also names what the WebView2 runtime fetches from Microsoft on its own, such as its variations seed, outside the app's code.
 - [ ] Issue templates for "Wrong diagnosis" and "Missed fault". They ask for the exported report, never a recording of typing.
 - [ ] Dogfooding log in `docs/dogfooding.md`.
 - [ ] CI is green, error messages are understandable, and there are no known critical bugs.
