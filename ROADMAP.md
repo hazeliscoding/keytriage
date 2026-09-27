@@ -38,7 +38,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [x] Add `LICENSE` (Apache-2.0).
 - [x] Scaffold Angular + Tauri v2, plus the Rust workspace with `crates/input` and `crates/diagnostics`.
 - [x] Generate the app and installer icons from `docs/brand/mark.svg`. The source is `docs/brand/app-icon.svg`, with the mark on a paper-colored tile, because its dark jaws disappear on a dark taskbar.
-- [ ] A plain placeholder window that shows one canned finding as text: the key, the evidence, the causes and the next test. It gets no styling until the design lands.
+- [x] A plain placeholder window that shows one canned finding as text: the key, the evidence, the causes and the next test. It gets no styling until the design lands.
 - [x] Turn on the guardrails from the first commit:
   - [x] a Content Security Policy that blocks outbound requests from the page, a navigation guard that keeps the window on the app, and no HTTP or updater plugins;
   - [x] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection` in the frontend, and on HTTP crates in the Rust workspace. `RTCPeerConnection` is on the list because the CSP does not cover WebRTC. The crate check runs `cargo tree --workspace` for the Windows target, because `Cargo.lock` also lists `reqwest` for mobile targets;
