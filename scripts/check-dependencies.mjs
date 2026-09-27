@@ -11,7 +11,7 @@ import { relative, resolve } from 'node:path';
 
 export const ALLOWED = {
   keytriage: ['tauri', 'tauri-build'],
-  'keytriage-input': [],
+  'keytriage-input': ['windows'],
   'keytriage-diagnostics': [],
 };
 
