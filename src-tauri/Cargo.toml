@@ -15,4 +15,5 @@ name = "keytriage_lib"
 tauri-build = { version = "2.7.0", features = [] }
 
 [dependencies]
+keytriage-input = { path = "../crates/input" }
 tauri = { version = "2.12.0", features = [] }
