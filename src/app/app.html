@@ -1,0 +1,29 @@
+<h1>keytriage</h1>
+<p>This is a sample finding. keytriage has not tested a keyboard yet.</p>
+
+<h2>{{ sample.key }}: {{ sample.finding }}, {{ sample.confidence }} confidence</h2>
+
+<section>
+  <h3>Evidence</h3>
+  <ul>
+    @for (line of sample.evidence; track line) {
+      <li>{{ line }}</li>
+    }
+  </ul>
+</section>
+
+<section>
+  <h3>Likely causes</h3>
+  <ol>
+    @for (cause of sample.causes; track cause) {
+      <li>{{ cause }}</li>
+    }
+  </ol>
+</section>
+
+<section>
+  <h3>Next test</h3>
+  @for (line of sample.nextTest; track line) {
+    <p>{{ line }}</p>
+  }
+</section>
