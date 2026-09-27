@@ -127,6 +127,25 @@ test('the CLI scans C and C++ sources too', () => {
   });
 });
 
+test('the CLI skips build folders only where they live', () => {
+  const hook = 'fn f() -> i16 { unsafe { GetAsyncKeyState(0x41) } }\n';
+  withFixture((root) => {
+    for (const dir of ['src-tauri/gen/schemas', 'target/debug', 'dist/x', 'node_modules/x']) {
+      mkdirSync(join(root, dir), { recursive: true });
+      writeFileSync(join(root, dir, 'out.rs'), hook);
+    }
+    assert.equal(run(root).status, 0);
+    for (const dir of ['crates/input/src/gen', 'crates/input/src/target']) {
+      mkdirSync(join(root, dir), { recursive: true });
+      writeFileSync(join(root, dir, 'keys.rs'), hook);
+    }
+    const result = run(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /crates\/input\/src\/gen\/keys\.rs:1 {2}background capture: GetAsyncKeyState/);
+    assert.match(result.stderr, /crates\/input\/src\/target\/keys\.rs:1 {2}background capture: GetAsyncKeyState/);
+  });
+});
+
 test('the CLI fails on the global shortcut plugin in package-lock.json', () => {
   withFixture((root) => {
     writeFileSync(join(root, 'package-lock.json'), '{"packages": {"node_modules/@tauri-apps/plugin-global-shortcut": {}}}');

@@ -53,7 +53,9 @@ const NATIVE_EXTS = [
   '.rs', '.c', '.cc', '.cpp', '.cxx', '.c++', '.h', '.hh', '.hpp', '.hxx', '.inl', '.ixx',
   '.asm', '.s',
 ];
-const SKIP_DIRS = new Set(['.git', '.angular', 'dist', 'gen', 'node_modules', 'target']);
+// Build output and installed packages, by path: a folder with the same name elsewhere can hold
+// source.
+const SKIP_PATHS = new Set(['.angular', 'dist', 'node_modules', 'src-tauri/gen', 'target']);
 
 function parseNumber(token) {
   const digits = token.replaceAll('_', '').toLowerCase().replace(/[ui](8|16|32|64|size)$/, '');
@@ -116,13 +118,14 @@ export function scanCargoTree(text) {
   );
 }
 
-function filesUnder(dir) {
+function filesUnder(dir, skip, base = dir) {
   if (!existsSync(dir)) return [];
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) found.push(...filesUnder(path));
+      const rel = relative(base, path).replaceAll('\\', '/');
+      if (entry.name !== '.git' && !skip.has(rel)) found.push(...filesUnder(path, skip, base));
     } else if (NATIVE_EXTS.includes(extname(entry.name).toLowerCase())) {
       found.push(path);
     }
@@ -143,7 +146,7 @@ export function check(root) {
   const report = (file, line, message) =>
     errors.push({ file: relative(root, file).replaceAll('\\', '/'), line, message });
 
-  for (const file of filesUnder(root)) {
+  for (const file of filesUnder(root, SKIP_PATHS)) {
     for (const hit of scanSource(readFileSync(file, 'utf8'))) {
       report(file, hit.line, `background capture: ${hit.name}`);
     }
