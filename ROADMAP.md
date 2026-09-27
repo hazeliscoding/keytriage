@@ -46,7 +46,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - Injected input arrives with device handle 0. SendInput can't test device attribution, and per-device findings should leave those events out.
     - Input queued before a focus change may still arrive after `WM_ACTIVATE`, and a key held across the change may never report its release. Capture needs its own gate, closed on `WM_ACTIVATEAPP`. The engine should treat keys still down at that point as interrupted, not stuck.
     - tao registers Raw Input for mice and keyboards on its hidden window when its event loop is created, inside `Builder::build`. Tauri's `Always` filter removes both registrations later in `Builder::build`, before any app window exists. Nothing else in tauri or wry registers.
-    - tao calls `GetAsyncKeyState` for every key when its window gains focus, to replay keys that are already held. It stores nothing. The capture guard can't see this, because it scans only this repo's code.
+    - tao calls `GetAsyncKeyState` for every key when its window gains focus, to replay keys that are already held. It stores nothing. The capture guard can't see this, because it scans only this repo's code. Accepted (2026.09.27): it reads which keys are down at that moment, only when our window gains focus, and is not a keylogger.
 
 ## M0: Placeholder (as soon as possible)
 
