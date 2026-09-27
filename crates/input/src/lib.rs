@@ -1,1 +1,1 @@
-
+pub const RIDEV_INPUTSINK: u32 = 0x0000_0100;
