@@ -41,6 +41,20 @@ jobs:
       - name: Capture guard
         run: node scripts/check-capture.mjs
 
+  dependencies:
+    name: Dependency guard
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Positive controls
+        run: node --test scripts/check-dependencies.test.mjs
+      - name: Dependency guard
+        run: node scripts/check-dependencies.mjs
+
   build:
     name: Build (Windows)
     runs-on: windows-2025
