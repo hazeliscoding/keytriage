@@ -32,6 +32,21 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - **Brand** is option 2a, "Frame" (2026.09.26, replacing "Focus"): two heavy corner jaws holding a single red key. The wordmark reads `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with 0.08em letter spacing, converted to vector paths. Ink is `#1b1812`, and the key and the slashes use the red accent `#9e2b2b`. The dark variants use `#e8e1d2` and `#b5383a`. The assets are in `docs/brand/`.
 - **Scaffold** (2026.09.26): `crates/diagnostics` forbids `unsafe` code, which keeps FFI out of the engine. The Tauri template's log plugin is left out, because it writes log files to disk.
 - **Guards** (2026.09.27): the network guard also scans the built bundle, which holds npm code, our Rust for sockets, and the `windows` crates for networking features. The capture guard also bans `GetAsyncKeyState`, `RegisterHotKey` and DirectInput background mode, allows Raw Input flags only from the named foreground flags, and fails on known hook and hotkey crates. Both match names, not behavior, so a crate that connects or captures under an unlisted name would get past them. A third guard therefore fails on any direct dependency that is not on its crate's allowlist in `scripts/check-dependencies.mjs`, so each new crate is a reviewed choice. Transitive crates are left to the name checks, which keeps upgrades free of list churn.
+- **Raw Input** (2026.09.27):
+  - **How capture works.** It registers the keyboard (usage page 1, usage 6) with flags `0`, targets the main window, and reads `WM_INPUT` in a comctl32 subclass on that window (`crates/input`).
+  - **Foreground only.** Windows delivers the input only while our process owns the foreground window. That includes the time keyboard focus sits in WebView2's child window inside `msedgewebview2.exe`.
+  - **The target is never null.** A null target follows keyboard focus into WebView2's process.
+  - **The check.** `scripts/check-focus-capture.ps1` runs against a debug build and proves three things:
+    - keys arrive while focus is inside WebView2's process;
+    - none arrive while another process's window is in front;
+    - the process holds exactly one registration, with no sink flag.
+
+    It also passes with `-Hosting visual` (WebView2's window-to-visual hosting, which users can force), where focus stays in our process. Its positive control keeps the app in front and must exit 3.
+  - **Findings for later items:**
+    - Injected input arrives with device handle 0. SendInput can't test device attribution, and per-device findings should leave those events out.
+    - Input queued before a focus change may still arrive after `WM_ACTIVATE`, and a key held across the change may never report its release. Capture needs its own gate, closed on `WM_ACTIVATEAPP`. The engine should treat keys still down at that point as interrupted, not stuck.
+    - tao registers Raw Input for mice and keyboards on its hidden window when its event loop is created, inside `Builder::build`. Tauri's `Always` filter removes both registrations later in `Builder::build`, before any app window exists. Nothing else in tauri or wry registers.
+    - tao calls `GetAsyncKeyState` for every key when its window gains focus, to replay keys that are already held. It stores nothing. The capture guard can't see this, because it scans only this repo's code.
 
 ## M0: Placeholder (as soon as possible)
 
@@ -49,7 +64,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## M1: Input
 
-- [ ] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here. Raw Input registration is per process and the last call wins, so nothing may call `set_device_event_filter` once capture has registered.
+- [x] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here. Raw Input registration is per process and the last call wins, so nothing may call `set_device_event_filter` once capture has registered.
 - [ ] Before capture lands, turn off WebView2's browser shortcuts and default context menu (`SetAreBrowserAcceleratorKeysEnabled`, `SetAreDefaultContextMenusEnabled`) through `with_webview`. The key test presses F5, Ctrl+R and Ctrl+P, which reload or print the page. Tauri has no setting for this.
 - [ ] Decide how crash output stays local. WebView2 sends renderer crash reports to Microsoft by default (`IsCustomCrashReportingEnabled` is off), and a renderer dump can hold the live event stream.
 - [ ] Device list: name, VID/PID, device path, and manufacturer and product strings.
