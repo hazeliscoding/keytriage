@@ -12,10 +12,10 @@ These are the working rules for agents in this repo. keytriage is a local-first 
 
 Software that reads a keyboard has to earn trust. Never break these rules, not even in dev tooling that ships.
 
-- **Foreground capture only.** Register Raw Input on the app's own window with no input sink. Never use `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`. Keep Tauri's `DeviceEventFilter` at `Always`: tao otherwise registers Raw Input for every keyboard at startup, and `Never` adds `RIDEV_INPUTSINK`. Capture runs only during a test.
+- **Foreground capture only.** Register Raw Input on the app's own window with no input sink. Never use `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx`, `WH_KEYBOARD_LL`, `GetAsyncKeyState`, `RegisterHotKey` or DirectInput in background mode, or a crate that wraps them. Build Raw Input flags only from the named foreground `RIDEV_` flags. Keep Tauri's `DeviceEventFilter` at `Always`: tao otherwise registers Raw Input for every keyboard at startup, and `Never` adds `RIDEV_INPUTSINK`. Capture runs only during a test.
 - **Never save the order of keys.** Ordered events stay in memory. Anything written to disk (reports, logs, settings, crash output) holds per-key aggregates only.
 - **Keys are physical positions** (scancodes). Don't translate them to characters beyond the labels on the drawn keyboard.
-- **No networking code.** No `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection`. No Tauri HTTP or updater plugins. No HTTP crates in the app. Price data is bundled, and links open in the browser. The navigation guard in `src-tauri/src/lib.rs` keeps the window on the app. Don't widen it.
+- **No networking code.** No `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection`. No Tauri HTTP, updater or shell plugins. No HTTP crates, sockets or `windows` networking features in the app. Price data is bundled, and links open in the browser. The navigation guard in `src-tauri/src/lib.rs` keeps the window on the app. Don't widen it.
 - **No remote assets.** Fonts and icons are self-hosted.
 - **No recorded typing anywhere.** Fixtures are synthetic event streams. Never commit, paste or attach a recording of real typing.
 
@@ -50,6 +50,8 @@ The owner brings the UI design. Beyond the M0 placeholder, don't write UI (templ
 - `npm test -- --watch=false` runs the UI unit tests. `cargo test --workspace` runs the Rust tests.
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --all --check` lint the Rust code.
 - `npm run tauri build -- --no-bundle` builds the release binary without an installer.
+- `node --test scripts/check-network.test.mjs scripts/check-capture.test.mjs` runs the guards' positive controls. `node scripts/check-network.mjs --bundle` (after `npm run build`) and `node scripts/check-capture.mjs` run the guards.
+- The guards match names. Keep `fetch`, `WebSocket` and `EventSource` out of your own names and UI text, put comments that name a banned API on their own line, and keep `.device_event_filter(tauri::DeviceEventFilter::Always)` and `.plugin(navigation_guard())` in `src-tauri/src/lib.rs` in that form.
 - Unit tests in `src-tauri` must not reach Tauri's runtime. The test binary lacks the app's Common Controls manifest, so on Windows it exits with `0xc0000139`. Keep logic that needs tests in `crates/*`, or in plain functions like `is_app_url`.
 
 ## Working style

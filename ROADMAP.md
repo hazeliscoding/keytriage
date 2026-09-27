@@ -31,6 +31,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - **License:** Apache-2.0. The repo is public.
 - **Brand** is option 2a, "Frame" (2026.09.26, replacing "Focus"): two heavy corner jaws holding a single red key. The wordmark reads `KEY//TRIAGE` in Barlow Semi Condensed SemiBold, uppercase, with 0.08em letter spacing, converted to vector paths. Ink is `#1b1812`, and the key and the slashes use the red accent `#9e2b2b`. The dark variants use `#e8e1d2` and `#b5383a`. The assets are in `docs/brand/`.
 - **Scaffold** (2026.09.26): `crates/diagnostics` forbids `unsafe` code, which keeps FFI out of the engine. The Tauri template's log plugin is left out, because it writes log files to disk.
+- **Guards** (2026.09.27): the network guard also scans the built bundle, which holds npm code, our Rust for sockets, and the `windows` crates for networking features. The capture guard also bans `GetAsyncKeyState`, `RegisterHotKey` and DirectInput background mode, allows Raw Input flags only from the named foreground flags, and fails on known hook and hotkey crates. Both match names, not behavior, so a crate that connects or captures under an unlisted name gets past them. New dependencies get reviewed for both.
 
 ## M0: Placeholder (as soon as possible)
 
@@ -38,10 +39,10 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [x] Scaffold Angular + Tauri v2, plus the Rust workspace with `crates/input` and `crates/diagnostics`.
 - [x] Generate the app and installer icons from `docs/brand/mark.svg`. The source is `docs/brand/app-icon.svg`, with the mark on a paper-colored tile, because its dark jaws disappear on a dark taskbar.
 - [ ] A plain placeholder window that shows one canned finding as text: the key, the evidence, the causes and the next test. It gets no styling until the design lands.
-- [ ] Turn on the guardrails from the first commit:
+- [x] Turn on the guardrails from the first commit:
   - [x] a Content Security Policy that blocks outbound requests from the page, a navigation guard that keeps the window on the app, and no HTTP or updater plugins;
-  - [ ] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection` in the frontend, and on HTTP crates in the Rust workspace. `RTCPeerConnection` is on the list because the CSP does not cover WebRTC. The crate check runs `cargo tree --workspace` for the Windows target, because `Cargo.lock` also lists `reqwest` for mobile targets;
-  - [ ] a CI check that fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`, and on a Tauri `DeviceEventFilter` other than `Always`, because `Never` makes tao register with `RIDEV_INPUTSINK`. A planted `DeviceEventFilter::Never` is one of its positive controls.
+  - [x] a CI check that fails on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection` in the frontend, and on HTTP crates in the Rust workspace. `RTCPeerConnection` is on the list because the CSP does not cover WebRTC. The crate check runs `cargo tree --workspace` for the Windows target, because `Cargo.lock` also lists `reqwest` for mobile targets;
+  - [x] a CI check that fails on `RIDEV_INPUTSINK`, `RIDEV_EXINPUTSINK`, `SetWindowsHookEx` or `WH_KEYBOARD_LL`, and on a Tauri `DeviceEventFilter` other than `Always`, because `Never` makes tao register with `RIDEV_INPUTSINK`. A planted `DeviceEventFilter::Never` is one of its positive controls.
 
 **Done when:** CI builds the app on Windows, the placeholder renders, and test PRs that add `fetch(` or `RIDEV_INPUTSINK` each fail their check.
 
