@@ -1,6 +1,8 @@
 use super::*;
 use crate::fixture::{Fixture, guided, guided_chatter};
 
+const H: u16 = 0x23;
+
 fn plan(keys: &[u16], rounds: u16, presses: u16) -> Plan {
     Plan {
         keys: keys.to_vec(),
@@ -150,4 +152,75 @@ fn sw05_every_finding_names_the_same_partner() {
     for f in &r.findings {
         assert_eq!(partner(f), Some(G), "{f:#?}");
     }
+}
+
+// ---- boards without a swap ----
+
+// gd01's run: H skipped after 3 s in each of its rounds, between answered rounds of G and J.
+fn dead_run() -> Fixture {
+    guided(plan(&[G, H, J], 3, 10), |s, key, _| {
+        if key == H {
+            (s.wait(ms(3_000)), true)
+        } else {
+            (normal(s, key), false)
+        }
+    })
+}
+
+// E's first answer in its first round is held for 3 s with autorepeat.
+fn stuck_run() -> Fixture {
+    let mut first = true;
+    guided(plan(&[G, J, E], 3, 10), move |s, key, _| {
+        if key == E && first {
+            first = false;
+            (s.hold(E, ms(3_000), ms(500), ms(33)).wait(ms(200)), false)
+        } else {
+            (normal(s, key), false)
+        }
+    })
+}
+
+// The steps and causes that need a switch pulled from its socket.
+fn pulls_a_switch(f: &Finding) -> Vec<&'static str> {
+    let steps = f.next_tests.iter().filter_map(|t| match t {
+        NextTest::SwapSwitch { .. } => Some("swap"),
+        NextTest::ReseatSwitch { .. } => Some("reseat"),
+        NextTest::BridgeSocket { .. } => Some("bridge"),
+        _ => None,
+    });
+    let causes = f.causes.iter().filter_map(|c| match c {
+        Cause::HotSwapSocket => Some("socket"),
+        Cause::SwitchSeating => Some("seating"),
+        _ => None,
+    });
+    steps.chain(causes).collect()
+}
+
+type Build = fn() -> Fixture;
+
+#[test]
+fn sw06_soldered_and_laptop_boards_get_no_swap_step() {
+    let runs: [(Kind, u16, Build); 3] = [
+        (Kind::Chatter, E, || guided_chatter().1),
+        (Kind::Dead, H, dead_run),
+        (Kind::Stuck, E, stuck_run),
+    ];
+    let mut on_hot_swap = std::collections::BTreeSet::new();
+    for (kind, key, run) in runs {
+        for board in [BoardKind::Soldered, BoardKind::Laptop] {
+            let r = Fixture { board, ..run() }.diagnose();
+            let f = only(&r, kind, key);
+            assert!(!f.next_tests.is_empty(), "{board:?} {f:#?}");
+            assert_eq!(pulls_a_switch(&f), [""; 0], "{board:?} {kind:?}");
+        }
+        // Positive control: the same run on a hot-swap board carries the swap.
+        let r = hot_swap(run()).diagnose();
+        let f = only(&r, kind, key);
+        assert_eq!(partner(&f), Some(G), "{kind:?}");
+        on_hot_swap.extend(pulls_a_switch(&f));
+    }
+    assert_eq!(
+        on_hot_swap.into_iter().collect::<Vec<_>>(),
+        ["bridge", "reseat", "seating", "socket", "swap"]
+    );
 }
