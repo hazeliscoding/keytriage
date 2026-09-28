@@ -48,7 +48,7 @@ struct ReportFolder(std::path::PathBuf);
 
 // The app checks' positive controls leave one protection off, in debug builds only.
 #[cfg(windows)]
-fn positive_control(name: &str) -> bool {
+pub(crate) fn positive_control(name: &str) -> bool {
     cfg!(debug_assertions) && std::env::var_os(name).is_some()
 }
 
@@ -84,6 +84,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         if !positive_control("KEYTRIAGE_BROWSER_KEYS") {
             browser_ui::turn_off(&window)?;
         }
+        test_session::end_with_page(&window)?;
         #[cfg(debug_assertions)]
         echo::start(&window)?;
     }
@@ -97,11 +98,14 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 fn navigation_guard<R: Runtime>() -> TauriPlugin<R> {
     PluginBuilder::new("navigation-guard")
         .on_navigation(|webview, url| {
-            // A Browser Refresh or Back key, or a mouse's side button, reaches WebView2 as
-            // WM_APPCOMMAND, which the browser keys setting doesn't cover. A refused reload keeps the
-            // page and the test.
+            // A reload or history move during a test would drop the page and its view of the
+            // test. The browser keys setting stops the keyboard's own routes, but a page script, a
+            // mouse side button or a runtime that ignores the setting can still navigate. A refused
+            // reload keeps the page and the test.
             #[cfg(windows)]
-            if test_session::running() && !positive_control("KEYTRIAGE_BROWSER_KEYS") {
+            if test_session::running() && !positive_control("KEYTRIAGE_RELOADS") {
+                #[cfg(debug_assertions)]
+                echo::note("kt-shell: navigation-refused");
                 return false;
             }
             let dev_url = if cfg!(dev) {

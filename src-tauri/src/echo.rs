@@ -2,7 +2,9 @@
 // the test's events prints, and page loads and WebView2's browser settings print too, so the checks
 // in scripts/ can prove where input stops and that browser keys do nothing. Only the checks' marker
 // keys, F13 to F15, print their scan code, so real typing never shows up in a terminal or a CI log.
+use std::ffi::c_void;
 use std::io::Write;
+use std::mem::size_of;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use keytriage_input::{keyboards, registrations};
@@ -13,7 +15,9 @@ use crate::test_session::Entry;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2Controller, ICoreWebView2Settings3,
 };
+use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Diagnostics::Debug::GetErrorMode;
+use windows::Win32::UI::Input::{RAWINPUTDEVICE, RAWINPUTDEVICE_FLAGS, RegisterRawInputDevices};
 use windows_core::{BOOL, Interface};
 
 fn enabled() -> bool {
@@ -34,16 +38,33 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
         print_registrations();
         print("kt-input: ready");
     });
-    window.listen_any("test:event", |event| {
+    window.listen_any("test:stopped", |_| print("kt-input: stopped"));
+    let page = window.clone();
+    let hwnd = window.hwnd()?.0 as isize;
+    window.listen_any("test:event", move |event| {
         match serde_json::from_str::<Entry>(event.payload()) {
             Ok(Entry::Key {
                 scan, up, device, ..
-            }) => print(&line(scan, up, device)),
-            Ok(Entry::Paused { interrupted, .. }) => print(&format!(
-                "kt-input: paused registrations={} interrupted={}",
-                registrations().map_or(0, |r| r.len()),
-                interrupted.len()
-            )),
+            }) => {
+                print(&line(scan, up, device));
+                // F16 makes the page reload itself, a navigation that only the navigation guard
+                // can refuse, for the browser keys check.
+                if scan == 0x67 && !up {
+                    let _ = page.eval("location.reload()");
+                }
+            }
+            Ok(Entry::Paused { interrupted, .. }) => {
+                if crate::positive_control("KEYTRIAGE_KEEP_REGISTRATION") {
+                    keep_registration(hwnd);
+                }
+                // A count that can't be read must not look like zero.
+                let count =
+                    registrations().map_or("unreadable".to_string(), |r| r.len().to_string());
+                print(&format!(
+                    "kt-input: paused registrations={count} interrupted={}",
+                    interrupted.len()
+                ));
+            }
             Ok(Entry::Resumed { .. }) => {
                 print("kt-input: resumed");
                 print_registrations();
@@ -91,9 +112,26 @@ pub fn page_load<R: Runtime>(webview: &Webview<R>, payload: &PageLoadPayload<'_>
     }
     if payload.event() == PageLoadEvent::Started {
         print("kt-shell: page-load");
-    } else if !STARTED.swap(true, Ordering::SeqCst) {
-        let _ = webview.eval("window.__TAURI_INTERNALS__.invoke('start_test')");
+    } else if !STARTED.load(Ordering::SeqCst)
+        && webview
+            .eval("window.__TAURI_INTERNALS__.invoke('start_test')")
+            .is_ok()
+    {
+        STARTED.store(true, Ordering::SeqCst);
+        print("kt-shell: start-test sent");
     }
+}
+
+// The focus check's positive control for "no registration while paused": the keyboard is
+// registered again on the app window, still without a sink flag, as a paused capture must not.
+fn keep_registration(hwnd: isize) {
+    let keyboard = RAWINPUTDEVICE {
+        usUsagePage: 0x01,
+        usUsage: 0x06,
+        dwFlags: RAWINPUTDEVICE_FLAGS(0),
+        hwndTarget: HWND(hwnd as *mut c_void),
+    };
+    let _ = unsafe { RegisterRawInputDevices(&[keyboard], size_of::<RAWINPUTDEVICE>() as u32) };
 }
 
 fn settings_line(controller: &ICoreWebView2Controller) -> String {

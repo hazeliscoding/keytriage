@@ -9,6 +9,11 @@ use std::time::Instant;
 use keytriage_input::{Capture, Input};
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, WebviewWindow};
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    COREWEBVIEW2_PROCESS_FAILED_KIND, COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED,
+    COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED,
+};
+use webview2_com::ProcessFailedEventHandler;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
@@ -20,8 +25,9 @@ pub enum Entry {
         // Microseconds since the test started, here and below.
         micros: u64,
     },
-    // Keys still down when the app lost the foreground never report their release, so they are
-    // listed as interrupted rather than left to look stuck.
+    // A key still down when the app lost the foreground may be released while it is away, which
+    // capture never sees, so it is listed as interrupted rather than left to look stuck. If it is
+    // still held at the resume, its release, and any repeats, arrive after Resumed.
     Paused {
         micros: u64,
         interrupted: Vec<HeldKey>,
@@ -80,6 +86,7 @@ impl Recorder {
 struct Session {
     _capture: Capture,
     _entries: Rc<RefCell<Vec<Entry>>>,
+    page: WebviewWindow,
 }
 
 // Capture lives on the window's thread, which is also where Tauri runs synchronous commands.
@@ -96,6 +103,16 @@ pub fn running() -> bool {
 
 #[tauri::command]
 pub fn start_test(window: WebviewWindow) -> Result<(), String> {
+    let started = start(window);
+    // The reason is a Win32 or Tauri error, never key data.
+    #[cfg(debug_assertions)]
+    if let Err(e) = &started {
+        crate::echo::note(&format!("kt-input: start failed: {e}"));
+    }
+    started
+}
+
+fn start(window: WebviewWindow) -> Result<(), String> {
     stop_test();
     let mut recorder = Recorder {
         start: Instant::now(),
@@ -110,21 +127,69 @@ pub fn start_test(window: WebviewWindow) -> Result<(), String> {
         buffer.borrow_mut().push(entry);
     })
     .map_err(|e| e.to_string())?;
+    let open = capture.is_open();
     SESSION.with_borrow_mut(|session| {
         *session = Some(Session {
             _capture: capture,
-            _entries: entries,
+            _entries: entries.clone(),
+            page: window.clone(),
         })
     });
     RUNNING.store(true, Ordering::SeqCst);
     let _ = window.emit("test:started", ());
+    // A test started while the app is in the background begins paused, and says so, so that every
+    // Resumed follows a Paused. Nothing pumps messages between here and Capture::start.
+    if !open {
+        let entry = Entry::Paused {
+            micros: 0,
+            interrupted: Vec::new(),
+        };
+        let _ = window.emit("test:event", &entry);
+        entries.borrow_mut().push(entry);
+    }
     Ok(())
 }
 
 #[tauri::command]
 pub fn stop_test() {
-    SESSION.with_borrow_mut(|session| *session = None);
-    RUNNING.store(false, Ordering::SeqCst);
+    if let Some(session) = SESSION.with_borrow_mut(Option::take) {
+        RUNNING.store(false, Ordering::SeqCst);
+        let _ = session.page.emit("test:stopped", ());
+    }
+}
+
+// A test belongs to the page that started it. If the page's process dies, the test ends, so that
+// capture stops and the refused reloads no longer keep the window on an error page.
+pub fn end_with_page(window: &WebviewWindow) -> tauri::Result<()> {
+    window.with_webview(|webview| {
+        let handler = ProcessFailedEventHandler::create(Box::new(|sender, args| {
+            let mut kind = COREWEBVIEW2_PROCESS_FAILED_KIND::default();
+            if let Some(args) = args {
+                unsafe { args.ProcessFailedKind(&mut kind)? };
+            }
+            if kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
+                || kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED
+            {
+                stop_test();
+                if kind == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED
+                    && let Some(core) = sender
+                {
+                    unsafe { core.Reload()? };
+                }
+            }
+            Ok(())
+        }));
+        let mut token = 0;
+        let watched = unsafe {
+            webview
+                .controller()
+                .CoreWebView2()
+                .and_then(|core| core.add_ProcessFailed(&handler, &mut token))
+        };
+        if let Err(e) = watched {
+            eprintln!("keytriage: could not watch the page for a crash: {e}");
+        }
+    })
 }
 
 #[cfg(test)]
