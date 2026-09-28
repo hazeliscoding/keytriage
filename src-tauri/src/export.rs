@@ -403,6 +403,14 @@ mod tests {
             .push(json!(0));
         let mut named = parsed(&text);
         named["keys"]["0012"]["name"] = json!("E");
+        // The design's export adds the swap's pair and its diagnosis, which name keys in free text.
+        let mut swapped = parsed(&text);
+        swapped["swapTest"] = json!({
+            "suspect": "E",
+            "knownGood": "G",
+            "outcome": "follows",
+            "diagnosis": "The E switch now sits in the G socket, and the fault appeared there.",
+        });
         // A key's position is the one name the file doesn't fix, so a joined or typed one must fail.
         let renamed = |code: &str| {
             let mut file = parsed(&text);
@@ -420,6 +428,7 @@ mod tests {
             (spliced, "file.events is not a saved field"),
             (longer, "keys.0012.hold is not 14 bins"),
             (named, "keys.0012.name is not a saved field"),
+            (swapped, "file.swapTest is not a saved field"),
             (renamed("0012,0022"), "keys.0012,0022 is not a key position"),
             (renamed("E"), "keys.E is not a key position"),
             (renamed("00e0"), "keys.00e0 is not a key position"),
