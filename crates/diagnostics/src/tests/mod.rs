@@ -5,6 +5,7 @@ mod guide;
 mod normalize;
 mod stats;
 mod stuck;
+mod swap;
 mod words;
 
 pub use crate::fixture::{GAP, HOLD, normal};
