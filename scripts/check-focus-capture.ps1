@@ -1,8 +1,10 @@
 #Requires -Version 7
 # Focus check: proves that the app receives Raw Input while its window is in the foreground, and
-# none while another process's window is, when capture pauses and gives up its registration. It
-# injects F13, F14 and F15 by scan code, which nothing in the app or the browser binds, and reads
-# the app's debug echo (src-tauri/src/echo.rs), which starts a test once the page has loaded.
+# none while another process's window is, when capture pauses and gives up its registration. The
+# same holds for the Pause button with the app still in front. It injects F13, F14 and F15 by scan
+# code, which nothing in the app or the browser binds, and reads the app's debug echo
+# (src-tauri/src/echo.rs), which starts a test once the page has loaded. F17 makes the page pause
+# the test and continue it 3 s later, as the Pause and Continue buttons do.
 #
 # Build first with `npm run tauri build -- --debug --no-bundle`. The run takes the foreground and
 # may click the middle of the app window. Don't type while it runs.
@@ -12,22 +14,25 @@
 # the app's process. Users can force either mode, so run both.
 #
 # Exit codes: 0 pass, 1 capture is missing or registered wrongly, 2 inconclusive (a phase could
-# not be set up, so the run proves nothing either way), 3 the app captured in the background, or
-# didn't pause and give up its registration there. -PositiveControl Background keeps the app in
-# front during the background phase and must exit 3 through the background keys; -PositiveControl
-# Registration keeps a registration while paused (KEYTRIAGE_KEEP_REGISTRATION, debug builds only)
-# and must exit 3 through the paused registration.
+# not be set up, so the run proves nothing either way), 3 the app captured in the background or
+# during a user pause, or didn't pause and give up its registration then. -PositiveControl
+# Background keeps the app in front during the background phase and must exit 3 through the
+# background keys; -PositiveControl Registration keeps a registration while paused
+# (KEYTRIAGE_KEEP_REGISTRATION, debug builds only) and must exit 3 through the paused registration;
+# -PositiveControl UserPause keeps capture running through a user pause
+# (KEYTRIAGE_USER_PAUSE_CAPTURES, debug builds only) and must exit 3 through the paused
+# registration.
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\keytriage.exe'),
     [ValidateSet('windowed', 'visual')][string]$Hosting = 'windowed',
-    [ValidateSet('', 'Background', 'Registration')][string]$PositiveControl = '',
+    [ValidateSet('', 'Background', 'Registration', 'UserPause')][string]$PositiveControl = '',
     [int]$Taps = 5,
     [int]$StepTimeoutMs = 5000,
     [int]$StartTimeoutMs = 60000
 )
 $ErrorActionPreference = 'Stop'
 
-$F13 = 0x64; $F14 = 0x65; $F15 = 0x66
+$F13 = 0x64; $F14 = 0x65; $F15 = 0x66; $F17 = 0x68
 
 . (Join-Path $PSScriptRoot 'app-harness.ps1')
 
@@ -47,7 +52,11 @@ function Assert-Registration([IntPtr]$hwnd, [string]$phase) {
 $app = $null
 $probe = $null
 try {
-    $switch = if ($PositiveControl -eq 'Registration') { 'KEYTRIAGE_KEEP_REGISTRATION' } else { $null }
+    $switch = switch ($PositiveControl) {
+        'Registration' { 'KEYTRIAGE_KEEP_REGISTRATION' }
+        'UserPause' { 'KEYTRIAGE_USER_PAUSE_CAPTURES' }
+        default { $null }
+    }
     $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual', $switch)
     Wait-TestStarted $StartTimeoutMs $StepTimeoutMs
     $hwnd = Find-AppWindow $StartTimeoutMs
@@ -99,14 +108,40 @@ try {
     $got = $app.WaitDowns($F15, $Taps, $StepTimeoutMs)
     Assert-Foreground $hwnd 'phase 3'
     if (-not $got) { Stop-Fail "events did not resume ($($app.Downs($F15)) of $Taps)" }
-
     if ($app.Downs($F14) -ne 0) { Stop-Caught "the app received $($app.Downs($F14)) key downs while in the background" }
-    if ($app.OtherDowns -ne 0) { Stop-Inconclusive "$($app.OtherDowns) key downs arrived that the harness did not send" }
+
+    # Phase 4: the user pauses the test with the app still in front. Capture stops and unregisters,
+    # so the app reads none of the keys that reach its page, until Continue registers again.
+    $pauses = $app.Pauses
+    $resumes = $app.Resumes
+    $snapshots = $app.Snapshots
+    $others = $app.OtherDowns
+    Assert-Foreground $hwnd 'phase 4'
+    [void]$W::Tap($F17, 1)
+    if (-not $app.WaitFor({ $app.OtherDowns -gt $others }, $StepTimeoutMs)) { Stop-Fail 'the app in the foreground did not receive F17' }
+    if (-not $app.WaitFor({ $app.Pauses -gt $pauses }, $StepTimeoutMs)) { Stop-Fail 'the test did not pause when the page asked' }
+    if ($app.PausedRegistrations -eq -2) { Stop-Fail 'the app could not read its registrations while paused' }
+    if ($app.PausedRegistrations -ne 0) { Stop-Caught "capture kept $($app.PausedRegistrations) Raw Input registrations through a user pause" }
+    Assert-Foreground $hwnd 'phase 4'
+    [void]$W::Tap($F14, $Taps)
+    if (-not $app.WaitFor({ $app.Resumes -gt $resumes -and $app.Snapshots -gt $snapshots }, $StepTimeoutMs)) {
+        Stop-Fail 'capture did not resume when the page continued the test'
+    }
+    Assert-Registration $hwnd 'phase 4'
+    # As in phase 3, once these arrive any key read during the pause would already be counted.
+    [void]$W::Tap($F15, $Taps)
+    $got = $app.WaitDowns($F15, 2 * $Taps, $StepTimeoutMs)
+    Assert-Foreground $hwnd 'phase 4'
+    if (-not $got) { Stop-Fail "events did not resume after the user pause ($($app.Downs($F15) - $Taps) of $Taps)" }
+    if ($app.Downs($F14) -ne 0) { Stop-Caught "the app received $($app.Downs($F14)) key downs during a user pause" }
+
+    # F17 is the one key down the echo hides.
+    if ($app.OtherDowns -ne 1) { Stop-Inconclusive "$($app.OtherDowns - 1) key downs arrived that the harness did not send" }
     # A test that starts in the background begins paused, so every resume follows a pause.
     if ($app.Resumes -gt $app.Pauses) { Stop-Fail "the app resumed $($app.Resumes) times after only $($app.Pauses) pauses" }
 
     Write-Host "injected keys arrived with device handle $($app.MarkerDevices)"
-    Write-Host ('PASS ({1} hosting): foreground {0}/{0}, paused and unregistered, background 0/{0}, resumed {0}/{0}' -f $Taps, $Hosting)
+    Write-Host ('PASS ({1} hosting): foreground {0}/{0}, paused and unregistered, background 0/{0}, resumed {0}/{0}, user pause 0/{0}, continued {0}/{0}' -f $Taps, $Hosting)
     exit 0
 }
 catch {

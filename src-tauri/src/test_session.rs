@@ -124,13 +124,21 @@ pub fn pause_test() -> Result<(), String> {
         .with_borrow_mut(|session| {
             let s = session.as_mut()?;
             let first = !std::mem::replace(&mut s.user_paused, true);
-            Some(first.then(|| (s.capture.take(), s.core.clone(), s.page.clone())))
+            Some(first.then(|| {
+                let open = s.capture.as_ref().is_some_and(Capture::is_open);
+                // The focus check's positive control for a user pause: capture keeps reading.
+                let capture = if crate::positive_control("KEYTRIAGE_USER_PAUSE_CAPTURES") {
+                    None
+                } else {
+                    s.capture.take()
+                };
+                (capture, open, s.core.clone(), s.page.clone())
+            }))
         })
         .ok_or(NO_TEST)?;
-    let Some((capture, core, page)) = taken else {
+    let Some((capture, open, core, page)) = taken else {
         return Ok(());
     };
-    let open = capture.as_ref().is_some_and(Capture::is_open);
     drop(capture);
     // A capture that a focus loss had closed has already recorded its own pause.
     if open {
@@ -142,17 +150,20 @@ pub fn pause_test() -> Result<(), String> {
 #[tauri::command]
 pub fn continue_test() -> Result<(), String> {
     let found = SESSION
-        .with_borrow(|session| {
-            let s = session.as_ref()?;
+        .with_borrow_mut(|session| {
+            let s = session.as_mut()?;
             Some(
                 s.user_paused
-                    .then(|| (s.core.clone(), s.page.clone(), s.hwnd)),
+                    .then(|| (s.capture.take(), s.core.clone(), s.page.clone(), s.hwnd)),
             )
         })
         .ok_or(NO_TEST)?;
-    let Some((core, page, hwnd)) = found else {
+    let Some((kept, core, page, hwnd)) = found else {
         return Ok(());
     };
+    // Only the user pause positive control leaves a Capture here. Dropping one unregisters Raw
+    // Input for the whole process, so it goes before the new Capture registers.
+    drop(kept);
     let capture = capture(hwnd, &core, &page)?;
     let open = capture.is_open();
     let unused = SESSION.with_borrow_mut(|session| match session {

@@ -52,6 +52,14 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
                 if scan == 0x67 && !up {
                     let _ = page.eval("location.reload()");
                 }
+                // F17 makes the page pause the test and continue it 3 s later, as the Pause and
+                // Continue buttons do, for the focus check's user pause.
+                if scan == 0x68 && !up {
+                    let _ = page.eval(
+                        "window.__TAURI_INTERNALS__.invoke('pause_test').then(() => setTimeout(() => \
+                         window.__TAURI_INTERNALS__.invoke('continue_test'), 3000))",
+                    );
+                }
             }
             Ok(Entry::Paused { interrupted, .. }) => {
                 if crate::positive_control("KEYTRIAGE_KEEP_REGISTRATION") {
@@ -191,7 +199,7 @@ mod tests {
 
     #[test]
     fn hides_every_other_key() {
-        for scan in [0x1e, 0x63, 0x67, 0xe01d, 0xe11d] {
+        for scan in [0x1e, 0x63, 0x67, 0x68, 0xe01d, 0xe11d] {
             assert_eq!(
                 line(scan, false, 0x2a),
                 "kt-input: key=other up=0 device=0x2a"

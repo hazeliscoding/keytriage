@@ -406,6 +406,7 @@ namespace AppHarness
             // change where the crash reports check plants its dump and what it reads.
             var inherited = new[] {
                 "KEYTRIAGE_BROWSER_KEYS", "KEYTRIAGE_RELOADS", "KEYTRIAGE_CRASH_REPORTS", "KEYTRIAGE_KEEP_REGISTRATION",
+                "KEYTRIAGE_USER_PAUSE_CAPTURES",
                 "WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             };
             foreach (var name in inherited)
