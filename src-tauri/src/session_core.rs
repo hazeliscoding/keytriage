@@ -117,6 +117,10 @@ pub fn to_engine(entry: &Entry) -> diagnostics::Entry {
     }
 }
 
+// A click on Skip while the app is in the background first brings the window back, and the resume
+// can reach the page before the click does. A skip this soon after a resume is that click.
+const SKIP_AFTER_RESUME_US: u64 = 500_000;
+
 // One test, as the capture callback and the commands see it: its clock, the ordered events the
 // engine reads at the end, and the guided test with the keyboard and board it is diagnosed for.
 // Nothing here derives Debug, because the entries are the typed text.
@@ -124,6 +128,7 @@ pub struct Core {
     recorder: Recorder,
     entries: Vec<diagnostics::Entry>,
     test: Option<(Guide, Vec<isize>, BoardKind)>,
+    resumed_us: Option<u64>,
 }
 
 impl Core {
@@ -132,6 +137,7 @@ impl Core {
             recorder: Recorder::new(start),
             entries: Vec::new(),
             test,
+            resumed_us: None,
         }
     }
 
@@ -139,6 +145,9 @@ impl Core {
     pub fn input(&mut self, input: Input) -> (Entry, Option<GuideView>) {
         let entry = self.recorder.entry(input);
         let engine = to_engine(&entry);
+        if let diagnostics::Entry::Resumed { micros } = engine {
+            self.resumed_us = Some(micros);
+        }
         let view = self
             .test
             .as_mut()
@@ -151,6 +160,12 @@ impl Core {
     // next key's round at once, which reads as silent.
     pub fn skip(&mut self, at: Instant, round: u16, index: u16) -> Option<GuideView> {
         let at_us = self.recorder.micros(at);
+        if self
+            .resumed_us
+            .is_some_and(|r| at_us.saturating_sub(r) < SKIP_AFTER_RESUME_US)
+        {
+            return None;
+        }
         let (guide, ..) = self.test.as_mut()?;
         let prompt = guide.prompt()?;
         if (prompt.round, prompt.index) != (round, index) {
@@ -570,6 +585,17 @@ mod tests {
         assert!(free.skip(at(start, 2_000_000), 0, 0).is_none());
         assert!(free.test.is_none());
         assert_eq!(free.entries.len(), 1);
+    }
+
+    #[test]
+    fn core05_a_skip_just_after_a_resume_is_the_click_that_brought_the_window_back() {
+        let start = Instant::now();
+        let mut core = Core::new(start, guided(&[E, G], 1, BoardKind::HotSwap));
+        core.input(Input::Paused(at(start, 1_000_000)));
+        core.input(Input::Resumed(at(start, 2_000_000)));
+        assert!(core.skip(at(start, 2_300_000), 0, 0).is_none());
+        let view = core.skip(at(start, 2_600_000), 0, 0).unwrap();
+        assert_eq!((view.key, view.index), (Some(G), 1));
     }
 
     #[test]
