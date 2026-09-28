@@ -1,0 +1,2 @@
+# Rust writes these (src-tauri/src/golden.rs), and a test compares them byte for byte.
+src/app/testing/*.json

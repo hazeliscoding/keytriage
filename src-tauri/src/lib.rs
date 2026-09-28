@@ -9,6 +9,8 @@ mod crash_reports;
 mod echo;
 #[cfg(windows)]
 mod export;
+#[cfg(all(test, windows))]
+mod golden;
 #[cfg(windows)]
 mod save_dialog;
 #[cfg(windows)]

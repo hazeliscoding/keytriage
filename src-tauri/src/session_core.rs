@@ -205,6 +205,14 @@ pub fn input(start: Instant, entry: &diagnostics::Entry) -> Input {
     }
 }
 
+// The rounds the guided test stamped. Taking them ends the Guide, so finish() on the same Core
+// would see none.
+#[cfg(test)]
+pub fn rounds(core: &mut Core, end_us: u64) -> Vec<diagnostics::Round> {
+    let (guide, ..) = core.test.as_mut().expect("a guided test");
+    guide.finish(end_us)
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -418,11 +426,6 @@ mod tests {
             presses: 10,
         };
         Some((Guide::new(plan, &[1]).unwrap(), vec![1], board))
-    }
-
-    fn rounds(core: &mut Core, end_us: u64) -> Vec<Round> {
-        let (guide, ..) = core.test.as_mut().unwrap();
-        guide.finish(end_us)
     }
 
     #[test]

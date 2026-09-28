@@ -51,6 +51,7 @@ The owner brings the UI design. Beyond the M0 placeholder, don't write UI (templ
 
 - `npm start` serves the UI in a browser. `npm run tauri dev` runs the desktop app.
 - `npm test -- --watch=false` runs the UI unit tests. `cargo test --workspace` runs the Rust tests.
+- `src/app/testing/guided-chatter.json` is written by `src-tauri/src/golden.rs`, and the UI tests replay it. After a deliberate change to the engine's words, a payload or the Guide, run `KEYTRIAGE_BLESS=1 cargo test -p keytriage golden` and read the file's diff before committing it, because a careless rewrite hides a changed finding.
 - `cargo clippy --workspace --all-targets -- -D warnings` and `cargo fmt --all --check` lint the Rust code.
 - `npm run tauri build -- --no-bundle` builds the release binary without an installer.
 - `node --test scripts/check-network.test.mjs scripts/check-capture.test.mjs scripts/check-dependencies.test.mjs` runs the guards' positive controls. `node scripts/check-network.mjs --bundle` (after `npm run build`), `node scripts/check-capture.mjs` and `node scripts/check-dependencies.mjs` run the guards.
