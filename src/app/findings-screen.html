@@ -149,7 +149,14 @@
     } @else {
       <div class="meta footer__note">Reports hold per-key counts and timings only.</div>
     }
-    <button type="button" class="btn btn--secondary">Export report</button>
+    <button
+      type="button"
+      class="btn btn--secondary"
+      [disabled]="exporting()"
+      (click)="exportReport()"
+    >
+      Export report
+    </button>
     <button
       type="button"
       class="btn btn--primary"

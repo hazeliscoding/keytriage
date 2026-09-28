@@ -367,4 +367,78 @@ describe('Findings screen', () => {
       expect(all(fixture, '.finding')).toHaveLength(0);
     });
   });
+
+  describe('export', () => {
+    // Ends a test. Each export_report call then waits until the test answers it.
+    async function exporting(): Promise<{
+      fixture: ComponentFixture<App>;
+      answer: (reply: string | null | Error) => Promise<void>;
+    }> {
+      let pending: { done: (name: string | null) => void; fail: (why: string) => void }[] = [];
+      inApp((cmd) => {
+        if (cmd === 'end_test') return FOUND;
+        if (cmd === 'export_report') {
+          return new Promise<string | null>((done, fail) => pending.push({ done, fail }));
+        }
+        return null;
+      });
+      const fixture = await testing([GOLDEN_PLAN]);
+      await click(fixture, button(fixture, 'End test'));
+      const answer = async (reply: string | null | Error) => {
+        const [call] = pending;
+        pending = pending.slice(1);
+        if (reply instanceof Error) call.fail(reply.message);
+        else call.done(reply);
+        await settle(fixture);
+      };
+      return { fixture, answer };
+    }
+
+    const note = (fixture: ComponentFixture<App>) => textOf(fixture, '.footer__note');
+    const status = (fixture: ComponentFixture<App>) => all(fixture, '[role="status"]').map(text);
+
+    it("sends only the file name of the test's start, once, and waits for the dialog", async () => {
+      const { fixture, answer } = await exporting();
+      const exportButton = button(fixture, 'Export report');
+      await click(fixture, exportButton);
+      expect(exportButton.disabled).toBe(true);
+      await click(fixture, exportButton);
+      const args = sent('export_report');
+      expect(args).toHaveLength(1);
+      expect(Object.keys(args[0] as object)).toEqual(['name']);
+      const { name } = args[0] as { name: string };
+      expect(name).toMatch(/^keytriage-\d{4}\.\d{2}\.\d{2}-\d{4}\.json$/);
+      const started = all(fixture, '.summary__item')
+        .map((item) => text(item.children[1]))
+        .find((value) => /^\d{4}\./.test(value));
+      expect(name).toBe(`keytriage-${started?.replace(' ', '-').replace(':', '')}.json`);
+
+      await answer('keytriage-2026.09.28-1412.json');
+      expect(exportButton.disabled).toBe(false);
+      expect(status(fixture)).toEqual(['Saved as keytriage-2026.09.28-1412.json.']);
+    });
+
+    it('changes nothing when the dialog is cancelled', async () => {
+      const { fixture, answer } = await exporting();
+      await click(fixture, button(fixture, 'Export report'));
+      await answer(null);
+      expect(note(fixture)).toBe('Reports hold per-key counts and timings only.');
+      expect(status(fixture)).toEqual([]);
+      await click(fixture, button(fixture, 'Export report'));
+      await answer('keytriage-2026.09.28-1412.json');
+      await click(fixture, button(fixture, 'Export report'));
+      await answer(null);
+      expect(note(fixture)).toBe('Saved as keytriage-2026.09.28-1412.json.');
+      expect(button(fixture, 'Export report').disabled).toBe(false);
+    });
+
+    it('gives the reason when the report cannot be saved', async () => {
+      const { fixture, answer } = await exporting();
+      await click(fixture, button(fixture, 'Export report'));
+      await answer(new Error('The file could not be written.'));
+      expect(status(fixture)).toEqual(['The file could not be written.']);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
+      expect(button(fixture, 'Export report').disabled).toBe(false);
+    });
+  });
 });

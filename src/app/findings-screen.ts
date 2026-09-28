@@ -1,5 +1,6 @@
-import { Component, computed, inject } from '@angular/core';
-import { mmss, pad2, stamp } from './format';
+import { Component, computed, inject, signal } from '@angular/core';
+import { Bridge, reasonOf } from './bridge';
+import { fileName, mmss, pad2, stamp } from './format';
 import { KeyboardDrawing, type CapMark } from './keyboard';
 import { capLabel } from './layout';
 import { TestRun } from './test-run';
@@ -14,6 +15,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 })
 export class FindingsScreen {
   protected readonly run = inject(TestRun);
+  private readonly bridge = inject(Bridge);
+  protected readonly exporting = signal(false);
 
   // Rust sends the findings ordered by confidence, so their numbers follow that order.
   protected readonly cards = computed(() => {
@@ -89,4 +92,22 @@ export class FindingsScreen {
       .filter(Boolean)
       .join(' '),
   );
+
+  // Rust writes the file from its own copy of the saved report. The page sends only a name, which
+  // Rust checks, and a cancelled dialog changes nothing.
+  protected async exportReport(): Promise<void> {
+    const record = this.run.findings();
+    if (!record || this.exporting()) return;
+    // The reply can come after the page moved on, and then it has nothing to say.
+    const shown = () => this.run.screen() === 'findings' && this.run.findings() === record;
+    this.exporting.set(true);
+    try {
+      const saved = await this.bridge.exportReport(fileName(record.started));
+      if (saved !== null && shown()) this.run.note.set(`Saved as ${saved}.`);
+    } catch (error) {
+      if (shown()) this.run.note.set(reasonOf(error));
+    } finally {
+      this.exporting.set(false);
+    }
+  }
 }
