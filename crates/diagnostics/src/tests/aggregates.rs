@@ -172,3 +172,47 @@ fn ag07_the_polling_estimate() {
         PollEstimate::Unknown
     );
 }
+
+#[test]
+fn ag08_a_prompted_key_counts_only_its_own_presses() {
+    let answered = |s: Synth| s.round(E, 12, |s| s.taps(E, 12, HOLD, GAP));
+    let typed = run(answered(Synth::new().taps(E, 3, HOLD, GAP)).taps(E, 4, HOLD, GAP));
+    assert_clean(&typed);
+    let e = typed.saved().keys[&E];
+    assert_eq!((e.downs, e.ups, e.episodes, e.presses), (12, 12, 12, 12));
+    assert_eq!(
+        (e.hold.total(), e.release_gap.total(), e.interval.total()),
+        (12, 11, 11)
+    );
+
+    // A stuck key's hold outside its round is the finding's evidence, so it keeps the whole test.
+    let stuck = run(answered(Synth::new()).down(E).wait(ms(6_000)));
+    assert_eq!(stuck.findings[0].kind(), Kind::Stuck);
+    let e = stuck.saved().keys[&E];
+    assert_eq!((e.episodes, e.unreleased), (13, 1));
+}
+
+#[test]
+fn ag09_chatter_after_a_round_closes_stays_with_its_press() {
+    let (_, f) = crate::fixture::guided_chatter();
+    let after_close = f
+        .entries
+        .iter()
+        .filter(|e| match **e {
+            Entry::Key {
+                scan: E,
+                up: false,
+                micros,
+                ..
+            } => !f.rounds.iter().any(|r| r.key == E && r.contains(micros)),
+            _ => false,
+        })
+        .count();
+    assert_eq!(after_close, 3);
+    let e = f.diagnose().saved().keys[&E];
+    let p = e.prompted.unwrap();
+    assert_eq!((e.downs, p.presses + p.extra_downs), (36, 36));
+    // 11 pairs in each of the 3 rounds, 6 of them 5 ms apart.
+    assert_eq!(e.release_gap.total(), 33);
+    assert_eq!(e.release_gap.0[Histogram::bin(ms(5))], 6);
+}

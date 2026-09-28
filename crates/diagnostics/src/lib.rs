@@ -30,7 +30,7 @@ pub use stats::{rule_of_three_permille, wilson_at_least, wilson_floor_permille};
 pub use words::{Label, Lines, code_label, criteria, hedged};
 
 // Bumped whenever a threshold, bin edge or rule changes, so M4 only compares like with like.
-pub const RULES: u16 = 2;
+pub const RULES: u16 = 3;
 
 pub fn diagnose(session: &Session<'_>) -> Report {
     // A round with no length can't be answered, and would read as silent.
@@ -66,7 +66,8 @@ pub fn diagnose(session: &Session<'_>) -> Report {
         poll,
         ..folded.limits
     };
-    let aggregates = aggregate::build(&folded, &tallies, &dead, &rounds, limits);
+    let beyond = aggregate::beyond_rounds(&findings, &notes);
+    let aggregates = aggregate::build(&folded, &tallies, &dead, &rounds, &beyond, limits);
 
     let flagged: Vec<u16> = findings.iter().map(|f| f.key).collect();
     let partner = notes

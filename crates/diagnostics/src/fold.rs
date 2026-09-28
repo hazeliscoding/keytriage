@@ -46,15 +46,16 @@ enum State {
     Absorbing,
 }
 
+// Every key-down and key-up lands in an episode, in `orphan_ups` or in `after_resume`. The last two
+// keep their times, so a count can be limited to a key's own rounds.
 #[derive(Default)]
 pub(crate) struct Track {
     pub episodes: Vec<Episode>,
     state: State,
     pub downs: Vec<u64>,
-    pub ups: u32,
-    pub orphan_ups: u32,
-    pub after_resume: u32,
-    pub interrupted: u32,
+    pub orphan_ups: Vec<u64>,
+    // Each with whether it was a release.
+    pub after_resume: Vec<(u64, bool)>,
 }
 
 pub(crate) struct Folded {
@@ -128,22 +129,21 @@ pub(crate) fn fold(norm: Normalized, end_us: u64) -> Folded {
             } => {
                 let t = tracks.entry(scan).or_default();
                 if up {
-                    t.ups += 1;
                     match t.state {
                         State::Absorbing => {
                             t.state = State::Idle;
-                            t.after_resume += 1;
+                            t.after_resume.push((at, true));
                         }
                         State::Held(i) => {
                             t.episodes[i].end = End::Up { at, handle };
                             t.state = State::Idle;
                         }
-                        State::Idle => t.orphan_ups += 1,
+                        State::Idle => t.orphan_ups.push(at),
                     }
                 } else {
                     t.downs.push(at);
                     match t.state {
-                        State::Absorbing => t.after_resume += 1,
+                        State::Absorbing => t.after_resume.push((at, false)),
                         State::Held(i) => {
                             let e = &mut t.episodes[i];
                             if at.saturating_sub(e.down) < REPEAT_MIN_DELAY_US {
@@ -172,7 +172,6 @@ pub(crate) fn fold(norm: Normalized, end_us: u64) -> Folded {
                 for t in tracks.values_mut() {
                     if let State::Held(i) = t.state {
                         t.episodes[i].end = End::Interrupted { at };
-                        t.interrupted += 1;
                         t.state = State::Absorbing;
                     }
                 }

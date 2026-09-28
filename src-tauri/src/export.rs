@@ -362,8 +362,10 @@ pub fn no_sequence(text: &str) -> Result<(), String> {
 mod tests {
     use std::time::Instant;
 
-    use keytriage_diagnostics::fixture::{Fixture, GAP, HOLD, Synth, guided_chatter, interleaved};
-    use keytriage_diagnostics::{Entry, Guide};
+    use keytriage_diagnostics::fixture::{
+        Fixture, GAP, HOLD, Synth, guided, guided_chatter, interleaved, ms, normal,
+    };
+    use keytriage_diagnostics::{Entry, Guide, Plan};
     use serde_json::{Value, json};
 
     use super::*;
@@ -459,6 +461,44 @@ mod tests {
         assert!(text.contains(r#""0012""#));
         assert!(!text.contains("0025"));
         assert_eq!(no_sequence(&text), Ok(()));
+    }
+
+    // The app prompts every plain key, so free typing lands on prompted keys too. Presses of H
+    // and U outside their own rounds, before H's first round and during other keys' rounds, must
+    // leave the file as it was. The quiet run waits as long as the typing took.
+    #[test]
+    fn ns04_typing_on_prompted_keys_outside_their_rounds_stays_out_of_the_file() {
+        const H: u16 = 0x23;
+        const U: u16 = 0x16;
+        let run = |typed: bool| {
+            let tap = |s: Synth, key: u16| {
+                if typed {
+                    s.press(key, ms(100)).wait(ms(200))
+                } else {
+                    s.wait(ms(300))
+                }
+            };
+            let plan = Plan {
+                keys: vec![E, H, U],
+                rounds: 3,
+                presses: 10,
+            };
+            let f = guided(plan, |s, key, n| {
+                let mut s = normal(s, key);
+                if n == 3 {
+                    match key {
+                        E => s = tap(tap(tap(s, H), U), H),
+                        U => s = tap(s, H),
+                        _ => {}
+                    }
+                }
+                (s, false)
+            });
+            report_json(&f.diagnose().saved())
+        };
+        let (quiet, typed) = (run(false), run(true));
+        assert!(typed.contains(r#""0023""#) && typed.contains(r#""0016""#));
+        assert_eq!(typed, quiet);
     }
 
     #[test]

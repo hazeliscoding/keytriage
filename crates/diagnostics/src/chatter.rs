@@ -65,6 +65,9 @@ pub(crate) struct Tally {
     pub gap: Option<(u64, u64)>,
     pub fragment: Option<(u64, u64)>,
     pub tapped: bool,
+    // For each episode, which of the key's own rounds its press began in. A press's chatter
+    // belongs to it, even when it lands after the round has closed.
+    pub round_of: Vec<Option<usize>>,
 }
 
 fn widen(range: &mut Option<(u64, u64)>, v: u64) {
@@ -99,6 +102,7 @@ pub(crate) fn tally(f: &Folded, rounds: &[Round]) -> BTreeMap<u16, Tally> {
         let eps = &track.episodes;
         let mut t = Tally {
             tapped: tapped(f, eps),
+            round_of: vec![None; eps.len()],
             ..Tally::default()
         };
         let mut links: Vec<Link> = eps
@@ -140,7 +144,7 @@ pub(crate) fn tally(f: &Folded, rounds: &[Round]) -> BTreeMap<u16, Tally> {
         let mut affected = vec![false; own.len()];
         let mut i = 0;
         while i < eps.len() {
-            let start = eps[i].down;
+            let (first, start) = (i, eps[i].down);
             let mut size = 1u32;
             let (mut gap, mut fragment) = (None, None);
             while i + 1 < eps.len() {
@@ -176,6 +180,7 @@ pub(crate) fn tally(f: &Folded, rounds: &[Round]) -> BTreeMap<u16, Tally> {
                 }
             }
             let hit = size > 1;
+            t.round_of[first..=i].fill(own.iter().position(|r| r.contains(start)));
             for counts in [
                 &mut t.all,
                 if prompted(start) {
