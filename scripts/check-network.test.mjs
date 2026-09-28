@@ -13,6 +13,7 @@ import {
   checkCsp,
   hasNavigationGuard,
   scanCargoTree,
+  scanCss,
   scanPackageLock,
   scanSource,
 } from './check-network.mjs';
@@ -52,6 +53,37 @@ test('the bundle scan catches fetch as a value and shows where', () => {
 
 test('reports the line number', () => {
   assert.deepEqual(scanSource('const a = 1;\n\nfetch(u);'), [{ line: 3, name: 'fetch(' }]);
+});
+
+test('flags each remote CSS import and url once', () => {
+  const samples = [
+    "@import url('https://fonts.googleapis.com/css2?family=Public+Sans');",
+    "@import 'http://x/y.css';",
+    '@import"https://fonts.googleapis.com/css2?family=Public+Sans";',
+    '@IMPORT URL( "wss://x/y.css" );',
+    'src: url(//cdn.example.com/x.woff2) format("woff2");',
+    'background: url("https://x/y.woff2");',
+    "styles: ['.a { background: url( ws://x/y.png ) }'],",
+  ];
+  for (const s of samples) assert.equal(scanCss(s).length, 1, s);
+});
+
+test('ignores local files, data URIs and lookalikes in CSS', () => {
+  const samples = [
+    'src: url(./files/public-sans-latin-400-normal.woff2) format("woff2");',
+    'src: url(media/x.woff2);',
+    "@import './tokens.css';",
+    `.radio { background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>"); }`,
+    "const page = curl('https://example.com');",
+  ];
+  for (const s of samples) assert.deepEqual(scanCss(s), [], s);
+});
+
+test('the CSS scan reports the line and shows where in a minified line', () => {
+  assert.deepEqual(scanCss('a{}\n\n@import "https://x/y.css";').map((h) => h.line), [3]);
+  const [hit, ...rest] = scanCss('@font-face{font-family:A;src:url(//cdn.example.com/x.woff2) format("woff2"),url(./a.woff2)}');
+  assert.deepEqual(rest, []);
+  assert.match(hit.context, /src:url\(\/\/cdn\.example\.com\/x\.woff2\)/);
 });
 
 test('flags Rust sockets, but not in comments', () => {
@@ -147,6 +179,33 @@ test('the CLI fails on networking an npm package brought into the bundle', () =>
     const result = run(root);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /networking API fetch in the built bundle, near: var f=fetch/);
+  });
+});
+
+test('the CLI fails on a remote import in the built CSS and passes local fonts', () => {
+  withFixture((root) => {
+    writeFileSync(join(root, 'dist/app/browser/styles.css'), '@font-face{font-family:A;src:url(media/a.woff2)}\n');
+    assert.equal(run(root, '--bundle').status, 0);
+    writeFileSync(join(root, 'dist/app/browser/styles.css'), '@import"https://fonts.googleapis.com/css2?family=Public+Sans";\n');
+    const result = run(root, '--bundle');
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /dist\/app\/browser\/styles\.css:1 {2}remote CSS import or url in the built bundle, near: @import"https:\/\/fonts/,
+    );
+  });
+});
+
+test('the CLI fails on remote CSS in source styles and in styles compiled into the bundle', () => {
+  withFixture((root) => {
+    writeFileSync(join(root, 'src/styles.css'), "@import url('https://fonts.googleapis.com/css2?family=Public+Sans');\n");
+    writeFileSync(join(root, 'src/app/card.ts'), "export const styles = [\n  '.a { background: url(//cdn.example.com/a.png) }',\n];\n");
+    writeFileSync(join(root, 'dist/app/browser/main.js'), 'var s=[".a[_ngcontent-%COMP%]{background:url(https://x/y.png)}"];\n');
+    const result = run(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /src\/styles\.css:1 {2}remote CSS import or url\n/);
+    assert.match(result.stderr, /src\/app\/card\.ts:2 {2}remote CSS import or url\n/);
+    assert.match(result.stderr, /main\.js:1 {2}remote CSS import or url in the built bundle, near: .*background:url\(https:/);
   });
 });
 

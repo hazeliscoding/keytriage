@@ -1,5 +1,6 @@
-// Network guard: fails when networking code, a network dependency, a permissive CSP or a missing
-// navigation guard appears. It enforces the "no network" line of the privacy contract in README.md.
+// Network guard: fails when networking code, a network dependency, a remote stylesheet or font, a
+// permissive CSP or a missing navigation guard appears. It enforces the "no network" line of the
+// privacy contract in README.md.
 //
 // Limits: it matches names, not behavior. A dependency that opens sockets under a name not listed
 // here, a child process that reaches the network, code generated at build time and deliberate
@@ -23,6 +24,10 @@ const WEB_APIS = [
 export const BUNDLE_APIS = WEB_APIS.map((api) =>
   api.name === 'fetch(' ? { pattern: /\bfetch\b/, name: 'fetch' } : api,
 );
+
+// The CSP stops a remote stylesheet or font only inside the app. `npm start` serves the page to a
+// browser with no CSP. The minifier drops the space in `@import "…"`.
+const REMOTE_CSS = /(?:@import\s*(?:url\(\s*)?|\burl\(\s*)['"]?\s*(?:https?:|wss?:|\/\/)/gi;
 
 export const RUST_APIS = [
   { pattern: /\bstd::net\b/, name: 'std::net' },
@@ -71,6 +76,17 @@ export function scanSource(text, apis = WEB_APIS) {
         hit.context = line.slice(Math.max(0, match.index - 40), match.index + 40).trim();
       }
       hits.push(hit);
+    }
+  });
+  return hits;
+}
+
+export function scanCss(text) {
+  const hits = [];
+  text.split('\n').forEach((line, i) => {
+    for (const match of line.matchAll(REMOTE_CSS)) {
+      const context = line.slice(Math.max(0, match.index - 40), match.index + 60).trim();
+      hits.push({ line: i + 1, name: 'remote CSS import or url', context });
     }
   });
   return hits;
@@ -154,10 +170,14 @@ export function check(root, { requireBundle = false } = {}) {
   const report = (file, line, message) =>
     errors.push({ file: relative(root, file).replaceAll('\\', '/') || '.', line, message });
 
-  for (const file of filesUnder(join(root, 'src'), ['.ts', '.js', '.mjs', '.html'])) {
-    for (const hit of scanSource(readFileSync(file, 'utf8'))) {
-      report(file, hit.line, `networking API ${hit.name}`);
+  // Components and templates can hold their styles inline, and component styles compile into the
+  // JavaScript bundle, so the CSS scan reads every file the page is built from.
+  for (const file of filesUnder(join(root, 'src'), ['.ts', '.js', '.mjs', '.html', '.css'])) {
+    const text = readFileSync(file, 'utf8');
+    if (extname(file) !== '.css') {
+      for (const hit of scanSource(text)) report(file, hit.line, `networking API ${hit.name}`);
     }
+    for (const hit of scanCss(text)) report(file, hit.line, hit.name);
   }
 
   const conf = join(root, 'src-tauri/tauri.conf.json');
@@ -171,9 +191,15 @@ export function check(root, { requireBundle = false } = {}) {
     if (filesUnder(bundle, ['.map']).length) {
       report(bundle, 1, 'the built bundle is a development build; run npm run build first');
     } else {
-      for (const file of filesUnder(bundle, ['.js', '.mjs', '.html'])) {
-        for (const hit of scanSource(readFileSync(file, 'utf8'), BUNDLE_APIS)) {
-          report(file, hit.line, `networking API ${hit.name} in the built bundle, near: ${hit.context}`);
+      for (const file of filesUnder(bundle, ['.js', '.mjs', '.html', '.css'])) {
+        const text = readFileSync(file, 'utf8');
+        if (extname(file) !== '.css') {
+          for (const hit of scanSource(text, BUNDLE_APIS)) {
+            report(file, hit.line, `networking API ${hit.name} in the built bundle, near: ${hit.context}`);
+          }
+        }
+        for (const hit of scanCss(text)) {
+          report(file, hit.line, `${hit.name} in the built bundle, near: ${hit.context}`);
         }
       }
     }
