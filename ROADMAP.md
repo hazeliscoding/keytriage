@@ -131,7 +131,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - `_ds/` holds the directive//01 tokens and components it builds on.
 
   The design runtime (`support.js`) is left out, because it loads React from a CDN. The mockups name Google Fonts and the design system suggests Lucide from a CDN. The app instead bundles the WOFF2 fonts, as the specification says, and uses no icon set. The demo's findings and export are stand-ins; the app shows the engine's findings and exports `Report::saved()`.
-- [ ] Pick a keyboard and a generic layout: ANSI or ISO, in full size, TKL, 75%, 65% or 60%.
+- [x] Pick a keyboard and a generic layout: ANSI or ISO, in full size, TKL, 75%, 65% or 60%. The Start screen lists keyboards by device, and any entry picks all of that device's entries.
 - [ ] Live event view on screen, drawn from the `test:event` events.
 - [ ] Guided key test: press a key N times over several rounds, with live counts.
 - [ ] Findings list, with the flagged keys shown on the keyboard.
