@@ -241,9 +241,11 @@ export class TestRun {
     }
   }
 
-  // A failure leaves the test running, with the reason in the footer.
-  async end(): Promise<void> {
-    if (this.screen() !== 'test' || this.ending()) return;
+  // A failure leaves the test running, with the reason in the footer. Rust starts a test well within
+  // a double click, so the second click on Begin test, Test again or the swap test's start lands on
+  // End test and is dropped here: it would end the test with nothing pressed.
+  async end(clicks = 1): Promise<void> {
+    if (this.screen() !== 'test' || clicks > 1 || this.ending()) return;
     this.ending.set(true);
     this.note.set('');
     const duration = Math.floor(this.spent() / 1000);

@@ -167,6 +167,20 @@ describe('Swap screen', () => {
       await nthClick(fixture, button(fixture, 'Switches swapped. Test both keys'), 1);
       expect(sent('start_swap_test')).toEqual([{}]);
     });
+
+    it("drops the second click of a double click on the retest's start, which lands on End test", async () => {
+      const fixture = await instructed();
+      await nthClick(fixture, button(fixture, 'Switches swapped. Test both keys'), 1);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      await nthClick(fixture, button(fixture, 'End test'), 2);
+      // Only the main test ended.
+      expect(sent('end_test')).toHaveLength(1);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      expect(textOf(fixture, '.header__capture')).toBe('● Capturing');
+      // Control: a click of its own ends the retest.
+      await nthClick(fixture, button(fixture, 'End test'), 1);
+      expect(sent('end_test')).toHaveLength(2);
+    });
   });
 
   describe('failures and re-finding the keyboard', () => {

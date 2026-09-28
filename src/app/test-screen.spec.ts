@@ -13,6 +13,7 @@ import {
   inApp,
   key,
   leaveApp,
+  nthClick,
   offered,
   render,
   send,
@@ -399,6 +400,15 @@ describe('Test screen', () => {
         if (detail === 1) await send(fixture, 'test:guide', { ...VIEW, index: 1 });
       }
       expect(sent('skip_key')).toEqual([{ round: 0, index: 0 }]);
+    });
+
+    it('drops the second click of a double click on Begin test, which lands on End test', async () => {
+      const fixture = await render();
+      await nthClick(fixture, button(fixture, 'Begin test'), 1);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      await nthClick(fixture, button(fixture, 'End test'), 2);
+      expect(sent('end_test')).toEqual([]);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
     });
 
     it('lets a click that began in a focus pause only bring the window back', async () => {
