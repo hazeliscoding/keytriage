@@ -1,6 +1,6 @@
 #Requires -Version 7
 # Focus check: proves that the app receives Raw Input while its window is in the foreground, and
-# none while another process's window is. It injects F13, F14 and F15 by scan code, which nothing
+# none while another process's window is, when capture pauses and gives up its registration. It injects F13, F14 and F15 by scan code, which nothing
 # in the app or the browser binds, and reads the app's debug echo (src-tauri/src/echo.rs).
 #
 # Build first with `npm run tauri build -- --debug --no-bundle`. The run takes the foreground and
@@ -35,6 +35,11 @@ try {
 
     $hwnd = Find-AppWindow $StartTimeoutMs
 
+    # Phase 1: the app is in the foreground with focus inside the WebView2 content. Capture
+    # registers, if it didn't at the start of the test, and events arrive.
+    Enter-App $hwnd
+    if (-not $app.WaitFor({ $app.Registrations.Count -ge 1 }, $StepTimeoutMs)) { Stop-Fail 'capture did not register with the app in the foreground' }
+
     # Registration is per process and the last call wins, so the process must hold exactly one:
     # the keyboard, aimed at the app window, with no sink flag (RIDEV_INPUTSINK 0x100,
     # RIDEV_EXINPUTSINK 0x1000).
@@ -45,17 +50,16 @@ try {
     if ($reg.Flags -band 0x1100) { Stop-Fail ('the registration flags 0x{0:x} include an input sink' -f $reg.Flags) }
     if ($reg.Target -ne $hwnd.ToInt64()) { Stop-Fail 'the registration does not target the app window' }
     Write-Host ('registration: keyboard, flags 0x{0:x}, targets the app window' -f $reg.Flags)
-
-    # Phase 1: the app is in the foreground with focus inside the WebView2 content. Events arrive.
-    Enter-App $hwnd
     Assert-Foreground $hwnd 'phase 1'
     if ($W::Tap($F13, $Taps) -ne 2 * $Taps) { Stop-Inconclusive 'SendInput was blocked (UIPI or a secure desktop)' }
     $got = $app.WaitDowns($F13, $Taps, $StepTimeoutMs)
     Assert-Foreground $hwnd 'phase 1'
     if (-not $got) { Stop-Fail "the app in the foreground received $($app.Downs($F13)) of $Taps key downs" }
 
-    # Phase 2: another process's window is in the foreground. The probe sees every key; the app
-    # must see none.
+    # Phase 2: another process's window is in the foreground. Capture pauses and unregisters. The
+    # probe sees every key; the app must see none.
+    $pauses = $app.Pauses
+    $resumes = $app.Resumes
     if ($PositiveControl) {
         [void]$W::Tap($F14, $Taps)
         [void]$app.WaitDowns($F14, $Taps, $StepTimeoutMs)
@@ -67,12 +71,17 @@ try {
         [void]$W::Tap($F14, $Taps)
         if (-not $probe.WaitCount($Taps, $StepTimeoutMs)) { Stop-Inconclusive "the probe window received $($probe.Count) of $Taps key downs" }
         Assert-Foreground $probe.Hwnd 'phase 2'
+        if (-not $app.WaitFor({ $app.Pauses -gt $pauses }, $StepTimeoutMs)) { Stop-Caught 'capture did not pause when the app lost the foreground' }
+        if ($app.PausedRegistrations -ne 0) { Stop-Caught "capture kept $($app.PausedRegistrations) Raw Input registrations while paused" }
     }
 
     # Phase 3: back to the app. The harness owns the foreground now, so a plain activation works.
     # WM_INPUT is queued in order, so once these arrive, any phase 2 event would already have
     # been counted.
     Enter-Foreground $hwnd 'the app'
+    if (-not $PositiveControl -and -not $app.WaitFor({ $app.Resumes -gt $resumes -and $app.Registrations.Count -eq 1 }, $StepTimeoutMs)) {
+        Stop-Fail 'capture did not resume when the app came back'
+    }
     [void]$W::Tap($F15, $Taps)
     $got = $app.WaitDowns($F15, $Taps, $StepTimeoutMs)
     Assert-Foreground $hwnd 'phase 3'
@@ -82,7 +91,7 @@ try {
     if ($app.OtherDowns -ne 0) { Stop-Inconclusive "$($app.OtherDowns) key downs arrived that the harness did not send" }
 
     Write-Host "injected keys arrived with device handle $($app.MarkerDevices)"
-    Write-Host ('PASS ({1} hosting): foreground {0}/{0}, background 0/{0}, resumed {0}/{0}' -f $Taps, $Hosting)
+    Write-Host ('PASS ({1} hosting): foreground {0}/{0}, paused and unregistered, background 0/{0}, resumed {0}/{0}' -f $Taps, $Hosting)
     exit 0
 }
 catch {

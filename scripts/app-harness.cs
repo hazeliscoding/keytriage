@@ -361,6 +361,8 @@ namespace AppHarness
         string settings;
         long errorMode = -1;
         bool crashWatch;
+        int pauses, resumes, pausedRegistrations = -1;
+        static readonly Regex PausedLine = new Regex(@"^kt-input: paused registrations=(\d+) interrupted=(\d+)$");
 
         [DllImport("kernel32.dll")] static extern uint SetErrorMode(uint mode);
 
@@ -408,6 +410,10 @@ namespace AppHarness
                 if (line == "kt-input: ready") { ready = true; return; }
                 if (line == "kt-shell: page-load") { pageLoads++; return; }
                 if (line == "kt-shell: crash-watch=ok") { crashWatch = true; return; }
+                if (line.StartsWith("kt-input: registrations n=")) { registrations.Clear(); return; }
+                if (line == "kt-input: resumed") { resumes++; return; }
+                var p = PausedLine.Match(line);
+                if (p.Success) { pauses++; pausedRegistrations = int.Parse(p.Groups[1].Value); return; }
                 if (line.StartsWith("kt-shell: error-mode=0x")) { errorMode = Hex(line.Substring("kt-shell: error-mode=0x".Length)); return; }
                 if (line.StartsWith("kt-shell: browser-keys=") || line.StartsWith("kt-shell: settings unreadable"))
                 {
@@ -443,6 +449,10 @@ namespace AppHarness
         // The app's process error mode as it reported it, or -1 before it does.
         public long ErrorMode { get { lock (gate) return errorMode; } }
         public bool CrashWatch { get { lock (gate) return crashWatch; } }
+        public int Pauses { get { lock (gate) return pauses; } }
+        public int Resumes { get { lock (gate) return resumes; } }
+        // How many Raw Input registrations the process held at its last pause, or -1 before one.
+        public int PausedRegistrations { get { lock (gate) return pausedRegistrations; } }
 
         public bool WaitFor(Func<bool> done, int timeoutMs)
         {
