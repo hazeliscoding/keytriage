@@ -6,6 +6,7 @@ mod stats;
 mod stuck;
 mod words;
 
+pub use crate::fixture::{GAP, HOLD, normal};
 use crate::fixture::{Synth, ms};
 use crate::*;
 
@@ -24,9 +25,6 @@ pub const LCTRL: u16 = 0x1D;
 pub const INSERT: u16 = 0xE052;
 pub const BACKSLASH: u16 = 0x2B;
 pub const ISO_BACKSLASH: u16 = 0x56;
-
-pub const HOLD: (u64, u64) = (ms(80), ms(130));
-pub const GAP: (u64, u64) = (ms(150), ms(250));
 
 pub fn run(s: Synth) -> Report {
     s.build().diagnose()
@@ -52,10 +50,6 @@ pub fn chatter_of(f: &Finding) -> ChatterEvidence {
         Evidence::Chatter(e) => e,
         _ => panic!("not chatter: {f:#?}"),
     }
-}
-
-pub fn normal(s: Synth, scan: u16) -> Synth {
-    s.taps(scan, 1, HOLD, GAP)
 }
 
 // Answered rounds of G and J, so two other keys count as tested.

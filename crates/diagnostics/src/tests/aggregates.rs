@@ -1,59 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
-use crate::fixture::Fixture;
-
-// Each key's own timeline, shifted as a whole by a seeded offset. Only how keys interleave changes.
-fn interleaved(seed: u64) -> Fixture {
-    let parts = [
-        {
-            let mut s = Synth::new();
-            for p in 0..40 {
-                s = if p % 7 == 2 {
-                    s.fragments(E, &[ms(5), ms(5), ms(100)]).wait(ms(200))
-                } else {
-                    normal(s, E)
-                };
-            }
-            s
-        },
-        Synth::new().taps(K, 40, (ms(40), ms(120)), (ms(40), ms(250))),
-        Synth::new().taps(F, 40, (ms(5), ms(120)), (ms(10), ms(250))),
-    ];
-    let mut x = seed | 1;
-    let mut all = Vec::new();
-    for part in parts {
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        let offset = x % ms(5_000);
-        for e in part.end_now().entries {
-            if let Entry::Key {
-                scan,
-                up,
-                device,
-                micros,
-            } = e
-            {
-                all.push(Entry::Key {
-                    scan,
-                    up,
-                    device,
-                    micros: micros + offset,
-                });
-            }
-        }
-    }
-    all.sort_by_key(Entry::micros);
-    let end_us = all.last().map_or(0, Entry::micros) + ms(100);
-    Fixture {
-        entries: all,
-        rounds: Vec::new(),
-        end_us,
-        keyboard: vec![1],
-        board: BoardKind::Unknown,
-    }
-}
+use crate::fixture::{Fixture, interleaved};
 
 fn order_free<T: PartialEq>(f: impl Fn(&Fixture) -> T) -> bool {
     let first = f(&interleaved(1));

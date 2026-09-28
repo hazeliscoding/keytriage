@@ -8,6 +8,14 @@ pub const fn ms(n: u64) -> u64 {
     n * 1_000
 }
 
+// A deliberate press: a finger-length hold, then a gap no chatter reaches.
+pub const HOLD: (u64, u64) = (ms(80), ms(130));
+pub const GAP: (u64, u64) = (ms(150), ms(250));
+
+pub fn normal(s: Synth, scan: u16) -> Synth {
+    s.taps(scan, 1, HOLD, GAP)
+}
+
 #[derive(Clone)]
 pub struct Synth {
     entries: Vec<Entry>,
@@ -295,6 +303,61 @@ impl Synth {
         self.seed ^= self.seed >> 7;
         self.seed ^= self.seed << 17;
         lo + self.seed % (hi - lo + 1)
+    }
+}
+
+// Each key's own timeline, shifted as a whole by a seeded offset. Only how keys interleave changes.
+pub fn interleaved(seed: u64) -> Fixture {
+    const E: u16 = 0x12;
+    const K: u16 = 0x25;
+    const F: u16 = 0x21;
+    let parts = [
+        {
+            let mut s = Synth::new();
+            for p in 0..40 {
+                s = if p % 7 == 2 {
+                    s.fragments(E, &[ms(5), ms(5), ms(100)]).wait(ms(200))
+                } else {
+                    normal(s, E)
+                };
+            }
+            s
+        },
+        Synth::new().taps(K, 40, (ms(40), ms(120)), (ms(40), ms(250))),
+        Synth::new().taps(F, 40, (ms(5), ms(120)), (ms(10), ms(250))),
+    ];
+    let mut x = seed | 1;
+    let mut all = Vec::new();
+    for part in parts {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        let offset = x % ms(5_000);
+        for e in part.end_now().entries {
+            if let Entry::Key {
+                scan,
+                up,
+                device,
+                micros,
+            } = e
+            {
+                all.push(Entry::Key {
+                    scan,
+                    up,
+                    device,
+                    micros: micros + offset,
+                });
+            }
+        }
+    }
+    all.sort_by_key(Entry::micros);
+    let end_us = all.last().map_or(0, Entry::micros) + ms(100);
+    Fixture {
+        entries: all,
+        rounds: Vec::new(),
+        end_us,
+        keyboard: vec![1],
+        board: BoardKind::Unknown,
     }
 }
 
