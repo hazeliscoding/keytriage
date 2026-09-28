@@ -252,14 +252,15 @@ describe('Test screen', () => {
         round: 1,
         index: 3,
         keys: 47,
-        done: 120,
+        // Every closed step counts in full: 47 keys in round 1, then 3 in round 2.
+        done: 500,
         total: 1410,
       });
       expect(textOf(fixture, '.prompt__ask')).toBe('Press G ten times.');
       expect(textOf(fixture, '.prompt__count')).toBe('0 / 10');
       expect(progress(fixture)).toEqual([
         ['Round 2 of 3', 'Key 4 of 47'],
-        ['Elapsed 00:00', '120 of 1 410 presses'],
+        ['Elapsed 00:00', '500 of 1 410 presses'],
       ]);
     });
 
@@ -271,14 +272,7 @@ describe('Test screen', () => {
 
     it('draws each counted key with its tally, and the prompted key over them', async () => {
       const fixture = await testing();
-      await send(fixture, 'test:guide', {
-        ...VIEW,
-        key: G,
-        tallies: [
-          [E, 6],
-          [G, 0],
-        ],
-      });
+      await send(fixture, 'test:guide', { ...VIEW, key: G, tallies: [[E, 6]] });
       expect(state(fixture, E)).toBe('cap cap--counted');
       expect(count(fixture, E)).toBe('6');
       expect(state(fixture, G)).toBe('cap cap--prompted');

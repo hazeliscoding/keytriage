@@ -6,7 +6,6 @@ import {
   inApp,
   key,
   leaveApp,
-  press,
   render,
   replay,
   text,
@@ -25,9 +24,11 @@ const RESULT: TestResult = {
   resolution: '',
 };
 
-// A short synthetic test of G, 2 presses in 1 round: a press, injected input, another keyboard, a
-// focus loss that repeats the round, then the presses that finish it.
-function view(count: number, done: number, next: number | null = G): GuideView {
+// A short synthetic test of G, 2 presses in 1 round, in the order Rust emits it: a press, injected
+// input, another keyboard, a focus loss that repeats the round, then the presses that finish it.
+// Rust's `done` includes the open round's count, and its tallies hold only keys that sent a
+// key-down.
+function view(count: number, done = count, next: number | null = G): GuideView {
   return {
     key: next,
     asked: 2,
@@ -38,29 +39,39 @@ function view(count: number, done: number, next: number | null = G): GuideView {
     keys: 1,
     done,
     total: 2,
-    tallies: [[G, done + count]],
+    tallies: done ? [[G, done]] : [],
   };
 }
 const events = (...list: Parameters<typeof key>[]): Emitted[] =>
   list.map((args) => ({ event: 'test:event', payload: key(...args) }));
-const pressed = (micros: number): Emitted[] =>
-  press(G, OWN, micros).map((payload) => ({ event: 'test:event', payload }));
+const guide = (payload: GuideView): Emitted => ({ event: 'test:guide', payload });
 const SCRIPT: Emitted[] = [
-  { event: 'test:guide', payload: view(0, 0) },
-  ...pressed(1_000_000),
-  { event: 'test:guide', payload: view(1, 0) },
+  guide(view(0)),
+  ...events([G, false, OWN, 1_000_000]),
+  guide(view(1)),
+  ...events([G, true, OWN, 1_060_000]),
   ...events([E, false, 0, 1_500_000], [E, true, 0, 1_550_000], [E, false, 21, 1_600_000]),
   ...events([0x38, false, OWN, 1_900_000]),
+  // The pause lists every key still down, on any keyboard.
   {
     event: 'test:event',
-    payload: { kind: 'paused', micros: 2_000_000, interrupted: [{ device: OWN, scan: 0x38 }] },
+    payload: {
+      kind: 'paused',
+      micros: 2_000_000,
+      interrupted: [
+        { device: OWN, scan: 0x38 },
+        { device: 21, scan: E },
+      ],
+    },
   },
-  { event: 'test:guide', payload: view(0, 0) },
+  guide(view(0)),
   { event: 'test:event', payload: { kind: 'resumed', micros: 3_000_000 } },
-  ...pressed(3_500_000),
-  { event: 'test:guide', payload: view(1, 0) },
-  ...pressed(4_000_000),
-  { event: 'test:guide', payload: view(0, 2, null) },
+  ...events([G, false, OWN, 3_500_000]),
+  guide(view(1)),
+  ...events([G, true, OWN, 3_560_000], [G, false, OWN, 4_000_000]),
+  guide(view(2)),
+  ...events([G, true, OWN, 4_060_000]),
+  guide(view(0, 2, null)),
 ];
 
 const READABLE = [

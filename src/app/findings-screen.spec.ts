@@ -95,17 +95,22 @@ const CLEAN: TestResult = {
   resolution: 'Timing resolution for this keyboard is 4 ms or finer.',
 };
 
+// The golden run's last view. Once the plan is done, round and index stay on its last step.
 const DONE: GuideView = {
   key: null,
   asked: 10,
   count: 0,
-  round: 3,
+  round: 2,
   rounds: 3,
-  index: 0,
+  index: 2,
   keys: 3,
   done: 90,
   total: 90,
-  tallies: [],
+  tallies: [
+    [E, 35],
+    [G, 30],
+    [0x24, 30],
+  ],
 };
 
 const GOLDEN_PLAN = {
@@ -315,13 +320,13 @@ describe('Findings screen', () => {
 
     it('stays on the test with the reason when the test cannot end', async () => {
       inApp((cmd) => {
-        if (cmd === 'end_test') throw 'The test has no plan.';
+        if (cmd === 'end_test') throw 'This test has no plan to diagnose.';
         return null;
       });
       const fixture = await testing([GOLDEN_PLAN]);
       await click(fixture, button(fixture, 'End test'));
       expect(textOf(fixture, '.steps__now')).toBe('02 Test');
-      expect(textOf(fixture, '.footer__note')).toBe('The test has no plan.');
+      expect(textOf(fixture, '.footer__note')).toBe('This test has no plan to diagnose.');
       expect(button(fixture, 'End test').disabled).toBe(false);
     });
   });
