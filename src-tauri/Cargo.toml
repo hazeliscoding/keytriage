@@ -21,6 +21,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2.12.0", features = [] }
 
+# Tests replay the engine's synthetic streams through the session code. Dev-dependencies don't
+# ship, so the fixtures stay out of the app.
+[dev-dependencies]
+keytriage-diagnostics = { path = "../crates/diagnostics", features = ["fixtures"] }
+
 # The same versions tauri uses, so nothing compiles twice.
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"

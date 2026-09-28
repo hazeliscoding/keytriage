@@ -1,7 +1,8 @@
 // What the page is sent and what it may ask for. Only these shapes cross to the page, so a device
 // path or container ID never does.
+use keytriage_diagnostics::{BoardKind, Guide, MAX_PRESSES, MAX_ROUNDS, Plan, PlanError};
 use keytriage_input::Keyboard;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +66,102 @@ fn id(keyboard: &Keyboard) -> Option<String> {
         "{:04X}:{:04X}",
         keyboard.vendor_id?, keyboard.product_id?
     ))
+}
+
+#[derive(Deserialize)]
+pub struct PlanArgs {
+    pub keyboard: Vec<isize>,
+    pub keys: Vec<u16>,
+    pub rounds: u16,
+    pub presses: u16,
+    pub board: Option<BoardArg>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BoardArg {
+    HotSwap,
+    Soldered,
+    Laptop,
+}
+
+// The `test:guide` payload. It says where the test is and how many key-downs each key has sent, and
+// holds no times.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GuideView {
+    pub key: Option<u16>,
+    pub asked: u16,
+    pub count: u16,
+    pub round: u16,
+    pub rounds: u16,
+    pub index: u16,
+    pub keys: u16,
+    pub done: u32,
+    pub total: u32,
+    pub tallies: Vec<(u16, u32)>,
+}
+
+// Past these a request is a mistake, not a keyboard: one keyboard shows up as a handful of HID
+// collections, and a full-size ISO layout has 105 keys.
+const MAX_HANDLES: usize = 64;
+const MAX_KEYS: usize = 128;
+
+// Everything is checked before a running test is stopped, so a refused plan leaves it running.
+pub fn plan(args: PlanArgs) -> Result<(Guide, Vec<isize>, BoardKind), String> {
+    if args.keyboard.len() > MAX_HANDLES {
+        return Err(format!(
+            "A keyboard can't have more than {MAX_HANDLES} entries."
+        ));
+    }
+    if args.keys.len() > MAX_KEYS {
+        return Err(format!("A test can't prompt more than {MAX_KEYS} keys."));
+    }
+    let board = match args.board {
+        None => BoardKind::Unknown,
+        Some(BoardArg::HotSwap) => BoardKind::HotSwap,
+        Some(BoardArg::Soldered) => BoardKind::Soldered,
+        Some(BoardArg::Laptop) => BoardKind::Laptop,
+    };
+    let plan = Plan {
+        keys: args.keys,
+        rounds: args.rounds,
+        presses: args.presses,
+    };
+    let guide = Guide::new(plan, &args.keyboard).map_err(refusal)?;
+    Ok((guide, args.keyboard, board))
+}
+
+fn refusal(error: PlanError) -> String {
+    match error {
+        PlanError::NoKeys => "The test has no keys to prompt.".to_string(),
+        PlanError::BadKey => "The test names a key that can't be prompted.".to_string(),
+        PlanError::RepeatedKey => "The test names a key twice.".to_string(),
+        PlanError::Rounds => format!("A test runs 1 to {MAX_ROUNDS} rounds."),
+        PlanError::Presses => format!("A round asks for 1 to {MAX_PRESSES} presses."),
+        PlanError::NoKeyboard => "No keyboard was picked.".to_string(),
+        PlanError::ZeroHandle => "Handle 0 is injected input, not a keyboard.".to_string(),
+    }
+}
+
+// Once the plan is done there is no open round: key is None, count is 0, and round and index stay
+// on the last step.
+pub fn guide_view(guide: &Guide) -> GuideView {
+    let plan = guide.plan();
+    let keys = plan.keys.len() as u16;
+    let prompt = guide.prompt();
+    GuideView {
+        key: prompt.map(|p| p.key),
+        asked: plan.presses,
+        count: prompt.map_or(0, |p| p.count),
+        round: prompt.map_or(plan.rounds - 1, |p| p.round),
+        rounds: plan.rounds,
+        index: prompt.map_or(keys - 1, |p| p.index),
+        keys,
+        done: guide.done(),
+        total: guide.total(),
+        tallies: guide.tallies().iter().map(|(&k, &n)| (k, n)).collect(),
+    }
 }
 
 #[cfg(test)]
@@ -186,6 +283,153 @@ mod tests {
         );
         for leak in ["path", "container", r"\\?\", "HID#", "1a2b3c4d"] {
             assert!(!json.contains(leak), "{leak}");
+        }
+    }
+
+    const E: u16 = 0x12;
+    const G: u16 = 0x22;
+    const J: u16 = 0x24;
+
+    fn args(keyboard: &[isize], keys: &[u16], rounds: u16, presses: u16) -> PlanArgs {
+        PlanArgs {
+            keyboard: keyboard.to_vec(),
+            keys: keys.to_vec(),
+            rounds,
+            presses,
+            board: None,
+        }
+    }
+
+    // The Guide prints nothing outside its crate, so neither can a Result holding one.
+    fn refused(args: PlanArgs) -> String {
+        match plan(args) {
+            Ok(_) => panic!("the plan was accepted"),
+            Err(e) => e,
+        }
+    }
+
+    #[test]
+    fn plan01_the_page_can_ask_only_for_a_test_that_fits() {
+        let handles: Vec<isize> = (1..=65).collect();
+        let keys: Vec<u16> = (1..=129).collect();
+        for (bad, why) in [
+            (args(&[], &[E], 3, 10), "No keyboard was picked."),
+            (
+                args(&[1, 0], &[E], 3, 10),
+                "Handle 0 is injected input, not a keyboard.",
+            ),
+            (
+                args(&handles, &[E], 3, 10),
+                "A keyboard can't have more than 64 entries.",
+            ),
+            (args(&[1], &[], 3, 10), "The test has no keys to prompt."),
+            (args(&[1], &[E, G, E], 3, 10), "The test names a key twice."),
+            (
+                args(&[1], &[E, 0], 3, 10),
+                "The test names a key that can't be prompted.",
+            ),
+            (
+                args(&[1], &keys, 3, 10),
+                "A test can't prompt more than 128 keys.",
+            ),
+            (args(&[1], &[E], 0, 10), "A test runs 1 to 10 rounds."),
+            (args(&[1], &[E], 11, 10), "A test runs 1 to 10 rounds."),
+            (args(&[1], &[E], 3, 0), "A round asks for 1 to 100 presses."),
+            (
+                args(&[1], &[E], 3, 101),
+                "A round asks for 1 to 100 presses.",
+            ),
+        ] {
+            assert_eq!(refused(bad), why);
+        }
+        for fits in [
+            args(&handles[..64], &[E], 1, 1),
+            args(&[1], &keys[..128], 10, 100),
+        ] {
+            assert!(plan(fits).is_ok());
+        }
+    }
+
+    #[test]
+    fn plan02_the_board_reaches_the_diagnosis() {
+        let json =
+            r#"{"keyboard":[65603,65605],"keys":[34,36,18],"rounds":3,"presses":10,"board":"#;
+        for (board, kind) in [
+            ("null", BoardKind::Unknown),
+            (r#""hot-swap""#, BoardKind::HotSwap),
+            (r#""soldered""#, BoardKind::Soldered),
+            (r#""laptop""#, BoardKind::Laptop),
+        ] {
+            let args: PlanArgs = serde_json::from_str(&format!("{json}{board}}}")).unwrap();
+            let Ok((guide, keyboard, got)) = plan(args) else {
+                panic!("refused");
+            };
+            assert_eq!(
+                (guide.plan(), keyboard, got),
+                (
+                    &Plan {
+                        keys: vec![G, J, E],
+                        rounds: 3,
+                        presses: 10
+                    },
+                    vec![65603, 65605],
+                    kind
+                )
+            );
+        }
+        let unknown = format!("{json}\"hotswap\"}}");
+        assert!(serde_json::from_str::<PlanArgs>(&unknown).is_err());
+    }
+
+    fn key(scan: u16, up: bool, ms: u64) -> keytriage_diagnostics::Entry {
+        keytriage_diagnostics::Entry::Key {
+            scan,
+            up,
+            device: 1,
+            micros: ms * 1_000,
+        }
+    }
+
+    #[test]
+    fn guide_json01_the_view_is_pinned_and_holds_no_times() {
+        let three = Plan {
+            keys: vec![G, J, E],
+            rounds: 3,
+            presses: 10,
+        };
+        let mut guide = Guide::new(three, &[1]).unwrap();
+        let json = |guide: &Guide| serde_json::to_string(&guide_view(guide)).unwrap();
+        assert_eq!(
+            json(&guide),
+            r#"{"key":34,"asked":10,"count":0,"round":0,"rounds":3,"index":0,"keys":3,"done":0,"total":90,"tallies":[]}"#
+        );
+        for e in [
+            key(G, false, 700),
+            key(G, true, 790),
+            key(G, false, 795),
+            key(G, true, 890),
+            key(G, false, 1_200),
+            key(G, true, 1_300),
+        ] {
+            guide.entry(&e);
+        }
+        let mid = json(&guide);
+        assert_eq!(
+            mid,
+            r#"{"key":34,"asked":10,"count":2,"round":0,"rounds":3,"index":0,"keys":3,"done":2,"total":90,"tallies":[[34,3]]}"#
+        );
+        for at in 2..=10 {
+            guide.skip(at * 1_000_000);
+        }
+        let end = json(&guide);
+        assert_eq!(
+            end,
+            r#"{"key":null,"asked":10,"count":0,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[34,3]]}"#
+        );
+        for text in [mid, end] {
+            for time in ["micros", "_us", "start", "end", "700", "1300"] {
+                assert!(!text.contains(time), "{time}");
+            }
         }
     }
 }

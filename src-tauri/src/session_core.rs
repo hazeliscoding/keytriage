@@ -3,9 +3,11 @@
 use std::collections::BTreeSet;
 use std::time::Instant;
 
-use keytriage_diagnostics as diagnostics;
+use keytriage_diagnostics::{self as diagnostics, BoardKind, Guide};
 use keytriage_input::Input;
 use serde::{Deserialize, Serialize};
+
+use crate::view::{GuideView, guide_view};
 
 // The `test:event` payload. The page, the debug echo and the scripts' checks all read this shape.
 // Debug only in tests, because a printed list of these is the typed text.
@@ -39,24 +41,24 @@ pub struct HeldKey {
     pub scan: u16,
 }
 
-pub struct Recorder {
+struct Recorder {
     start: Instant,
     held: BTreeSet<HeldKey>,
 }
 
 impl Recorder {
-    pub fn new(start: Instant) -> Recorder {
+    fn new(start: Instant) -> Recorder {
         Recorder {
             start,
             held: BTreeSet::new(),
         }
     }
 
-    pub fn micros(&self, at: Instant) -> u64 {
+    fn micros(&self, at: Instant) -> u64 {
         at.saturating_duration_since(self.start).as_micros() as u64
     }
 
-    pub fn entry(&mut self, input: Input) -> Entry {
+    fn entry(&mut self, input: Input) -> Entry {
         match input {
             Input::Key(event) => {
                 let key = HeldKey {
@@ -115,10 +117,53 @@ pub fn to_engine(entry: &Entry) -> diagnostics::Entry {
     }
 }
 
+// One test, as the capture callback and the commands see it: its clock, the ordered events the
+// engine reads at the end, and the guided test with the keyboard and board it is diagnosed for.
+// Nothing here derives Debug, because the entries are the typed text.
+pub struct Core {
+    recorder: Recorder,
+    entries: Vec<diagnostics::Entry>,
+    test: Option<(Guide, Vec<isize>, BoardKind)>,
+}
+
+impl Core {
+    pub fn new(start: Instant, test: Option<(Guide, Vec<isize>, BoardKind)>) -> Core {
+        Core {
+            recorder: Recorder::new(start),
+            entries: Vec::new(),
+            test,
+        }
+    }
+
+    // The view comes back only when the input changed it.
+    pub fn input(&mut self, input: Input) -> (Entry, Option<GuideView>) {
+        let entry = self.recorder.entry(input);
+        let engine = to_engine(&entry);
+        let view = self
+            .test
+            .as_mut()
+            .and_then(|(guide, ..)| guide.entry(&engine).then(|| guide_view(guide)));
+        self.entries.push(engine);
+        (entry, view)
+    }
+
+    pub fn skip(&mut self, at: Instant) -> Option<GuideView> {
+        let at_us = self.recorder.micros(at);
+        let (guide, ..) = self.test.as_mut()?;
+        guide.skip(at_us).then(|| guide_view(guide))
+    }
+
+    pub fn view(&self) -> Option<GuideView> {
+        self.test.as_ref().map(|(guide, ..)| guide_view(guide))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
+    use keytriage_diagnostics::fixture::guided_chatter;
+    use keytriage_diagnostics::{Plan, Round};
     use keytriage_input::KeyEvent;
 
     use super::*;
@@ -297,5 +342,199 @@ mod tests {
                     micros: 2_000_000,
                 }
         );
+    }
+
+    // ---- the guided test through Core ----
+
+    const E: u16 = 0x12;
+    const G: u16 = 0x22;
+    const J: u16 = 0x24;
+
+    fn at(start: Instant, micros: u64) -> Instant {
+        start + Duration::from_micros(micros)
+    }
+
+    // What the capture callback would have been handed for an engine entry.
+    fn input(start: Instant, entry: &diagnostics::Entry) -> Input {
+        match *entry {
+            diagnostics::Entry::Key {
+                scan,
+                up,
+                device,
+                micros,
+            } => Input::Key(KeyEvent {
+                scan,
+                up,
+                device,
+                at: at(start, micros),
+            }),
+            diagnostics::Entry::Paused { micros, .. } => Input::Paused(at(start, micros)),
+            diagnostics::Entry::Resumed { micros } => Input::Resumed(at(start, micros)),
+        }
+    }
+
+    fn press(start: Instant, scan: u16, up: bool, ms: u64) -> Input {
+        Input::Key(KeyEvent {
+            scan,
+            up,
+            device: 1,
+            at: at(start, ms * 1_000),
+        })
+    }
+
+    fn guided(
+        keys: &[u16],
+        rounds: u16,
+        board: BoardKind,
+    ) -> Option<(Guide, Vec<isize>, BoardKind)> {
+        let plan = Plan {
+            keys: keys.to_vec(),
+            rounds,
+            presses: 10,
+        };
+        Some((Guide::new(plan, &[1]).unwrap(), vec![1], board))
+    }
+
+    fn rounds(core: &mut Core, end_us: u64) -> Vec<Round> {
+        let (guide, ..) = core.test.as_mut().unwrap();
+        guide.finish(end_us)
+    }
+
+    #[test]
+    fn core01_the_session_runs_the_same_test_as_the_engine() {
+        let (plan, f) = guided_chatter();
+        let start = Instant::now();
+        let guide = Guide::new(plan.clone(), &f.keyboard).unwrap();
+        let mut core = Core::new(start, Some((guide, f.keyboard.clone(), f.board)));
+        let mut engine = Guide::new(plan, &f.keyboard).unwrap();
+        let mut views = vec![core.view().unwrap()];
+        let mut expected = vec![guide_view(&engine)];
+        for e in &f.entries {
+            let (entry, view) = core.input(input(start, e));
+            assert!(to_engine(&entry) == *e);
+            views.extend(view);
+            if engine.entry(e) {
+                expected.push(guide_view(&engine));
+            }
+        }
+        assert!(core.entries == f.entries);
+        assert!(views == expected);
+        assert_eq!(rounds(&mut core, f.end_us), f.rounds);
+
+        let first = &views[0];
+        assert_eq!(
+            (
+                first.key,
+                first.count,
+                first.round,
+                first.index,
+                first.done,
+                first.total
+            ),
+            (Some(G), 0, 0, 0, 0, 90)
+        );
+        let last = views.last().unwrap();
+        assert_eq!((last.key, last.done), (None, 90));
+        assert_eq!(last.tallies, [(E, 35), (G, 30), (J, 30)]);
+        // Each counted press moves the count, and each view follows one change.
+        assert!(views.len() > 90);
+        assert!(views.windows(2).all(|w| w[0] != w[1]));
+    }
+
+    #[test]
+    fn core02_a_pause_drops_the_open_round_and_the_resume_repeats_it() {
+        let start = Instant::now();
+        let mut core = Core::new(start, guided(&[E, G], 1, BoardKind::HotSwap));
+        for (up, ms) in [
+            (false, 1_000),
+            (true, 1_100),
+            (false, 1_400),
+            (true, 1_500),
+            (false, 1_800),
+        ] {
+            // A release changes the view only when it closes the round.
+            assert_eq!(core.input(press(start, E, up, ms)).1.is_some(), !up);
+        }
+        assert_eq!(core.view().unwrap().count, 3);
+
+        let (entry, view) = core.input(Input::Paused(at(start, 2_000_000)));
+        assert_eq!(
+            entry,
+            Entry::Paused {
+                micros: 2_000_000,
+                interrupted: vec![HeldKey { device: 1, scan: E }]
+            }
+        );
+        let view = view.expect("the open round was dropped");
+        assert_eq!((view.key, view.count, view.done), (Some(E), 0, 0));
+        assert!(view.tallies.is_empty());
+
+        let (entry, view) = core.input(Input::Resumed(at(start, 3_000_000)));
+        assert_eq!(entry, Entry::Resumed { micros: 3_000_000 });
+        assert!(view.is_none());
+        // The interrupted key's release after the resume answers nothing.
+        assert!(core.input(press(start, E, true, 3_100)).1.is_none());
+        let view = core.input(press(start, E, false, 3_400)).1.unwrap();
+        assert_eq!(
+            (view.key, view.count, view.round, view.index),
+            (Some(E), 1, 0, 0)
+        );
+        assert_eq!(
+            rounds(&mut core, 4_000_000),
+            [Round {
+                key: E,
+                asked: 10,
+                start_us: 3_000_000,
+                end_us: 4_000_000
+            }]
+        );
+    }
+
+    #[test]
+    fn core03_skip_moves_on_and_a_test_without_a_plan_only_records() {
+        let start = Instant::now();
+        let mut core = Core::new(start, guided(&[E, G], 1, BoardKind::Unknown));
+        let view = core.skip(at(start, 5_000_000)).unwrap();
+        assert_eq!(
+            (view.key, view.index, view.count, view.done),
+            (Some(G), 1, 0, 10)
+        );
+        let view = core.skip(at(start, 6_000_000)).unwrap();
+        assert_eq!((view.key, view.done), (None, 20));
+        assert!(core.skip(at(start, 7_000_000)).is_none());
+        assert_eq!(
+            rounds(&mut core, 8_000_000),
+            [
+                Round {
+                    key: E,
+                    asked: 10,
+                    start_us: 0,
+                    end_us: 5_000_000
+                },
+                Round {
+                    key: G,
+                    asked: 10,
+                    start_us: 5_000_000,
+                    end_us: 6_000_000
+                }
+            ]
+        );
+
+        let mut free = Core::new(start, None);
+        assert!(free.view().is_none());
+        let (entry, view) = free.input(press(start, E, false, 1_000));
+        assert_eq!(
+            entry,
+            Entry::Key {
+                scan: E,
+                up: false,
+                device: 1,
+                micros: 1_000_000
+            }
+        );
+        assert!(view.is_none());
+        assert!(free.skip(at(start, 2_000_000)).is_none());
+        assert!(free.test.is_none());
+        assert_eq!(free.entries.len(), 1);
     }
 }
