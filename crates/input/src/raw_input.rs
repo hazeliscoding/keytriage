@@ -4,7 +4,9 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::time::Instant;
 
-use windows::Win32::Foundation::{E_FAIL, HANDLE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{
+    E_FAIL, ERROR_INSUFFICIENT_BUFFER, HANDLE, HWND, LPARAM, LRESULT, WPARAM,
+};
 use windows::Win32::UI::Input::{
     GetRawInputData, GetRegisteredRawInputDevices, HRAWINPUT, RAWINPUT, RAWINPUTDEVICE,
     RAWINPUTDEVICE_FLAGS, RAWINPUTHEADER, RAWKEYBOARD, RID_INPUT, RIDEV_REMOVE, RIM_TYPEKEYBOARD,
@@ -64,6 +66,11 @@ pub struct Capture {
 }
 
 impl Capture {
+    // Whether capture is taking input now, which it is only while the app holds the foreground.
+    pub fn is_open(&self) -> bool {
+        unsafe { &*self.state }.open.get()
+    }
+
     // Call this on the thread that owns `hwnd`. comctl32 cannot subclass a window across threads.
     // Capture opens only while the app is in the foreground: it pauses when the app loses it and
     // resumes when the app gets it back.
@@ -240,8 +247,14 @@ pub struct Registration {
 pub fn registrations() -> windows::core::Result<Vec<Registration>> {
     let item = size_of::<RAWINPUTDEVICE>() as u32;
     let mut count = 0;
-    // Without a buffer the call fails by design and reports how many there are.
-    unsafe { GetRegisteredRawInputDevices(None, &mut count, item) };
+    // Without a buffer the call fails by design and reports how many there are. Any other failure
+    // must not read as "no registrations", which is what a privacy check looks for.
+    if unsafe { GetRegisteredRawInputDevices(None, &mut count, item) } == u32::MAX {
+        let error = windows::core::Error::from_thread();
+        if error.code() != ERROR_INSUFFICIENT_BUFFER.to_hresult() {
+            return Err(error);
+        }
+    }
     if count == 0 {
         return Ok(Vec::new());
     }

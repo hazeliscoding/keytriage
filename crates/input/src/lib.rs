@@ -26,7 +26,8 @@ pub struct KeyEvent {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Input {
     Key(KeyEvent),
-    // The app lost the foreground, so capture stopped. Keys still down never report their release.
+    // The app lost the foreground, so capture stopped. A key released while the app is away never
+    // reports it. A key still held at the resume reports its release after it, and may repeat first.
     Paused(Instant),
     // The app is back in the foreground, and capture with it.
     Resumed(Instant),
