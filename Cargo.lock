@@ -1652,6 +1652,8 @@ name = "keytriage"
 version = "0.0.0"
 dependencies = [
  "keytriage-input",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "webview2-com",

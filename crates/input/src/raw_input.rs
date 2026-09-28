@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::rc::Rc;
+use std::time::Instant;
 
 use windows::Win32::Foundation::{E_FAIL, HANDLE, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::Input::{
@@ -104,7 +105,8 @@ unsafe extern "system" fn subclass_proc(
         // Nothing registers a sink, so only RIM_INPUT can arrive: input made while this process
         // was in the foreground. Any other code is never read.
         WM_INPUT if wparam.0 & 0xff == RIM_INPUT as usize => {
-            if let Some(event) = read(HRAWINPUT(lparam.0 as *mut c_void)) {
+            let at = Instant::now();
+            if let Some(event) = read(HRAWINPUT(lparam.0 as *mut c_void), at) {
                 // The handler may drop the Capture, so this call holds its own reference until
                 // the handler returns.
                 let handler = unsafe {
@@ -128,7 +130,7 @@ unsafe extern "system" fn subclass_proc(
 }
 
 // The handle is only valid inside this WM_INPUT, so it is read here and never passed on.
-fn read(input: HRAWINPUT) -> Option<KeyEvent> {
+fn read(input: HRAWINPUT, at: Instant) -> Option<KeyEvent> {
     let mut raw = RAWINPUT::default();
     let mut size = size_of::<RAWINPUT>() as u32;
     let copied = unsafe {
@@ -143,10 +145,14 @@ fn read(input: HRAWINPUT) -> Option<KeyEvent> {
     if copied == u32::MAX || raw.header.dwType != RIM_TYPEKEYBOARD.0 {
         return None;
     }
-    Some(key_event(unsafe { &raw.data.keyboard }, raw.header.hDevice))
+    Some(key_event(
+        unsafe { &raw.data.keyboard },
+        raw.header.hDevice,
+        at,
+    ))
 }
 
-fn key_event(keyboard: &RAWKEYBOARD, device: HANDLE) -> KeyEvent {
+fn key_event(keyboard: &RAWKEYBOARD, device: HANDLE, at: Instant) -> KeyEvent {
     // Flags also carries terminal server bits, so each bit is tested on its own.
     let flags = u32::from(keyboard.Flags);
     let prefix = if flags & RI_KEY_E1 != 0 {
@@ -160,6 +166,7 @@ fn key_event(keyboard: &RAWKEYBOARD, device: HANDLE) -> KeyEvent {
         scan: prefix | keyboard.MakeCode,
         up: flags & RI_KEY_BREAK != 0,
         device: device.0 as isize,
+        at,
     }
 }
 
@@ -208,7 +215,7 @@ mod tests {
             Flags: flags as u16,
             ..Default::default()
         };
-        key_event(&keyboard, HANDLE(0x1234 as *mut c_void))
+        key_event(&keyboard, HANDLE(0x1234 as *mut c_void), Instant::now())
     }
 
     #[test]

@@ -1,12 +1,15 @@
-// Debug builds only. With KEYTRIAGE_ECHO set, capture starts with the window and prints each
-// event, and page loads and WebView2's browser settings print too, so the checks in scripts/ can
-// prove where input stops and that browser keys do nothing. Only the checks' marker keys, F13 to
-// F15, print their scan code, so real typing never shows up in a terminal or a CI log.
+// Debug builds only. With KEYTRIAGE_ECHO set, the page starts a test once it has loaded and each of
+// the test's events prints, and page loads and WebView2's browser settings print too, so the checks
+// in scripts/ can prove where input stops and that browser keys do nothing. Only the checks' marker
+// keys, F13 to F15, print their scan code, so real typing never shows up in a terminal or a CI log.
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use keytriage_input::{Capture, KeyEvent, keyboards, registrations};
+use keytriage_input::{keyboards, registrations};
 use tauri::webview::{PageLoadEvent, PageLoadPayload};
-use tauri::{Runtime, Webview, WebviewWindow};
+use tauri::{Listener, Runtime, Webview, WebviewWindow};
+
+use crate::test_session::Recorded;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2Controller, ICoreWebView2Settings3,
 };
@@ -27,13 +30,15 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
     if !enabled() {
         return Ok(());
     }
-    let capture = Capture::start(window.hwnd()?.0 as isize, |event| print(&line(&event)))?;
-    for r in registrations()? {
-        print(&format!(
-            "kt-input: registered page=0x{:x} usage=0x{:x} flags=0x{:x} target=0x{:x}",
-            r.usage_page, r.usage, r.flags, r.target
-        ));
-    }
+    window.listen_any("test:started", |_| {
+        print_registrations();
+        print("kt-input: ready");
+    });
+    window.listen_any("test:key", |event| {
+        if let Ok(key) = serde_json::from_str::<Recorded>(event.payload()) {
+            print(&line(&key));
+        }
+    });
     for k in keyboards()? {
         print(&format!(
             "kt-input: keyboard handle=0x{:x} container={} vid={} pid={} name={:?}",
@@ -47,17 +52,30 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
     print(&format!("kt-shell: error-mode=0x{:x}", unsafe {
         GetErrorMode()
     }));
-    print("kt-input: ready");
     // with_webview calls run in order, so this reads the settings after browser_ui changed them.
     window.with_webview(|webview| print(&settings_line(&webview.controller())))?;
-    // The echo lasts as long as the window.
-    std::mem::forget(capture);
     Ok(())
 }
 
-pub fn page_load<R: Runtime>(_: &Webview<R>, payload: &PageLoadPayload<'_>) {
-    if enabled() && payload.event() == PageLoadEvent::Finished {
-        print("kt-shell: page-load");
+fn print_registrations() {
+    for r in registrations().unwrap_or_default() {
+        print(&format!(
+            "kt-input: registered page=0x{:x} usage=0x{:x} flags=0x{:x} target=0x{:x}",
+            r.usage_page, r.usage, r.flags, r.target
+        ));
+    }
+}
+
+// The test starts the way the UI will start it: the page calls the command.
+static STARTED: AtomicBool = AtomicBool::new(false);
+
+pub fn page_load<R: Runtime>(webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
+    if !enabled() || payload.event() != PageLoadEvent::Finished {
+        return;
+    }
+    print("kt-shell: page-load");
+    if !STARTED.swap(true, Ordering::SeqCst) {
+        let _ = webview.eval("window.__TAURI_INTERNALS__.invoke('start_test')");
     }
 }
 
@@ -89,7 +107,7 @@ fn print(line: &str) {
     let _ = writeln!(std::io::stdout(), "{line}");
 }
 
-fn line(event: &KeyEvent) -> String {
+fn line(event: &Recorded) -> String {
     let key = match event.scan {
         0x64..=0x66 => format!("0x{:x}", event.scan),
         _ => "other".to_string(),
@@ -105,11 +123,12 @@ fn line(event: &KeyEvent) -> String {
 mod tests {
     use super::*;
 
-    fn event(scan: u16, up: bool) -> KeyEvent {
-        KeyEvent {
+    fn event(scan: u16, up: bool) -> Recorded {
+        Recorded {
             scan,
             up,
             device: 0x2a,
+            micros: 5,
         }
     }
 

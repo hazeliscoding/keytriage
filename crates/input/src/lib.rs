@@ -8,6 +8,8 @@ pub use devices::keyboards;
 #[cfg(windows)]
 pub use raw_input::{Capture, Registration, registrations};
 
+use std::time::Instant;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct KeyEvent {
     // The key's position as a set-1 scan code, with 0xE0 or 0xE1 in the high byte for prefixed keys.
@@ -16,6 +18,9 @@ pub struct KeyEvent {
     // The Raw Input device handle. SendInput arrives as 0, and so does a user-mode remapper built
     // on it. Remaps below user mode, such as a Scancode Map, keep the real device.
     pub device: isize,
+    // When the app read the event. Raw Input carries no timestamp of its own, so this includes the
+    // time the message waited in the queue.
+    pub at: Instant,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

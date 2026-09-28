@@ -7,6 +7,8 @@ mod browser_ui;
 mod crash_reports;
 #[cfg(all(debug_assertions, windows))]
 mod echo;
+#[cfg(windows)]
+mod test_session;
 
 pub fn run() {
     #[cfg(windows)]
@@ -19,6 +21,11 @@ pub fn run() {
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(navigation_guard())
         .setup(setup);
+    #[cfg(windows)]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        test_session::start_test,
+        test_session::stop_test
+    ]);
     #[cfg(all(debug_assertions, windows))]
     let builder = builder.on_page_load(echo::page_load);
     builder
