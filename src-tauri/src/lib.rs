@@ -8,6 +8,10 @@ mod crash_reports;
 #[cfg(all(debug_assertions, windows))]
 mod echo;
 #[cfg(windows)]
+mod export;
+#[cfg(windows)]
+mod save_dialog;
+#[cfg(windows)]
 mod session_core;
 #[cfg(windows)]
 mod test_session;
@@ -33,7 +37,8 @@ pub fn run() {
         test_session::continue_test,
         test_session::skip_key,
         test_session::end_test,
-        test_session::stop_test
+        test_session::stop_test,
+        test_session::export_report
     ]);
     #[cfg(all(debug_assertions, windows))]
     let builder = builder.on_page_load(echo::page_load);

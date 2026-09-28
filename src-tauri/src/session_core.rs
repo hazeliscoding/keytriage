@@ -180,6 +180,32 @@ impl Core {
 }
 
 #[cfg(test)]
+pub fn at(start: Instant, micros: u64) -> Instant {
+    start + std::time::Duration::from_micros(micros)
+}
+
+// What the capture callback would have been handed for an engine entry, so tests can replay a
+// synthetic stream through Core.
+#[cfg(test)]
+pub fn input(start: Instant, entry: &diagnostics::Entry) -> Input {
+    match *entry {
+        diagnostics::Entry::Key {
+            scan,
+            up,
+            device,
+            micros,
+        } => Input::Key(keytriage_input::KeyEvent {
+            scan,
+            up,
+            device,
+            at: at(start, micros),
+        }),
+        diagnostics::Entry::Paused { micros, .. } => Input::Paused(at(start, micros)),
+        diagnostics::Entry::Resumed { micros } => Input::Resumed(at(start, micros)),
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use std::time::Duration;
 
@@ -371,29 +397,6 @@ mod tests {
     const E: u16 = 0x12;
     const G: u16 = 0x22;
     const J: u16 = 0x24;
-
-    fn at(start: Instant, micros: u64) -> Instant {
-        start + Duration::from_micros(micros)
-    }
-
-    // What the capture callback would have been handed for an engine entry.
-    fn input(start: Instant, entry: &diagnostics::Entry) -> Input {
-        match *entry {
-            diagnostics::Entry::Key {
-                scan,
-                up,
-                device,
-                micros,
-            } => Input::Key(KeyEvent {
-                scan,
-                up,
-                device,
-                at: at(start, micros),
-            }),
-            diagnostics::Entry::Paused { micros, .. } => Input::Paused(at(start, micros)),
-            diagnostics::Entry::Resumed { micros } => Input::Resumed(at(start, micros)),
-        }
-    }
 
     fn press(start: Instant, scan: u16, up: bool, ms: u64) -> Input {
         Input::Key(KeyEvent {

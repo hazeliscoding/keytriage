@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 
 use keytriage_input::{Capture, Input};
@@ -15,6 +16,7 @@ use webview2_com::ProcessFailedEventHandler;
 
 use crate::session_core::{Core, Entry};
 use crate::view::{self, GuideView, KeyName, KeyboardGroup, PlanArgs, TestResult, groups};
+use crate::{export, save_dialog};
 
 // The capture callback and the commands share Core on this one thread. None of them holds a borrow
 // of it, or of SESSION, across Capture::start, a Capture drop or an emit.
@@ -35,8 +37,16 @@ thread_local! {
 // The navigation guard runs on the same thread, but reads this without borrowing the session.
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
+// The last ended test's export, until the next test starts. The ordered events are gone by then,
+// and the export command reads this from another thread.
+static REPORT: Mutex<Option<String>> = Mutex::new(None);
+
 const NO_TEST: &str = "No test is running.";
 const NO_PLAN: &str = "This test has no plan to diagnose.";
+
+fn set_report(report: Option<String>) {
+    *REPORT.lock().unwrap_or_else(PoisonError::into_inner) = report;
+}
 
 pub fn running() -> bool {
     RUNNING.load(Ordering::SeqCst)
@@ -64,6 +74,7 @@ pub fn start_test(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), S
 fn start(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), String> {
     let test = plan.map(view::plan).transpose()?;
     stop_test();
+    set_report(None);
     let start = Instant::now();
     let core = Rc::new(RefCell::new(Core::new(start, test)));
     let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
@@ -223,9 +234,31 @@ pub fn end_test(labels: Vec<KeyName>) -> Result<TestResult, String> {
     // Once capture is gone no input can reach Core, so the diagnosis sees the whole test.
     drop(capture);
     let report = core.borrow_mut().finish(Instant::now()).ok_or(NO_PLAN)?;
+    set_report(Some(export::report_json(&report.saved())));
     let result = view::result(&report, &names);
     let _ = page.emit("test:stopped", ());
     Ok(result)
+}
+
+// The only way a test's data reaches the disk. A sync command would run the dialog's modal loop
+// inside the window thread's IPC callback, so this one is async, and it reads only REPORT and
+// RUNNING, because SESSION lives on the window's thread. It returns the saved file's name, or None
+// when the user cancels.
+#[tauri::command]
+pub async fn export_report(window: WebviewWindow, name: String) -> Result<Option<String>, String> {
+    export::check_file_name(&name)?;
+    if running() {
+        return Err("A report can't be exported while a test runs.".to_string());
+    }
+    let bytes = REPORT
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone()
+        .ok_or("There is no report to export.")?;
+    let owner = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    tauri::async_runtime::spawn_blocking(move || save_dialog::save(owner, name, bytes))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
