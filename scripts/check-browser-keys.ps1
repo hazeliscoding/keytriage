@@ -27,7 +27,7 @@ $Esc = 0x01; $Ctrl = 0x1D; $F5 = 0x3F; $VkR = 0x52
 
 $app = $null
 try {
-    $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual', [bool]$PositiveControl)
+    $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual', $(if ($PositiveControl) { 'KEYTRIAGE_BROWSER_KEYS' } else { $null }))
     if (-not $app.WaitReady($StartTimeoutMs)) { Stop-Inconclusive 'the app did not print its ready line; is this a debug build?' }
     $hwnd = Find-AppWindow $StartTimeoutMs
     if (-not $app.WaitFor({ $app.Settings -and $app.PageLoads -ge 1 }, $StartTimeoutMs)) {

@@ -351,10 +351,15 @@ namespace AppHarness
         bool ready;
         int pageLoads;
         string settings;
+        long errorMode = -1;
+        bool crashWatch;
 
-        public static AppUnderTest Start(string exe, bool visualHosting) { return Start(exe, visualHosting, false); }
+        [DllImport("kernel32.dll")] static extern uint SetErrorMode(uint mode);
 
-        public static AppUnderTest Start(string exe, bool visualHosting, bool keepBrowserKeys)
+        public static AppUnderTest Start(string exe, bool visualHosting) { return Start(exe, visualHosting, null); }
+
+        // `positiveControl` names the debug switch that leaves one protection off, or is null.
+        public static AppUnderTest Start(string exe, bool visualHosting, string positiveControl)
         {
             var psi = new ProcessStartInfo(exe);
             psi.UseShellExecute = false;
@@ -368,8 +373,15 @@ namespace AppHarness
             const string hosting = "COREWEBVIEW2_FORCED_HOSTING_MODE";
             if (visualHosting) psi.Environment[hosting] = "COREWEBVIEW2_HOSTING_MODE_WINDOW_TO_VISUAL";
             else psi.Environment.Remove(hosting);
-            if (keepBrowserKeys) psi.Environment["KEYTRIAGE_BROWSER_KEYS"] = "1";
-            else psi.Environment.Remove("KEYTRIAGE_BROWSER_KEYS");
+            // WebView2 lets these move the user data folder and add browser arguments, which would
+            // change where the crash reports check plants its dump and what it reads.
+            foreach (var name in new[] { "KEYTRIAGE_BROWSER_KEYS", "KEYTRIAGE_CRASH_REPORTS", "WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" })
+                psi.Environment.Remove(name);
+            // PowerShell passes $null to a string parameter as "".
+            if (!string.IsNullOrEmpty(positiveControl)) psi.Environment[positiveControl] = "1";
+            // The app inherits the error mode, and a terminal can pass on the very flag the crash
+            // reports check looks for, so the app starts from a clean one.
+            SetErrorMode(0);
             var app = new AppUnderTest();
             app.Proc = new Process();
             app.Proc.StartInfo = psi;
@@ -387,6 +399,8 @@ namespace AppHarness
             {
                 if (line == "kt-input: ready") { ready = true; return; }
                 if (line == "kt-shell: page-load") { pageLoads++; return; }
+                if (line == "kt-shell: crash-watch=ok") { crashWatch = true; return; }
+                if (line.StartsWith("kt-shell: error-mode=0x")) { errorMode = Hex(line.Substring("kt-shell: error-mode=0x".Length)); return; }
                 if (line.StartsWith("kt-shell: browser-keys=") || line.StartsWith("kt-shell: settings unreadable"))
                 {
                     settings = line.Substring("kt-shell: ".Length);
@@ -418,6 +432,9 @@ namespace AppHarness
         public int PageLoads { get { lock (gate) return pageLoads; } }
         // "browser-keys=0 context-menus=0", "settings unreadable: ...", or null before the app reports.
         public string Settings { get { lock (gate) return settings; } }
+        // The app's process error mode as it reported it, or -1 before it does.
+        public long ErrorMode { get { lock (gate) return errorMode; } }
+        public bool CrashWatch { get { lock (gate) return crashWatch; } }
 
         public bool WaitFor(Func<bool> done, int timeoutMs)
         {
