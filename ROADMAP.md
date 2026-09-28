@@ -76,6 +76,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [ ] Device list: name, VID/PID, device path, and manufacturer and product strings.
 - [ ] Live event view: key position, down or up, a high-resolution timestamp and the source device, held in memory only.
 - [ ] Capture starts only with a test and stops when the test ends or the window loses focus.
+- [ ] While a test runs, refuse reloads and history moves. A Browser Refresh or Back key and a mouse side button reach WebView2 as `WM_APPCOMMAND`, which the browser keys setting doesn't cover. The navigation guard can refuse a reload, and the page survives it. Extend `scripts/check-browser-keys.ps1` to press the Browser Refresh key, and count page loads on `Started`, because a refused navigation still fires `Finished`.
 
 **Done when:** events from two connected keyboards are attributed to the right device, and an automated check proves that no events arrive after the window loses focus.
 
