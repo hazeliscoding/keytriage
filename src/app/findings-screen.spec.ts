@@ -343,6 +343,7 @@ describe('Findings screen', () => {
       expect(text(card.querySelector('.finding__title'))).toBe('Nothing was tested.');
       expect(card.querySelector('.badge')).toBeNull();
       expect(card.querySelector('.finding__tile--clean')).toBeNull();
+      expect(card.querySelector('.finding__tile--none')).not.toBeNull();
       expect(parts(section(card, 'Evidence'), '.finding__line')).toEqual([
         '— Ended after 0 of 90 presses, 0 of 3 keys',
       ]);

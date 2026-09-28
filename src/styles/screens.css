@@ -473,6 +473,12 @@
   color: var(--authorized);
 }
 
+/* Red belongs to flagged keys, and a test that tested nothing flagged none. */
+.finding__tile--none {
+  border-color: var(--line-strong);
+  color: var(--text-meta);
+}
+
 /* A long label such as Backspace widens the tile rather than spilling out of it. */
 .finding__key {
   padding: 0 6px;
