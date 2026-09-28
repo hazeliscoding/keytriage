@@ -43,7 +43,10 @@ impl PollEstimate {
             PollEstimate::Unknown => {
                 "Timing resolution for this keyboard couldn't be measured in this test."
             }
-            PollEstimate::AtMost4Ms => "Timing resolution for this keyboard is 4 ms or finer.",
+            // The estimate only rules out the 8 and 16 ms lattices. A 10 ms keyboard lands here too.
+            PollEstimate::AtMost4Ms => {
+                "This keyboard showed no 8 or 16 ms reporting schedule in this test."
+            }
             PollEstimate::Ms8 => {
                 "This keyboard reports about every 8 ms, so times are rounded to 8 ms."
             }

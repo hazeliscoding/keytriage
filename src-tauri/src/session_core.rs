@@ -698,7 +698,7 @@ mod tests {
         assert!(r.notes.is_empty());
         assert_eq!(
             r.resolution,
-            "Timing resolution for this keyboard is 4 ms or finer."
+            "This keyboard showed no 8 or 16 ms reporting schedule in this test."
         );
 
         // The page reads these names. The result holds no times.
@@ -709,7 +709,7 @@ mod tests {
             r#"],"next":["Say whether"#,
             r#"],"gaps":[{"label":"<4","count":0},{"label":"4–12","count":6},{"label":"12–20","count":0},"#,
             r#"{"label":"100+","count":27}]}],"notes":[],"clean":["G: no extra key-downs"#,
-            r#"],"keys":[{"scan":18,"count":36},{"scan":34,"count":30},{"scan":36,"count":30}],"resolution":"Timing"#,
+            r#"],"keys":[{"scan":18,"count":36},{"scan":34,"count":30},{"scan":36,"count":30}],"resolution":"This keyboard"#,
         ] {
             assert!(json.contains(part), "{part}");
         }

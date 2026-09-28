@@ -374,10 +374,25 @@ fn w09_the_timing_resolution_in_words() {
         words,
         [
             "Timing resolution for this keyboard couldn't be measured in this test.",
-            "Timing resolution for this keyboard is 4 ms or finer.",
+            "This keyboard showed no 8 or 16 ms reporting schedule in this test.",
             "This keyboard reports about every 8 ms, so times are rounded to 8 ms.",
             "This keyboard reports every 16 ms or slower, so short extra presses can be missed.",
         ]
     );
     assert!(words.iter().all(|w| hedged(w)));
+}
+
+#[test]
+fn w10_a_keyboard_on_neither_lattice_gets_no_resolution_it_lacks() {
+    // Bluetooth LE links often report every 7.5, 10, 11.25 or 15 ms, which fit neither the 8 nor
+    // the 16 ms lattice.
+    for poll in [7_500, 10_000, 11_250, 15_000] {
+        let taps = Synth::new().taps(G, 60, (ms(40), ms(130)), (ms(60), ms(250)));
+        let estimate = run(taps.polled(poll)).aggregates.limits.poll;
+        assert_eq!(estimate, PollEstimate::AtMost4Ms, "{poll}");
+        assert_eq!(
+            estimate.words(),
+            "This keyboard showed no 8 or 16 ms reporting schedule in this test."
+        );
+    }
 }

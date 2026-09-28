@@ -390,6 +390,6 @@
         "count": 30
       }
     ],
-    "resolution": "Timing resolution for this keyboard is 4 ms or finer."
+    "resolution": "This keyboard showed no 8 or 16 ms reporting schedule in this test."
   }
 }

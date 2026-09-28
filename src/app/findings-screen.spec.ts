@@ -79,7 +79,7 @@ const FOUND: TestResult = {
     { scan: G, count: 30 },
     { scan: K, count: 0 },
   ],
-  resolution: 'Timing resolution for this keyboard is 4 ms or finer.',
+  resolution: 'This keyboard showed no 8 or 16 ms reporting schedule in this test.',
 };
 
 const CLEAN: TestResult = {
@@ -93,7 +93,7 @@ const CLEAN: TestResult = {
     { scan: E, count: 30 },
     { scan: G, count: 30 },
   ],
-  resolution: 'Timing resolution for this keyboard is 4 ms or finer.',
+  resolution: 'This keyboard showed no 8 or 16 ms reporting schedule in this test.',
 };
 
 // The golden run's last view. Once the plan is done, round and index stay on its last step.
@@ -247,9 +247,9 @@ describe('Findings screen', () => {
       expect(summary[5]).toEqual(['Duration', '00:00']);
       expect(lines(el(fixture), '.limits > *')).toEqual([
         'Limits',
-        'The test sees what the firmware reports after its own debounce. Timing resolution for ' +
-          'this keyboard is 4 ms or finer. A finding describes evidence and likelihood, not a ' +
-          'verdict on a part.',
+        'The test sees what the firmware reports after its own debounce. This keyboard showed ' +
+          'no 8 or 16 ms reporting schedule in this test. A finding describes evidence and ' +
+          'likelihood, not a verdict on a part.',
         'K had been down for 0.4 s when the test paused.',
       ]);
     });
@@ -283,7 +283,9 @@ describe('Findings screen', () => {
         'Counts are key-downs registered over all rounds.',
       ]);
       expect(lines(el(fixture), '.limits > *').slice(1)).toEqual([
-        expect.stringContaining('Timing resolution for this keyboard is 4 ms or finer.'),
+        expect.stringContaining(
+          'This keyboard showed no 8 or 16 ms reporting schedule in this test.',
+        ),
         'Nothing arrived from this keyboard during the test.',
       ]);
     });
