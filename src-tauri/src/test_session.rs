@@ -268,8 +268,7 @@ pub async fn export_report(window: WebviewWindow, name: String) -> Result<Option
         .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-pub fn stop_test() {
+fn stop_test() {
     if let Some(session) = SESSION.with_borrow_mut(Option::take) {
         RUNNING.store(false, Ordering::SeqCst);
         let _ = session.page.emit("test:stopped", ());
