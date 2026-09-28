@@ -239,13 +239,39 @@ fn golden_holds_only_the_synthetic_stream() {
     assert_eq!(keys, run.fixture.entries.len());
 }
 
+// Only KEYTRIAGE_BLESS=1 rewrites the file, so a variable left set to anything else, such as 0,
+// can't. CI compares and never rewrites, or a stale file would pass there.
+fn bless(value: Option<&str>, ci: bool) -> bool {
+    let asked = value == Some("1");
+    assert!(
+        !(asked && ci),
+        "CI only compares {FILE}. Bless it locally and commit the diff."
+    );
+    asked
+}
+
+#[test]
+fn bless_needs_exactly_1_and_never_runs_in_ci() {
+    assert!(bless(Some("1"), false));
+    for value in [None, Some("0"), Some(""), Some("true"), Some("1 ")] {
+        assert!(!bless(value, false), "{value:?}");
+        assert!(!bless(value, true), "{value:?}");
+    }
+    let in_ci = std::panic::catch_unwind(|| bless(Some("1"), true));
+    assert!(in_ci.is_err());
+}
+
 #[test]
 fn golden_is_current() {
     let mut run = run();
     let (_, result) = finish(&mut run);
     let text = golden(&run.script, &result);
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(FILE);
-    if std::env::var_os("KEYTRIAGE_BLESS").is_some() {
+    let value = std::env::var("KEYTRIAGE_BLESS").ok();
+    let ci = ["CI", "GITHUB_ACTIONS"]
+        .iter()
+        .any(|name| std::env::var_os(name).is_some());
+    if bless(value.as_deref(), ci) {
         std::fs::write(&path, &text).unwrap();
     }
     let file = std::fs::read_to_string(&path).unwrap_or_default();
