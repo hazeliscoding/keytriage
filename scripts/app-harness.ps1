@@ -4,8 +4,8 @@
 
 function Stop-Inconclusive([string]$why) { Write-Host "INCONCLUSIVE: $why"; exit 2 }
 function Stop-Fail([string]$why) { Write-Host "FAIL: $why"; exit 1 }
-# Exit 3 is kept for the one failure a check exists to catch, so its positive control can only
-# pass through that assertion.
+# Exit 3 is kept for the failures a check exists to catch. A positive control reaches it through
+# its own assertions only, so it can't pass by accident.
 function Stop-Caught([string]$why) { Write-Host "FAIL: $why"; exit 3 }
 
 try {
@@ -28,6 +28,16 @@ function Enter-Foreground([IntPtr]$hwnd, [string]$name) {
 function Assert-Foreground([IntPtr]$hwnd, [string]$phase) {
     $fg = $W::GetForegroundWindow()
     if ($fg -ne $hwnd) { Stop-Inconclusive "the foreground changed during $phase (now $($W::Describe($fg)))" }
+}
+
+# The echo asks the page to start a test once it has loaded. A request that starts no test is a
+# failure of the app, not an inconclusive run.
+function Wait-TestStarted([int]$startMs, [int]$stepMs) {
+    if (-not $app.WaitFor({ $app.StartSent }, $startMs)) { Stop-Inconclusive 'the app never asked for a test; is this a debug build?' }
+    if (-not $app.WaitReady($stepMs)) {
+        $why = if ($app.StartError) { $app.StartError } else { 'no reply' }
+        Stop-Fail "the page asked for a test and none started: $why"
+    }
 }
 
 function Find-AppWindow([int]$timeoutMs) {

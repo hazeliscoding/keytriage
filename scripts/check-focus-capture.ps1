@@ -1,7 +1,8 @@
 #Requires -Version 7
 # Focus check: proves that the app receives Raw Input while its window is in the foreground, and
-# none while another process's window is, when capture pauses and gives up its registration. It injects F13, F14 and F15 by scan code, which nothing
-# in the app or the browser binds, and reads the app's debug echo (src-tauri/src/echo.rs).
+# none while another process's window is, when capture pauses and gives up its registration. It
+# injects F13, F14 and F15 by scan code, which nothing in the app or the browser binds, and reads
+# the app's debug echo (src-tauri/src/echo.rs), which starts a test once the page has loaded.
 #
 # Build first with `npm run tauri build -- --debug --no-bundle`. The run takes the foreground and
 # may click the middle of the app window. Don't type while it runs.
@@ -11,12 +12,15 @@
 # the app's process. Users can force either mode, so run both.
 #
 # Exit codes: 0 pass, 1 capture is missing or registered wrongly, 2 inconclusive (a phase could
-# not be set up, so the run proves nothing either way), 3 the app captured in the background.
-# -PositiveControl keeps the app in front during the background phase, so a working check exits 3.
+# not be set up, so the run proves nothing either way), 3 the app captured in the background, or
+# didn't pause and give up its registration there. -PositiveControl Background keeps the app in
+# front during the background phase and must exit 3 through the background keys; -PositiveControl
+# Registration keeps a registration while paused (KEYTRIAGE_KEEP_REGISTRATION, debug builds only)
+# and must exit 3 through the paused registration.
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\keytriage.exe'),
     [ValidateSet('windowed', 'visual')][string]$Hosting = 'windowed',
-    [switch]$PositiveControl,
+    [ValidateSet('', 'Background', 'Registration')][string]$PositiveControl = '',
     [int]$Taps = 5,
     [int]$StepTimeoutMs = 5000,
     [int]$StartTimeoutMs = 60000
@@ -27,29 +31,32 @@ $F13 = 0x64; $F14 = 0x65; $F15 = 0x66
 
 . (Join-Path $PSScriptRoot 'app-harness.ps1')
 
+# Registration is per process and the last call wins, so the process must hold exactly one: the
+# keyboard, aimed at the app window, with no sink flag (RIDEV_INPUTSINK 0x100, RIDEV_EXINPUTSINK
+# 0x1000).
+function Assert-Registration([IntPtr]$hwnd, [string]$phase) {
+    $regs = $app.Registrations
+    if ($regs.Count -ne 1) { Stop-Fail "in $phase the process holds $($regs.Count) Raw Input registrations, not 1" }
+    $reg = $regs[0]
+    if ($reg.Page -ne 1 -or $reg.Usage -ne 6) { Stop-Fail ('in {0} the registration is page 0x{1:x} usage 0x{2:x}, not the keyboard' -f $phase, $reg.Page, $reg.Usage) }
+    if ($reg.Flags -band 0x1100) { Stop-Fail ('in {0} the registration flags 0x{1:x} include an input sink' -f $phase, $reg.Flags) }
+    if ($reg.Target -ne $hwnd.ToInt64()) { Stop-Fail "in $phase the registration does not target the app window" }
+    Write-Host ('{0}: keyboard registration, flags 0x{1:x}, targets the app window' -f $phase, $reg.Flags)
+}
+
 $app = $null
 $probe = $null
 try {
-    $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual')
-    if (-not $app.WaitReady($StartTimeoutMs)) { Stop-Inconclusive 'the app did not print its ready line; is this a debug build?' }
-
+    $switch = if ($PositiveControl -eq 'Registration') { 'KEYTRIAGE_KEEP_REGISTRATION' } else { $null }
+    $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual', $switch)
+    Wait-TestStarted $StartTimeoutMs $StepTimeoutMs
     $hwnd = Find-AppWindow $StartTimeoutMs
 
     # Phase 1: the app is in the foreground with focus inside the WebView2 content. Capture
     # registers, if it didn't at the start of the test, and events arrive.
     Enter-App $hwnd
     if (-not $app.WaitFor({ $app.Registrations.Count -ge 1 }, $StepTimeoutMs)) { Stop-Fail 'capture did not register with the app in the foreground' }
-
-    # Registration is per process and the last call wins, so the process must hold exactly one:
-    # the keyboard, aimed at the app window, with no sink flag (RIDEV_INPUTSINK 0x100,
-    # RIDEV_EXINPUTSINK 0x1000).
-    $regs = $app.Registrations
-    if ($regs.Count -ne 1) { Stop-Fail "the process holds $($regs.Count) Raw Input registrations, not 1" }
-    $reg = $regs[0]
-    if ($reg.Page -ne 1 -or $reg.Usage -ne 6) { Stop-Fail ('the registration is page 0x{0:x} usage 0x{1:x}, not the keyboard' -f $reg.Page, $reg.Usage) }
-    if ($reg.Flags -band 0x1100) { Stop-Fail ('the registration flags 0x{0:x} include an input sink' -f $reg.Flags) }
-    if ($reg.Target -ne $hwnd.ToInt64()) { Stop-Fail 'the registration does not target the app window' }
-    Write-Host ('registration: keyboard, flags 0x{0:x}, targets the app window' -f $reg.Flags)
+    Assert-Registration $hwnd 'phase 1'
     Assert-Foreground $hwnd 'phase 1'
     if ($W::Tap($F13, $Taps) -ne 2 * $Taps) { Stop-Inconclusive 'SendInput was blocked (UIPI or a secure desktop)' }
     $got = $app.WaitDowns($F13, $Taps, $StepTimeoutMs)
@@ -60,7 +67,8 @@ try {
     # probe sees every key; the app must see none.
     $pauses = $app.Pauses
     $resumes = $app.Resumes
-    if ($PositiveControl) {
+    $snapshots = $app.Snapshots
+    if ($PositiveControl -eq 'Background') {
         [void]$W::Tap($F14, $Taps)
         [void]$app.WaitDowns($F14, $Taps, $StepTimeoutMs)
         Assert-Foreground $hwnd 'phase 2'
@@ -72,6 +80,8 @@ try {
         if (-not $probe.WaitCount($Taps, $StepTimeoutMs)) { Stop-Inconclusive "the probe window received $($probe.Count) of $Taps key downs" }
         Assert-Foreground $probe.Hwnd 'phase 2'
         if (-not $app.WaitFor({ $app.Pauses -gt $pauses }, $StepTimeoutMs)) { Stop-Caught 'capture did not pause when the app lost the foreground' }
+        # The same count reads 1 after every resume, so it can see a registration when there is one.
+        if ($app.PausedRegistrations -eq -2) { Stop-Fail 'the app could not read its registrations while paused' }
         if ($app.PausedRegistrations -ne 0) { Stop-Caught "capture kept $($app.PausedRegistrations) Raw Input registrations while paused" }
     }
 
@@ -79,8 +89,11 @@ try {
     # WM_INPUT is queued in order, so once these arrive, any phase 2 event would already have
     # been counted.
     Enter-Foreground $hwnd 'the app'
-    if (-not $PositiveControl -and -not $app.WaitFor({ $app.Resumes -gt $resumes -and $app.Registrations.Count -eq 1 }, $StepTimeoutMs)) {
-        Stop-Fail 'capture did not resume when the app came back'
+    if ($PositiveControl -ne 'Background') {
+        if (-not $app.WaitFor({ $app.Resumes -gt $resumes -and $app.Snapshots -gt $snapshots }, $StepTimeoutMs)) {
+            Stop-Fail 'capture did not resume when the app came back'
+        }
+        Assert-Registration $hwnd 'phase 3'
     }
     [void]$W::Tap($F15, $Taps)
     $got = $app.WaitDowns($F15, $Taps, $StepTimeoutMs)
@@ -89,6 +102,8 @@ try {
 
     if ($app.Downs($F14) -ne 0) { Stop-Caught "the app received $($app.Downs($F14)) key downs while in the background" }
     if ($app.OtherDowns -ne 0) { Stop-Inconclusive "$($app.OtherDowns) key downs arrived that the harness did not send" }
+    # A test that starts in the background begins paused, so every resume follows a pause.
+    if ($app.Resumes -gt $app.Pauses) { Stop-Fail "the app resumed $($app.Resumes) times after only $($app.Pauses) pauses" }
 
     Write-Host "injected keys arrived with device handle $($app.MarkerDevices)"
     Write-Host ('PASS ({1} hosting): foreground {0}/{0}, paused and unregistered, background 0/{0}, resumed {0}/{0}' -f $Taps, $Hosting)

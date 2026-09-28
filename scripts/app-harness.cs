@@ -370,14 +370,18 @@ namespace AppHarness
         readonly object gate = new object();
         readonly Dictionary<int, int> downs = new Dictionary<int, int>();
         readonly HashSet<long> devices = new HashSet<long>();
-        readonly List<Registration> registrations = new List<Registration>();
-        bool ready;
-        int pageLoads;
+        // A snapshot is published only once all of it has arrived, so a check never reads half of one.
+        List<Registration> registrations = new List<Registration>();
+        List<Registration> pending;
+        int expected, snapshots;
+        bool ready, startSent;
+        string startError;
+        int pageLoads, refusals;
         string settings;
         long errorMode = -1;
         bool crashWatch;
         int pauses, resumes, pausedRegistrations = -1;
-        static readonly Regex PausedLine = new Regex(@"^kt-input: paused registrations=(\d+) interrupted=(\d+)$");
+        static readonly Regex PausedLine = new Regex(@"^kt-input: paused registrations=(\d+|unreadable) interrupted=(\d+)$");
 
         [DllImport("kernel32.dll")] static extern uint SetErrorMode(uint mode);
 
@@ -400,7 +404,11 @@ namespace AppHarness
             else psi.Environment.Remove(hosting);
             // WebView2 lets these move the user data folder and add browser arguments, which would
             // change where the crash reports check plants its dump and what it reads.
-            foreach (var name in new[] { "KEYTRIAGE_BROWSER_KEYS", "KEYTRIAGE_CRASH_REPORTS", "WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" })
+            var inherited = new[] {
+                "KEYTRIAGE_BROWSER_KEYS", "KEYTRIAGE_RELOADS", "KEYTRIAGE_CRASH_REPORTS", "KEYTRIAGE_KEEP_REGISTRATION",
+                "WEBVIEW2_USER_DATA_FOLDER", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            };
+            foreach (var name in inherited)
                 psi.Environment.Remove(name);
             // PowerShell passes $null to a string parameter as "".
             if (!string.IsNullOrEmpty(positiveControl)) psi.Environment[positiveControl] = "1";
@@ -424,11 +432,25 @@ namespace AppHarness
             {
                 if (line == "kt-input: ready") { ready = true; return; }
                 if (line == "kt-shell: page-load") { pageLoads++; return; }
+                if (line == "kt-shell: navigation-refused") { refusals++; return; }
+                if (line == "kt-shell: start-test sent") { startSent = true; return; }
+                if (line.StartsWith("kt-input: start failed: ")) { startError = line.Substring("kt-input: start failed: ".Length); return; }
                 if (line == "kt-shell: crash-watch=ok") { crashWatch = true; return; }
-                if (line.StartsWith("kt-input: registrations n=")) { registrations.Clear(); return; }
+                if (line.StartsWith("kt-input: registrations n="))
+                {
+                    expected = int.Parse(line.Substring("kt-input: registrations n=".Length));
+                    pending = new List<Registration>();
+                    if (expected == 0) Publish();
+                    return;
+                }
                 if (line == "kt-input: resumed") { resumes++; return; }
                 var p = PausedLine.Match(line);
-                if (p.Success) { pauses++; pausedRegistrations = int.Parse(p.Groups[1].Value); return; }
+                if (p.Success)
+                {
+                    pauses++;
+                    pausedRegistrations = p.Groups[1].Value == "unreadable" ? -2 : int.Parse(p.Groups[1].Value);
+                    return;
+                }
                 if (line.StartsWith("kt-shell: error-mode=0x")) { errorMode = Hex(line.Substring("kt-shell: error-mode=0x".Length)); return; }
                 if (line.StartsWith("kt-shell: browser-keys=") || line.StartsWith("kt-shell: settings unreadable"))
                 {
@@ -438,11 +460,13 @@ namespace AppHarness
                 var r = RegisteredLine.Match(line);
                 if (r.Success)
                 {
-                    registrations.Add(new Registration
+                    if (pending == null) return;
+                    pending.Add(new Registration
                     {
                         Page = Hex(r.Groups[1].Value), Usage = Hex(r.Groups[2].Value),
                         Flags = Hex(r.Groups[3].Value), Target = Hex(r.Groups[4].Value),
                     });
+                    if (pending.Count == expected) Publish();
                     return;
                 }
                 var m = EventLine.Match(line);
@@ -455,7 +479,18 @@ namespace AppHarness
             }
         }
 
+        void Publish()
+        {
+            registrations = pending;
+            pending = null;
+            snapshots++;
+        }
+
         public Registration[] Registrations { get { lock (gate) return registrations.ToArray(); } }
+        public int Snapshots { get { lock (gate) return snapshots; } }
+        public int Refusals { get { lock (gate) return refusals; } }
+        public bool StartSent { get { lock (gate) return startSent; } }
+        public string StartError { get { lock (gate) return startError; } }
         public int Downs(int key) { lock (gate) { int n; return downs.TryGetValue(key, out n) ? n : 0; } }
         public int OtherDowns { get { return Downs(Other); } }
         public int PageLoads { get { lock (gate) return pageLoads; } }
@@ -466,7 +501,8 @@ namespace AppHarness
         public bool CrashWatch { get { lock (gate) return crashWatch; } }
         public int Pauses { get { lock (gate) return pauses; } }
         public int Resumes { get { lock (gate) return resumes; } }
-        // How many Raw Input registrations the process held at its last pause, or -1 before one.
+        // How many Raw Input registrations the process held at its last pause, -1 before one, or -2 if
+        // the app could not read them.
         public int PausedRegistrations { get { lock (gate) return pausedRegistrations; } }
 
         public bool WaitFor(Func<bool> done, int timeoutMs)
