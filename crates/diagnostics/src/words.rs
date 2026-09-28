@@ -98,8 +98,8 @@ impl NextTest {
                 partner: Some(partner),
             } => format!(
                 "Swap the {s} switch with the {p} switch and test both keys again. If the fault \
-                 moves to {p}, the switch is the cause. If it stays on {s}, look at the socket or \
-                 the PCB.",
+                 moves to {p}, the switch is the likely cause. If it stays on {s}, look at the \
+                 socket or the PCB.",
                 s = label(suspect),
                 p = label(partner)
             ),
@@ -108,8 +108,8 @@ impl NextTest {
                 partner: None,
             } => format!(
                 "Swap the {s} switch with the switch of a key that tested clean, and test both \
-                 keys again. If the fault moves with the switch, the switch is the cause. If it \
-                 stays on {s}, look at the socket or the PCB.",
+                 keys again. If the fault moves with the switch, the switch is the likely cause. \
+                 If it stays on {s}, look at the socket or the PCB.",
                 s = label(suspect)
             ),
             NextTest::ReseatSwitch { key } => format!(

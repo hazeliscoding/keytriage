@@ -39,8 +39,18 @@ fn w01_the_canned_finding_renders() {
         [
             "Say whether the keyboard is hot-swap, soldered or a laptop keyboard. The next steps differ.",
             "Swap the E switch with the G switch and test both keys again. If the fault moves to G, \
-             the switch is the cause. If it stays on E, look at the socket or the PCB.",
+             the switch is the likely cause. If it stays on E, look at the socket or the PCB.",
         ]
+    );
+    assert_eq!(
+        NextTest::SwapSwitch {
+            suspect: E,
+            partner: None
+        }
+        .words(&label),
+        "Swap the E switch with the switch of a key that tested clean, and test both keys again. \
+         If the fault moves with the switch, the switch is the likely cause. If it stays on E, \
+         look at the socket or the PCB."
     );
 }
 

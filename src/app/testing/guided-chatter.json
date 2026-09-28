@@ -339,7 +339,7 @@
           "Firmware debounce"
         ],
         "next": [
-          "Swap the E switch with the G switch and test both keys again. If the fault moves to G, the switch is the cause. If it stays on E, look at the socket or the PCB.",
+          "Swap the E switch with the G switch and test both keys again. If the fault moves to G, the switch is the likely cause. If it stays on E, look at the socket or the PCB.",
           "Blow out the E switch with the key held down, or work contact cleaner into it while pressing it many times. Then test E again.",
           "If the keyboard's firmware lets you, raise its debounce time to 10 ms, then 15 ms, and test again."
         ],
