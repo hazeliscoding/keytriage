@@ -12,6 +12,25 @@
       </div>
     }
 
+    @if (prompt(); as prompt) {
+      <div class="prompt" [class.prompt--paused]="run.pause()">
+        <div class="prompt__key">{{ prompt.label }}</div>
+        <div class="prompt__text">
+          <div class="prompt__ask">{{ prompt.ask }}</div>
+          <div class="prompt__sub">
+            @if (run.pause()) {
+              Waiting for focus. Presses are not read.
+            } @else {
+              Normal pace. Release fully between presses. Other keys are ignored.
+            }
+          </div>
+        </div>
+        <div class="prompt__count">
+          {{ prompt.count }} <span class="prompt__of">/ {{ prompt.asked }}</span>
+        </div>
+      </div>
+    }
+
     <app-keyboard [layout]="run.layout()" [marks]="marks()" />
 
     <div class="legend">
@@ -24,6 +43,21 @@
   </div>
 
   <div class="test__side">
+    @if (progress(); as progress) {
+      <section class="panel progress" [class.progress--paused]="run.pause()">
+        <div class="kicker progress__line">
+          <span>{{ progress.round }}</span
+          ><span>{{ progress.key }}</span>
+        </div>
+        <div class="progress__track">
+          <div class="progress__fill" [style.width.%]="progress.fill"></div>
+        </div>
+        <div class="meta tabular progress__line">
+          <span>{{ elapsed() }}</span
+          ><span>{{ progress.presses }}</span>
+        </div>
+      </section>
+    }
     <section class="panel live">
       <div class="live__title">
         <span class="kicker">Live events</span>
@@ -51,6 +85,12 @@
 </div>
 
 <footer class="footer">
+  @if (run.pause()) {
+    <button type="button" class="btn btn--primary" (click)="run.continueTest()">Continue</button>
+  } @else {
+    <button type="button" class="btn btn--secondary" (click)="run.pauseTest()">Pause</button>
+  }
+  <button type="button" class="btn btn--ghost" (click)="run.skipKey()">Skip this key</button>
   @if (run.note()) {
     <div class="meta footer__note" role="status">{{ run.note() }}</div>
   } @else {

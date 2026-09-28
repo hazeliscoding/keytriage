@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
-import { grouped } from './format';
-import { KeyboardDrawing, type CapMark } from './keyboard';
+import { countWord, grouped, mmss } from './format';
+import { KeyboardDrawing, type CapMark, type CapState } from './keyboard';
 import { dropFocus } from './keys';
 import { capLabel, capName } from './layout';
 import { TestRun } from './test-run';
@@ -24,10 +24,43 @@ export class TestScreen {
 
   protected readonly rows = computed(() => this.run.rows().slice(0, SHOWN_ROWS));
 
+  protected readonly prompt = computed(() => {
+    const view = this.run.guide();
+    if (!view || view.key === null) return null;
+    const label = capLabel(this.run.layout(), view.key);
+    const times = view.asked === 1 ? 'once' : `${countWord(view.asked)} times`;
+    return { label, ask: `Press ${label} ${times}.`, count: view.count, asked: view.asked };
+  });
+
+  protected readonly progress = computed(() => {
+    const view = this.run.guide();
+    if (!view) return null;
+    const injected = this.run.injected();
+    return {
+      round: `Round ${Math.min(view.round + 1, view.rounds)} of ${view.rounds}`,
+      key: `Key ${Math.min(view.index + 1, view.keys)} of ${view.keys}`,
+      fill: view.total ? (view.done / view.total) * 100 : 0,
+      presses: injected
+        ? `${grouped(injected)} injected, not counted`
+        : `${grouped(view.done)} of ${grouped(view.total)} presses`,
+    };
+  });
+
+  protected readonly elapsed = computed(
+    () => `Elapsed ${mmss(this.run.elapsed())}${this.run.pause() ? ', paused' : ''}`,
+  );
+
+  // Later states win: a held prompted key loses its frame, and an interrupted key shows only that.
   protected readonly marks = computed(() => {
+    const view = this.run.guide();
+    const counts = new Map(view?.tallies.filter(([, n]) => n > 0));
     const marks = new Map<number, CapMark>();
-    for (const scan of this.run.held()) marks.set(scan, { state: 'down' });
-    for (const scan of this.run.interrupted()) marks.set(scan, { state: 'interrupted', tag: '○' });
+    const mark = (scan: number, state: CapState, tag?: string) =>
+      marks.set(scan, { state, count: counts.get(scan), tag });
+    for (const scan of counts.keys()) mark(scan, 'counted');
+    if (view && view.key !== null) mark(view.key, 'prompted');
+    for (const scan of this.run.held()) mark(scan, 'down');
+    for (const scan of this.run.interrupted()) mark(scan, 'interrupted', '○');
     return marks;
   });
 
@@ -56,7 +89,9 @@ export class TestScreen {
         : names.length === 1
           ? `${names[0]} was down at that moment and is marked interrupted, not stuck.`
           : `${listed(names)} were down at that moment and are marked interrupted, not stuck.`;
-    return `${lead} ${held}`;
+    const prompt = this.prompt();
+    const repeat = prompt ? ` This round of ${prompt.label} will be repeated.` : '';
+    return `${lead} ${held}${repeat}`;
   });
 
   protected readonly injectedBody = computed(() => {

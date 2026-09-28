@@ -222,6 +222,104 @@
   min-height: 0;
 }
 
+.prompt {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 20px;
+  border: 1px solid var(--ink);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.prompt__key {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  outline: 1px solid var(--auburn);
+  outline-offset: 2px;
+  font-family: var(--font-directive);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.prompt__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt__ask {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.prompt__sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.prompt__count {
+  flex: none;
+  font-family: var(--font-directive);
+  font-size: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.prompt__of,
+.prompt--paused .prompt__count {
+  color: var(--text-meta);
+}
+
+.prompt--paused,
+.prompt--paused .prompt__key {
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+.prompt--paused .prompt__key {
+  outline: none;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.progress__line {
+  display: flex;
+  justify-content: space-between;
+}
+
+.progress__track {
+  position: relative;
+  height: 2px;
+  background: var(--line);
+}
+
+.progress__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--ink);
+}
+
+.progress--paused .progress__fill {
+  background: var(--line-strong);
+}
+
 .live {
   display: flex;
   flex: 1;

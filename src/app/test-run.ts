@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Bridge, reasonOf } from './bridge';
 import { clock, fmtMicros } from './format';
-import type { Board, KeyboardGroup, PlanArgs, TestEvent } from './ipc';
+import type { Board, Events, GuideView, KeyboardGroup, PlanArgs, TestEvent } from './ipc';
 import { cancelKeys, dropFocus } from './keys';
 import { capLabel, layout, type Size, type Std } from './layout';
 import { PLAN } from './plan';
@@ -78,6 +78,8 @@ export class TestRun {
   readonly interrupted = signal<readonly number[]>([]);
   readonly injected = signal(0);
   readonly pause = signal<Pause | null>(null);
+  // Rust's view of the prompt, kept as sent: the page never counts presses itself.
+  readonly guide = signal<GuideView | null>(null);
   readonly startedAt = signal<Date | null>(null);
 
   // The page's own clock, with pauses left out: `spent` ms before the stretch that began `since`.
@@ -96,15 +98,12 @@ export class TestRun {
   private seq = 0;
   private ticking: ReturnType<typeof setInterval> | undefined;
   private uncancel: (() => void) | null = null;
+  // Set between a click on Pause and the pause it causes, which then reads as the user's own.
+  private pauseAsked = false;
 
   constructor() {
-    // The page listens for its whole life and takes events only during its own test, so the
-    // debug echo's test never reaches the screen.
-    this.bridge
-      .on('test:event', (event) => {
-        if (this.running()) this.fold(event);
-      })
-      .catch((error: unknown) => this.note.set(reasonOf(error)));
+    this.listen('test:event', (event) => this.fold(event));
+    this.listen('test:guide', (view) => this.guide.set(view));
     inject(DestroyRef).onDestroy(() => this.halt());
   }
 
@@ -162,6 +161,42 @@ export class TestRun {
     this.leave('start');
   }
 
+  async pauseTest(): Promise<void> {
+    if (this.screen() !== 'test' || this.pause()) return;
+    this.pauseAsked = true;
+    if (!(await this.attempt(this.bridge.pauseTest()))) this.pauseAsked = false;
+  }
+
+  async continueTest(): Promise<void> {
+    if (this.screen() === 'test') await this.attempt(this.bridge.continueTest());
+  }
+
+  async skipKey(): Promise<void> {
+    if (this.screen() === 'test') await this.attempt(this.bridge.skipKey());
+  }
+
+  // Runs a command during the test. A failure leaves the test as it was and shows its reason.
+  private async attempt(command: Promise<void>): Promise<boolean> {
+    this.note.set('');
+    try {
+      await command;
+      return true;
+    } catch (error) {
+      this.note.set(reasonOf(error));
+      return false;
+    }
+  }
+
+  // The page listens for its whole life and takes events only during its own test, so the debug
+  // echo's test never reaches the screen.
+  private listen<K extends keyof Events>(event: K, take: (payload: Events[K]) => void): void {
+    this.bridge
+      .on(event, (payload) => {
+        if (this.running()) take(payload);
+      })
+      .catch((error: unknown) => this.note.set(reasonOf(error)));
+  }
+
   private running(): boolean {
     const screen = this.screen();
     return screen === 'starting' || screen === 'test';
@@ -195,6 +230,8 @@ export class TestRun {
     this.interrupted.set([]);
     this.injected.set(0);
     this.pause.set(null);
+    this.pauseAsked = false;
+    this.guide.set(null);
     this.timer.set({ spent: 0, since: null });
   }
 
@@ -231,8 +268,12 @@ export class TestRun {
 
   private foldPause(interrupted: readonly { device: number; scan: number }[]): void {
     const at = clock(new Date());
-    this.push({ key: '—', edge: 'focus lost', t: at, device: 'window', kind: 'window' });
-    this.pause.set({ reason: 'focus', at });
+    const reason = this.pauseAsked ? 'user' : 'focus';
+    this.pauseAsked = false;
+    if (reason === 'focus') {
+      this.push({ key: '—', edge: 'focus lost', t: at, device: 'window', kind: 'window' });
+    }
+    this.pause.set({ reason, at });
     const scans = interrupted.filter((k) => this.handles.has(k.device)).map((k) => k.scan);
     this.interrupted.set([...new Set(scans)]);
     // A key down at the pause is interrupted now, and its release may never arrive.
@@ -242,6 +283,7 @@ export class TestRun {
 
   private foldResume(): void {
     this.pause.set(null);
+    this.pauseAsked = false;
     this.interrupted.set([]);
     this.resumeClock();
   }
