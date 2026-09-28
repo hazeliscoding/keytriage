@@ -73,6 +73,10 @@ pub fn start_test(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), S
 
 fn start(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), String> {
     let test = plan.map(view::plan).transpose()?;
+    if let Some((_, keyboard, _)) = &test {
+        let listed = keytriage_input::keyboards().map_err(|e| e.to_string())?;
+        view::still_listed(keyboard, &listed)?;
+    }
     stop_test();
     let start = Instant::now();
     let core = Rc::new(RefCell::new(Core::new(start, test)));

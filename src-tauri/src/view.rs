@@ -141,6 +141,22 @@ pub fn plan(args: PlanArgs) -> Result<(Guide, Vec<isize>, BoardKind), String> {
     Ok((guide, args.keyboard, board))
 }
 
+const RECONNECTED: &str =
+    "This keyboard was unplugged or reconnected. Pick it again on the Start screen.";
+
+// Windows gives a keyboard new handles when it reconnects, and no event carries the old ones, so a
+// plan on them would wait on its first prompt for good.
+pub fn still_listed(keyboard: &[isize], listed: &[Keyboard]) -> Result<(), String> {
+    if keyboard
+        .iter()
+        .all(|&handle| listed.iter().any(|k| k.handle == handle))
+    {
+        Ok(())
+    } else {
+        Err(RECONNECTED.to_string())
+    }
+}
+
 fn refusal(error: PlanError) -> String {
     match error {
         PlanError::NoKeys => "The test has no keys to prompt.".to_string(),
@@ -568,6 +584,26 @@ mod tests {
         }
         let unknown = format!("{json}\"hotswap\"}}");
         assert!(serde_json::from_str::<PlanArgs>(&unknown).is_err());
+    }
+
+    #[test]
+    fn plan03_a_keyboard_whose_handles_are_gone_is_refused() {
+        let listed = [
+            keyboard(65603, "Keychron K2", K2_IDS, Some(K2)),
+            keyboard(65605, "Keychron K2, consumer control", K2_IDS, Some(K2)),
+        ];
+        assert_eq!(still_listed(&[65603, 65605], &listed), Ok(()));
+        // Replugged, it came back as 65611 and 65613.
+        for stale in [&[65603, 65611][..], &[65609][..]] {
+            assert_eq!(
+                still_listed(stale, &listed),
+                Err(
+                    "This keyboard was unplugged or reconnected. Pick it again on the Start \
+                     screen."
+                        .to_string()
+                )
+            );
+        }
     }
 
     fn key(scan: u16, up: bool, ms: u64) -> keytriage_diagnostics::Entry {

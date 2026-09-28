@@ -1,6 +1,12 @@
 import { type ComponentFixture } from '@angular/core/testing';
 import { App } from './app';
-import type { FindingView, GuideView, KeyName, TestResult } from './ipc';
+import {
+  RECONNECTED,
+  type FindingView,
+  type GuideView,
+  type KeyName,
+  type TestResult,
+} from './ipc';
 import { labelsFor, layout } from './layout';
 import { PLAN } from './plan';
 import {
@@ -385,6 +391,18 @@ describe('Findings screen', () => {
       expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
       expect(all(fixture, '.finding')).toHaveLength(2);
       expect(textOf(fixture, '.footer__note')).toBe('Capture could not start.');
+    });
+
+    it('goes back to Start, which lists the keyboards again, when the keyboard was reconnected', async () => {
+      const fixture = await finished(FOUND);
+      inApp((cmd) => {
+        if (cmd === 'start_test') throw RECONNECTED;
+        return null;
+      });
+      await click(fixture, button(fixture, 'Test again'));
+      expect(textOf(fixture, '.steps__now')).toBe('01 Keyboard');
+      expect(textOf(fixture, '.footer__note')).toBe(RECONNECTED);
+      expect(sent('list_keyboards')).toHaveLength(1);
     });
 
     it('goes back to Start for a new test and lists the keyboards again', async () => {

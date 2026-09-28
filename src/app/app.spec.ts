@@ -1,7 +1,19 @@
 import { mockIPC } from '@tauri-apps/api/mocks';
+import { RECONNECTED } from './ipc';
 import { keyCount, layout, plainKeys } from './layout';
 import { PLAN } from './plan';
-import { all, button, click, el, inApp, leaveApp, render, started, text } from './testing/harness';
+import {
+  all,
+  button,
+  click,
+  el,
+  inApp,
+  leaveApp,
+  render,
+  sent,
+  started,
+  text,
+} from './testing/harness';
 
 describe('App', () => {
   beforeEach(() => inApp());
@@ -201,6 +213,20 @@ describe('App', () => {
       expect(text(el(fixture).querySelector('.footer__note'))).toBe('Capture could not start.');
       expect(text(el(fixture).querySelector('.steps__now'))).toBe('01 Keyboard');
       expect(button(fixture, 'Begin test').disabled).toBe(false);
+      expect(sent('list_keyboards')).toHaveLength(1);
+    });
+
+    it('lists the keyboards again when the picked one was reconnected', async () => {
+      inApp((cmd) => {
+        if (cmd === 'start_test') throw RECONNECTED;
+        return null;
+      });
+      const fixture = await render();
+      expect(sent('list_keyboards')).toHaveLength(1);
+      await click(fixture, button(fixture, 'Begin test'));
+      expect(text(el(fixture).querySelector('.footer__note'))).toBe(RECONNECTED);
+      expect(text(el(fixture).querySelector('.steps__now'))).toBe('01 Keyboard');
+      expect(sent('list_keyboards')).toHaveLength(2);
     });
   });
 });

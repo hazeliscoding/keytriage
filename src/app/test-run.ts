@@ -1,14 +1,15 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Bridge, reasonOf } from './bridge';
 import { clock, fmtMicros } from './format';
-import type {
-  Board,
-  Events,
-  GuideView,
-  KeyboardGroup,
-  PlanArgs,
-  TestEvent,
-  TestResult,
+import {
+  RECONNECTED,
+  type Board,
+  type Events,
+  type GuideView,
+  type KeyboardGroup,
+  type PlanArgs,
+  type TestEvent,
+  type TestResult,
 } from './ipc';
 import { cancelKeys, dropFocus } from './keys';
 import { capLabel, labelsFor, layout, type Layout, type Size, type Std } from './layout';
@@ -183,8 +184,18 @@ export class TestRun {
       await this.bridge.startTest(plan);
     } catch (error) {
       if (this.screen() !== 'starting') return;
+      const reason = reasonOf(error);
+      if (reason === RECONNECTED) {
+        // The keyboard's handles are gone, so it is picked again from a new list. Start lists the
+        // keyboards when it opens, and it may already be open.
+        this.findings.set(null);
+        this.leave('start');
+        this.note.set(reason);
+        if (screen === 'start') void this.listKeyboards();
+        return;
+      }
       this.leave(screen);
-      this.note.set(reasonOf(error));
+      this.note.set(reason);
       return;
     }
     if (this.screen() !== 'starting') return;

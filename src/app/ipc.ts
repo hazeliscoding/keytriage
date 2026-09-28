@@ -2,6 +2,10 @@
 
 export type Board = 'hot-swap' | 'soldered' | 'laptop';
 
+// start_test's refusal when the picked keyboard's handles are gone. Mirrors view.rs.
+export const RECONNECTED =
+  'This keyboard was unplugged or reconnected. Pick it again on the Start screen.';
+
 export interface PlanArgs {
   keyboard: number[];
   keys: number[];
