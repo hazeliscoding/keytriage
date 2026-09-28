@@ -1,10 +1,10 @@
-// Network guard: fails when networking code, a network dependency, a remote stylesheet or font, a
-// permissive CSP or a missing navigation guard appears. It enforces the "no network" line of the
-// privacy contract in README.md.
+// Network guard: fails when networking code, a network dependency, a remote stylesheet, font,
+// script or image, a permissive CSP or a missing navigation guard appears. It enforces the "no
+// network" line of the privacy contract in README.md.
 //
 // Limits: it matches names, not behavior. A dependency that opens sockets under a name not listed
-// here, a child process that reaches the network, code generated at build time and deliberate
-// obfuscation get past it. Review covers those.
+// here, a child process that reaches the network, a URL built at run time, code generated at build
+// time and deliberate obfuscation get past it. Review covers those.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { extname, join, relative, resolve } from 'node:path';
@@ -26,8 +26,23 @@ export const BUNDLE_APIS = WEB_APIS.map((api) =>
 );
 
 // The CSP stops a remote stylesheet or font only inside the app. `npm start` serves the page to a
-// browser with no CSP. The minifier drops the space in `@import "…"`.
-const REMOTE_CSS = /(?:@import\s*(?:url\(\s*)?|\burl\(\s*)['"]?\s*(?:https?:|wss?:|\/\/)/gi;
+// browser with no CSP. The minifier drops the space in `@import "…"`, and image-set() takes bare
+// strings as well as url().
+const REMOTE = String.raw`(?:https?:|wss?:|\/\/)`;
+const REMOTE_CSS = new RegExp(
+  String.raw`(?:@import\s*(?:url\(\s*)?|\burl\(\s*)['"]?\s*${REMOTE}|image-set\([^)]*?['"]\s*${REMOTE}`,
+  'gi',
+);
+
+// The same holds for the page's markup, where a pasted Google Fonts <link> is the usual way in. A
+// plain <a href> passes, because links open in the browser. Tags span lines, so the whole text is
+// matched at once. `[src]="'…'"` is Angular's bound form.
+const REMOTE_MARKUP = [
+  new RegExp(String.raw`<(?:link|use|image)\b[^>]*?\s\[?(?:xlink:)?href\]?\s*=\s*['"]{0,2}\s*${REMOTE}`, 'gi'),
+  new RegExp(String.raw`\b(?:src|poster)\]?\s*=\s*['"]{0,2}\s*${REMOTE}`, 'gi'),
+  // Every candidate in a srcset is a URL.
+  new RegExp(String.raw`\bsrcset\]?\s*=\s*['"]{1,2}[^'"]*?${REMOTE}`, 'gi'),
+];
 
 export const RUST_APIS = [
   { pattern: /\bstd::net\b/, name: 'std::net' },
@@ -90,6 +105,19 @@ export function scanCss(text) {
     }
   });
   return hits;
+}
+
+export function scanMarkup(text) {
+  const hits = [];
+  for (const pattern of REMOTE_MARKUP) {
+    for (const match of text.matchAll(pattern)) {
+      const end = match.index + match[0].length;
+      const line = text.slice(0, end).split('\n').length;
+      const context = text.slice(Math.max(0, end - 60), end + 40).replace(/\s+/g, ' ').trim();
+      hits.push({ line, name: 'remote file in markup', context });
+    }
+  }
+  return hits.sort((a, b) => a.line - b.line);
 }
 
 export function scanCargoTree(text) {
@@ -176,6 +204,7 @@ export function check(root, { requireBundle = false } = {}) {
     const text = readFileSync(file, 'utf8');
     if (extname(file) !== '.css') {
       for (const hit of scanSource(text)) report(file, hit.line, `networking API ${hit.name}`);
+      for (const hit of scanMarkup(text)) report(file, hit.line, hit.name);
     }
     for (const hit of scanCss(text)) report(file, hit.line, hit.name);
   }
@@ -196,6 +225,9 @@ export function check(root, { requireBundle = false } = {}) {
         if (extname(file) !== '.css') {
           for (const hit of scanSource(text, BUNDLE_APIS)) {
             report(file, hit.line, `networking API ${hit.name} in the built bundle, near: ${hit.context}`);
+          }
+          for (const hit of scanMarkup(text)) {
+            report(file, hit.line, `${hit.name} in the built bundle, near: ${hit.context}`);
           }
         }
         for (const hit of scanCss(text)) {

@@ -14,6 +14,7 @@ import {
   hasNavigationGuard,
   scanCargoTree,
   scanCss,
+  scanMarkup,
   scanPackageLock,
   scanSource,
 } from './check-network.mjs';
@@ -64,6 +65,8 @@ test('flags each remote CSS import and url once', () => {
     'src: url(//cdn.example.com/x.woff2) format("woff2");',
     'background: url("https://x/y.woff2");',
     "styles: ['.a { background: url( ws://x/y.png ) }'],",
+    'background-image: image-set("https://x/y.png" 1x);',
+    'background-image: -webkit-image-set("a.png" 1x, "//cdn.example.com/b.png" 2x);',
   ];
   for (const s of samples) assert.equal(scanCss(s).length, 1, s);
 });
@@ -84,6 +87,44 @@ test('the CSS scan reports the line and shows where in a minified line', () => {
   const [hit, ...rest] = scanCss('@font-face{font-family:A;src:url(//cdn.example.com/x.woff2) format("woff2"),url(./a.woff2)}');
   assert.deepEqual(rest, []);
   assert.match(hit.context, /src:url\(\/\/cdn\.example\.com\/x\.woff2\)/);
+});
+
+test('flags each remote link, source and srcset in markup once', () => {
+  const samples = [
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans">',
+    '<link href="//fonts.googleapis.com/css2" rel="stylesheet">',
+    '<link\n  rel="preload"\n  href="https://x/y.woff2"\n  as="font"\n/>',
+    '<script src="https://cdn.example.com/x.js"></script>',
+    "<img src='//x/y.png'>",
+    '<img srcset="a.png 1x, https://x/b.png 2x">',
+    '<video poster="https://x/p.png"></video>',
+    '<svg><use href="https://x/s.svg#i"></use></svg>',
+    `<img [src]="'https://x/y.png'">`,
+    "img.src = 'wss://x/y.png';",
+  ];
+  for (const s of samples) assert.equal(scanMarkup(s).length, 1, s);
+});
+
+test('ignores links, local files and namespaces in markup', () => {
+  const samples = [
+    '<a href="https://github.com/hazeliscoding/keytriage">Source</a>',
+    '<a\n  class="link"\n  href="https://github.com"\n>Source</a>',
+    '<link rel="icon" type="image/svg+xml" href="brand/mark.svg" />',
+    '<img src="brand/mark.svg" alt="" />',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"></svg>',
+    '<img srcset="a.png 1x, b.png 2x">',
+    '<img [src]="icon()">',
+  ];
+  for (const s of samples) assert.deepEqual(scanMarkup(s), [], s);
+});
+
+test('the markup scan reports the line of the address in a tag over several lines', () => {
+  const [hit, ...rest] = scanMarkup(
+    '<head>\n  <link\n    rel="stylesheet"\n    href="https://fonts.googleapis.com/css2"\n  />',
+  );
+  assert.deepEqual(rest, []);
+  assert.equal(hit.line, 4);
+  assert.match(hit.context, /href="https:/);
 });
 
 test('flags Rust sockets, but not in comments', () => {
@@ -206,6 +247,22 @@ test('the CLI fails on remote CSS in source styles and in styles compiled into t
     assert.match(result.stderr, /src\/styles\.css:1 {2}remote CSS import or url\n/);
     assert.match(result.stderr, /src\/app\/card\.ts:2 {2}remote CSS import or url\n/);
     assert.match(result.stderr, /main\.js:1 {2}remote CSS import or url in the built bundle, near: .*background:url\(https:/);
+  });
+});
+
+test('the CLI fails on a remote link in the page source and in the built page', () => {
+  withFixture((root) => {
+    writeFileSync(join(root, 'src/index.html'), '<head>\n  <link rel="icon" href="brand/mark.svg" />\n</head>\n');
+    assert.equal(run(root, '--bundle').status, 0);
+    writeFileSync(
+      join(root, 'src/index.html'),
+      '<head>\n  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans" />\n</head>\n',
+    );
+    writeFileSync(join(root, 'dist/app/browser/index.html'), '<head><link href=//fonts.googleapis.com/css2 rel=stylesheet></head>\n');
+    const result = run(root, '--bundle');
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /src\/index\.html:2 {2}remote file in markup\n/);
+    assert.match(result.stderr, /browser\/index\.html:1 {2}remote file in markup in the built bundle, near: .*href=\/\/fonts/);
   });
 });
 
