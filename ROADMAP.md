@@ -84,6 +84,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - the chatter card's histogram is the key's saved release-gap histogram in 6 bars (<4, 4–12, 12–20, 20–36, 36–100 and 100+ ms), and dead and stuck cards have none;
     - the timing limits sentence comes from the engine's polling estimate, not a fixed 1 ms;
     - the clean card lists the plan and the engine's notes, and its next test ends "then test again.";
+    - a test ended early lists how far it got in place of the plan ("Ended after 40 of 1 410 presses, 4 of 47 keys"), and when no key kept a round, the card reads "Nothing was tested." with no Clean badge;
     - the demo's "dropped presses" and "sticking key" findings don't exist, and "Run the swap test" waits for M4;
     - where the mockups and the demo differ, the demo wins, except for its stand-in findings. Where the specification and the drawn components differ, the components win.
 

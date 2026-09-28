@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Bridge, reasonOf } from './bridge';
-import { fileName, mmss, pad2, stamp } from './format';
+import { fileName, grouped, mmss, pad2, stamp } from './format';
 import { KeyboardDrawing, type CapMark } from './keyboard';
 import { capLabel } from './layout';
 import { TestRun } from './test-run';
@@ -73,15 +73,28 @@ export class FindingsScreen {
     ];
   });
 
-  protected readonly cleanEvidence = computed(() => {
+  // Rust lists every key that kept a round. With none, there is nothing a clean card could vouch for.
+  protected readonly tested = computed(() => (this.run.findings()?.result.keys.length ?? 0) > 0);
+
+  // A test that ended early says how far it got, so the card never claims the whole plan.
+  protected readonly coverage = computed(() => {
     const record = this.run.findings();
-    if (!record) return [];
+    if (!record) return '';
+    if (record.reached) {
+      const { done, total } = record.reached;
+      return (
+        `Ended after ${grouped(done)} of ${grouped(total)} presses, ` +
+        `${record.result.keys.length} of ${plural(record.keys, 'key', 'keys')}`
+      );
+    }
     const each = record.rounds === 1 ? 'in 1 round' : `in each of ${record.rounds} rounds`;
-    return [
-      `${plural(record.keys, 'key', 'keys')}, ${plural(record.presses, 'press', 'presses')} ${each}`,
-      ...record.result.clean,
-    ];
+    return `${plural(record.keys, 'key', 'keys')}, ${plural(record.presses, 'press', 'presses')} ${each}`;
   });
+
+  protected readonly cleanEvidence = computed(() => [
+    this.coverage(),
+    ...(this.run.findings()?.result.clean ?? []),
+  ]);
 
   protected readonly limits = computed(() =>
     [

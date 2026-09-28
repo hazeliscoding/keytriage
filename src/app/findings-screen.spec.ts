@@ -126,10 +126,29 @@ const GOLDEN_PLAN = {
   useValue: { keys: () => [G, 0x24, E], rounds: 3, presses: 10 },
 };
 
-// Runs a test to its end and shows what `result` holds.
-async function finished(result: TestResult): Promise<ComponentFixture<App>> {
+// A view mid-plan: E is prompted in round 1, after G and J closed theirs.
+const MID: GuideView = {
+  key: E,
+  asked: 10,
+  count: 4,
+  round: 0,
+  rounds: 3,
+  index: 2,
+  keys: 3,
+  done: 24,
+  total: 90,
+  tallies: [
+    [G, 10],
+    [0x24, 10],
+    [E, 4],
+  ],
+};
+
+// Ends a test at the view `last`, if Rust sent one, and shows what `result` holds.
+async function finished(result: TestResult, last?: GuideView): Promise<ComponentFixture<App>> {
   inApp((cmd) => (cmd === 'end_test' ? result : null));
   const fixture = await testing([GOLDEN_PLAN]);
+  if (last) await send(fixture, 'test:guide', last);
   await click(fixture, button(fixture, 'End test'));
   return fixture;
 }
@@ -263,7 +282,7 @@ describe('Findings screen', () => {
 
   describe('a clean result', () => {
     it('says no fault was found, with the plan, the clean lines and the limits', async () => {
-      const fixture = await finished(CLEAN);
+      const fixture = await finished(CLEAN, DONE);
       expect(lines(el(fixture), '.findings__head > *')).toEqual(['Findings · 0']);
       const [card] = all(fixture, '.finding');
       expect(card.querySelector('.finding__tile')?.classList).toContain('finding__tile--clean');
@@ -294,6 +313,43 @@ describe('Findings screen', () => {
         ),
         'Nothing arrived from this keyboard during the test.',
       ]);
+    });
+
+    it('says how far a test that ended early got, in place of the plan', async () => {
+      const fixture = await finished(CLEAN, MID);
+      const [card] = all(fixture, '.finding');
+      expect(text(card.querySelector('.badge--clean'))).toBe('Clean');
+      expect(parts(section(card, 'Evidence'), '.finding__line')).toEqual([
+        '— Ended after 24 of 90 presses, 2 of 3 keys',
+        ...CLEAN.clean.map((line) => `— ${line}`),
+      ]);
+      const rounds = all(fixture, '.summary__item').find(
+        (item) => text(item.children[0]) === 'Rounds',
+      );
+      expect(text(rounds?.children[1])).toBe('3 × 10 presses');
+    });
+
+    it('says nothing was tested, with no Clean badge, when no key kept a round', async () => {
+      const fixture = await finished(EMPTY, {
+        ...MID,
+        key: G,
+        count: 0,
+        index: 0,
+        done: 0,
+        tallies: [],
+      });
+      const [card] = all(fixture, '.finding');
+      expect(all(fixture, '.finding')).toHaveLength(1);
+      expect(text(card.querySelector('.finding__title'))).toBe('Nothing was tested.');
+      expect(card.querySelector('.badge')).toBeNull();
+      expect(card.querySelector('.finding__tile--clean')).toBeNull();
+      expect(parts(section(card, 'Evidence'), '.finding__line')).toEqual([
+        '— Ended after 0 of 90 presses, 0 of 3 keys',
+      ]);
+      expect(lines(section(card, 'Next test'), '.finding__para')).toEqual([
+        'Test again, and press each key as it is prompted.',
+      ]);
+      expect(lines(card, '.kicker')).toEqual(['Evidence', 'Next test']);
     });
   });
 

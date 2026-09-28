@@ -65,6 +65,9 @@ export interface Findings {
   started: Date;
   // Whole seconds, pauses left out.
   duration: number;
+  // How far the prompts got in a test that ended early, as its progress showed. Null once the plan
+  // was done.
+  reached: { done: number; total: number } | null;
 }
 
 const KEPT_ROWS = 60;
@@ -213,6 +216,8 @@ export class TestRun {
     this.note.set('');
     const duration = Math.floor(this.spent() / 1000);
     const drawn = this.layout();
+    // Read now, because leaving the test clears it.
+    const view = this.guide();
     let result: TestResult;
     try {
       result = await this.bridge.endTest(labelsFor(drawn));
@@ -224,17 +229,23 @@ export class TestRun {
     }
     if (this.screen() !== 'test') return;
     const group = this.group();
-    const plan = this.asked;
+    const keys = this.asked?.keys.length ?? 0;
+    const rounds = this.asked?.rounds ?? 0;
+    const presses = this.asked?.presses ?? 0;
     this.findings.set({
       result,
       keyboard: `${group?.name ?? '—'} · ${group?.id ?? '—'}`,
       layout: drawn,
       board: this.boardName(),
-      keys: plan?.keys.length ?? 0,
-      rounds: plan?.rounds ?? 0,
-      presses: plan?.presses ?? 0,
+      keys,
+      rounds,
+      presses,
       started: this.startedAt() ?? new Date(),
       duration,
+      reached:
+        view?.key === null
+          ? null
+          : { done: view?.done ?? 0, total: view?.total ?? keys * rounds * presses },
     });
     this.leave('findings');
   }

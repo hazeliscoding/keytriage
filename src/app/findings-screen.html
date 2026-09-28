@@ -65,46 +65,69 @@
           </div>
         </article>
       } @empty {
-        <article class="finding">
-          <div class="finding__head">
-            <div class="finding__tile finding__tile--clean">
-              <span class="finding__key">—</span>
-            </div>
-            <div class="finding__heading">
-              <div class="finding__title">No faults found in this test.</div>
-              <div class="finding__badge"><span class="badge badge--clean">Clean</span></div>
-            </div>
-          </div>
-          <div class="finding__section">
-            <div class="kicker kicker--sm">Evidence</div>
-            @for (line of cleanEvidence(); track $index) {
-              <div class="finding__line">
-                <span class="finding__dash">—</span><span>{{ line }}</span>
+        @if (!tested()) {
+          <article class="finding">
+            <div class="finding__head">
+              <div class="finding__tile">
+                <span class="finding__key">—</span>
               </div>
-            }
-          </div>
-          <div class="finding__section">
-            <div class="kicker kicker--sm">What this does not rule out</div>
-            <div class="finding__line">
-              <span class="finding__index">01</span
-              ><span>Faults that appear only after warm-up or under sustained use</span>
+              <div class="finding__heading">
+                <div class="finding__title">Nothing was tested.</div>
+              </div>
             </div>
-            <div class="finding__line">
-              <span class="finding__index">02</span
-              ><span>Chatter shorter than the firmware's own debounce window</span>
+            <div class="finding__section">
+              <div class="kicker kicker--sm">Evidence</div>
+              <div class="finding__line">
+                <span class="finding__dash">—</span><span>{{ coverage() }}</span>
+              </div>
             </div>
-            <div class="finding__line">
-              <span class="finding__index">03</span><span>Keys outside this test's set</span>
+            <div class="finding__section finding__next">
+              <div class="kicker kicker--sm">Next test</div>
+              <p class="finding__para">Test again, and press each key as it is prompted.</p>
             </div>
-          </div>
-          <div class="finding__section finding__next">
-            <div class="kicker kicker--sm">Next test</div>
-            <p class="finding__para">
-              If the fault is intermittent, run the test again while it is happening. Type for ten
-              minutes first, then test again.
-            </p>
-          </div>
-        </article>
+          </article>
+        } @else {
+          <article class="finding">
+            <div class="finding__head">
+              <div class="finding__tile finding__tile--clean">
+                <span class="finding__key">—</span>
+              </div>
+              <div class="finding__heading">
+                <div class="finding__title">No faults found in this test.</div>
+                <div class="finding__badge"><span class="badge badge--clean">Clean</span></div>
+              </div>
+            </div>
+            <div class="finding__section">
+              <div class="kicker kicker--sm">Evidence</div>
+              @for (line of cleanEvidence(); track $index) {
+                <div class="finding__line">
+                  <span class="finding__dash">—</span><span>{{ line }}</span>
+                </div>
+              }
+            </div>
+            <div class="finding__section">
+              <div class="kicker kicker--sm">What this does not rule out</div>
+              <div class="finding__line">
+                <span class="finding__index">01</span
+                ><span>Faults that appear only after warm-up or under sustained use</span>
+              </div>
+              <div class="finding__line">
+                <span class="finding__index">02</span
+                ><span>Chatter shorter than the firmware's own debounce window</span>
+              </div>
+              <div class="finding__line">
+                <span class="finding__index">03</span><span>Keys outside this test's set</span>
+              </div>
+            </div>
+            <div class="finding__section finding__next">
+              <div class="kicker kicker--sm">Next test</div>
+              <p class="finding__para">
+                If the fault is intermittent, run the test again while it is happening. Type for ten
+                minutes first, then test again.
+              </p>
+            </div>
+          </article>
+        }
       }
     </div>
 
