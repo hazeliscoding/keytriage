@@ -11,6 +11,8 @@ mod echo;
 mod session_core;
 #[cfg(windows)]
 mod test_session;
+#[cfg(windows)]
+mod view;
 
 pub fn run() {
     #[cfg(windows)]
@@ -25,6 +27,7 @@ pub fn run() {
         .setup(setup);
     #[cfg(windows)]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        test_session::list_keyboards,
         test_session::start_test,
         test_session::stop_test
     ]);

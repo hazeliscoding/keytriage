@@ -15,6 +15,7 @@ use webview2_com::Microsoft::Web::WebView2::Win32::{
 use webview2_com::ProcessFailedEventHandler;
 
 use crate::session_core::{Entry, Recorder, to_engine};
+use crate::view::{KeyboardGroup, groups};
 
 struct Session {
     _capture: Capture,
@@ -32,6 +33,13 @@ static RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub fn running() -> bool {
     RUNNING.load(Ordering::SeqCst)
+}
+
+// Listing reads no keys, so it needs no test running.
+#[tauri::command]
+pub fn list_keyboards() -> Result<Vec<KeyboardGroup>, String> {
+    let keyboards = keytriage_input::keyboards().map_err(|e| e.to_string())?;
+    Ok(groups(&keyboards))
 }
 
 #[tauri::command]
