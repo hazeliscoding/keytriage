@@ -43,8 +43,8 @@ export class Bridge {
     return call('continue_test');
   }
 
-  skipKey(): Promise<void> {
-    return call('skip_key');
+  skipKey(round: number, index: number): Promise<void> {
+    return call('skip_key', { round, index });
   }
 
   endTest(labels: KeyName[]): Promise<TestResult> {

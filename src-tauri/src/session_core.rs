@@ -147,9 +147,15 @@ impl Core {
         (entry, view)
     }
 
-    pub fn skip(&mut self, at: Instant) -> Option<GuideView> {
+    // The page names the step it shows. A skip sent as that round closed would otherwise close the
+    // next key's round at once, which reads as silent.
+    pub fn skip(&mut self, at: Instant, round: u16, index: u16) -> Option<GuideView> {
         let at_us = self.recorder.micros(at);
         let (guide, ..) = self.test.as_mut()?;
+        let prompt = guide.prompt()?;
+        if (prompt.round, prompt.index) != (round, index) {
+            return None;
+        }
         guide.skip(at_us).then(|| guide_view(guide))
     }
 
@@ -522,14 +528,14 @@ mod tests {
     fn core03_skip_moves_on_and_a_test_without_a_plan_only_records() {
         let start = Instant::now();
         let mut core = Core::new(start, guided(&[E, G], 1, BoardKind::Unknown));
-        let view = core.skip(at(start, 5_000_000)).unwrap();
+        let view = core.skip(at(start, 5_000_000), 0, 0).unwrap();
         assert_eq!(
             (view.key, view.index, view.count, view.done),
             (Some(G), 1, 0, 10)
         );
-        let view = core.skip(at(start, 6_000_000)).unwrap();
+        let view = core.skip(at(start, 6_000_000), 0, 1).unwrap();
         assert_eq!((view.key, view.done), (None, 20));
-        assert!(core.skip(at(start, 7_000_000)).is_none());
+        assert!(core.skip(at(start, 7_000_000), 0, 1).is_none());
         assert_eq!(
             rounds(&mut core, 8_000_000),
             [
@@ -561,9 +567,48 @@ mod tests {
             }
         );
         assert!(view.is_none());
-        assert!(free.skip(at(start, 2_000_000)).is_none());
+        assert!(free.skip(at(start, 2_000_000), 0, 0).is_none());
         assert!(free.test.is_none());
         assert_eq!(free.entries.len(), 1);
+    }
+
+    #[test]
+    fn core04_a_skip_for_a_step_already_passed_does_nothing() {
+        const H: u16 = 0x23;
+        let start = Instant::now();
+        let mut core = Core::new(start, guided(&[E, G, H], 2, BoardKind::HotSwap));
+        // Both clicks of a double click name E's step.
+        assert!(core.skip(at(start, 5_000_000), 0, 0).is_some());
+        assert!(core.skip(at(start, 5_150_000), 0, 0).is_none());
+        // A skip sent as the 10th press closed G's round.
+        for i in 0..10 {
+            core.input(press(start, G, false, 6_000 + i * 300));
+            core.input(press(start, G, true, 6_100 + i * 300));
+        }
+        assert_eq!(core.view().unwrap().key, Some(H));
+        assert!(core.skip(at(start, 9_100_000), 0, 1).is_none());
+        // A skip during a pause moves on without a round, and a second one still names H.
+        core.input(Input::Paused(at(start, 10_000_000)));
+        let view = core.skip(at(start, 11_000_000), 0, 2).unwrap();
+        assert_eq!((view.key, view.round, view.index), (Some(E), 1, 0));
+        assert!(core.skip(at(start, 11_150_000), 0, 2).is_none());
+        assert_eq!(
+            rounds(&mut core, 20_000_000),
+            [
+                Round {
+                    key: E,
+                    asked: 10,
+                    start_us: 0,
+                    end_us: 5_000_000
+                },
+                Round {
+                    key: G,
+                    asked: 10,
+                    start_us: 5_000_000,
+                    end_us: 8_800_001
+                }
+            ]
+        );
     }
 
     fn named(keys: &[(u16, &str)]) -> Vec<KeyName> {

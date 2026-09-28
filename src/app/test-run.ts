@@ -243,8 +243,12 @@ export class TestRun {
     if (this.screen() === 'test') await this.attempt(this.bridge.continueTest());
   }
 
-  async skipKey(): Promise<void> {
-    if (this.screen() === 'test') await this.attempt(this.bridge.skipKey());
+  // Rust skips only the step named, so a click sent as that round closed skips nothing. The second
+  // click of a double click comes after the next step is drawn, so it is dropped here.
+  async skipKey(clicks = 1): Promise<void> {
+    const view = this.guide();
+    if (this.screen() !== 'test' || clicks > 1 || !view || view.key === null) return;
+    await this.attempt(this.bridge.skipKey(view.round, view.index));
   }
 
   // Runs a command during the test. A failure leaves the test as it was and shows its reason.

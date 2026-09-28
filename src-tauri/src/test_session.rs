@@ -197,15 +197,16 @@ pub fn continue_test() -> Result<(), String> {
 
 // Skip closes the round as asked, so a key that never registers leaves silent rounds. During a
 // user pause there is no open round, so it only moves on, and the test continues with the next key.
+// The page names the step it shows, and a skip for any other step does nothing.
 #[tauri::command]
-pub fn skip_key() -> Result<(), String> {
+pub fn skip_key(round: u16, index: u16) -> Result<(), String> {
     let (core, page, user_paused) = SESSION
         .with_borrow(|session| {
             let s = session.as_ref()?;
             Some((s.core.clone(), s.page.clone(), s.user_paused))
         })
         .ok_or(NO_TEST)?;
-    let skipped = core.borrow_mut().skip(Instant::now());
+    let skipped = core.borrow_mut().skip(Instant::now(), round, index);
     let Some(view) = skipped else {
         return Ok(());
     };

@@ -108,7 +108,7 @@ describe('Bridge', () => {
     });
 
     it('passes on the reason Rust gives', async () => {
-      const error = await bridge.skipKey().catch((e: unknown) => e);
+      const error = await bridge.skipKey(0, 0).catch((e: unknown) => e);
       expect(reasonOf(error)).toBe('No test is running.');
       expect(reasonOf(new Error('Broken pipe'))).toBe('Broken pipe');
     });

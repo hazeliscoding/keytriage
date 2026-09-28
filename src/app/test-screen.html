@@ -90,7 +90,9 @@
   } @else {
     <button type="button" class="btn btn--secondary" (click)="run.pauseTest()">Pause</button>
   }
-  <button type="button" class="btn btn--ghost" (click)="run.skipKey()">Skip this key</button>
+  <button type="button" class="btn btn--ghost" (click)="run.skipKey($event.detail)">
+    Skip this key
+  </button>
   @if (run.note()) {
     <div class="meta footer__note" role="status">{{ run.note() }}</div>
   } @else {

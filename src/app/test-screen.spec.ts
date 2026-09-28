@@ -341,11 +341,24 @@ describe('Test screen', () => {
       expect(all(fixture, '.live__row--window')).toHaveLength(1);
     });
 
-    it('skips the prompted key', async () => {
+    it('skips the prompted key, naming the step on screen', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', { ...VIEW, round: 1, index: 5 });
+      await click(fixture, button(fixture, 'Skip this key'));
+      expect(sent('skip_key')).toEqual([{ round: 1, index: 5 }]);
+    });
+
+    it('drops the second click of a double click, which would skip the next key', async () => {
       const fixture = await testing();
       await send(fixture, 'test:guide', VIEW);
-      await click(fixture, button(fixture, 'Skip this key'));
-      expect(sent('skip_key')).toEqual([{}]);
+      const skip = button(fixture, 'Skip this key');
+      for (const detail of [1, 2]) {
+        skip.dispatchEvent(new MouseEvent('click', { bubbles: true, detail }));
+        await settle(fixture);
+        // Rust draws the next step before the second click lands.
+        if (detail === 1) await send(fixture, 'test:guide', { ...VIEW, index: 1 });
+      }
+      expect(sent('skip_key')).toEqual([{ round: 0, index: 0 }]);
     });
 
     it('gives the reason a command failed and stays on the test', async () => {
