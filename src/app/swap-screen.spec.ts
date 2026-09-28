@@ -116,6 +116,19 @@ describe('Swap screen', () => {
       expect(sent('start_swap_test')).toEqual([]);
     });
 
+    it('drops the second click of a double click on Back to findings, which lands on New test', async () => {
+      const fixture = await instructed();
+      await nthClick(fixture, button(fixture, 'Back to findings'), 1);
+      await nthClick(fixture, button(fixture, 'New test'), 2);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
+      expect(all(fixture, '.finding__title').map(text)).toEqual(['Possible chatter']);
+      expect(labels(fixture)).toEqual(['New test', 'Export report', 'Run the swap test']);
+      expect(sent('list_keyboards')).toHaveLength(1);
+      // Control: a click of its own goes to Start.
+      await nthClick(fixture, button(fixture, 'New test'), 1);
+      expect(textOf(fixture, '.steps__now')).toBe('01 Keyboard');
+    });
+
     it('starts the swap test with no arguments, and shows it on the test screen with its note', async () => {
       const fixture = await instructed();
       await click(fixture, button(fixture, 'Switches swapped. Test both keys'));

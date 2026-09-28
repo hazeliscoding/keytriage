@@ -291,10 +291,11 @@ export class TestRun {
     this.leave('findings');
   }
 
-  // Back to Start, which lists the keyboards again.
-  newTest(): void {
+  // Back to Start, which lists the keyboards again. The second click of a double click on Back to
+  // findings lands on the findings' New test, so it is dropped rather than throwing them away.
+  newTest(clicks = 1): void {
     const screen = this.screen();
-    if (screen !== 'findings' && screen !== 'swap-result') return;
+    if (clicks > 1 || (screen !== 'findings' && screen !== 'swap-result')) return;
     this.findings.set(null);
     this.swapped.set(null);
     this.swapping.set(false);

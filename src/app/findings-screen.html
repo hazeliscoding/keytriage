@@ -166,7 +166,9 @@
   </div>
 
   <footer class="footer">
-    <button type="button" class="btn btn--ghost" (click)="run.newTest()">New test</button>
+    <button type="button" class="btn btn--ghost" (click)="run.newTest($event.detail)">
+      New test
+    </button>
     @if (run.note()) {
       <div class="meta footer__note">{{ run.note() }}</div>
     } @else {
