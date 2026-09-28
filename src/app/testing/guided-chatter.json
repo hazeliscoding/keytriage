@@ -390,6 +390,21 @@
         "count": 30
       }
     ],
-    "resolution": "This keyboard showed no 8 or 16 ms reporting schedule in this test."
+    "resolution": "This keyboard showed no 8 or 16 ms reporting schedule in this test.",
+    "swap": {
+      "suspect": 18,
+      "partner": 34,
+      "title": "Move the E switch into the G socket, and the G switch into the E socket.",
+      "knownGood": "G showed no finding, so it serves as the known-good switch. Both keys are tested again afterwards, 30 presses in each of 3 rounds.",
+      "steps": [
+        "Pull both keycaps.",
+        "Pull both switches straight up with the switch puller. Note which is which.",
+        "Seat each switch in the other socket. Check that both pins are straight before pressing down.",
+        "Refit the keycaps and continue below."
+      ],
+      "means": "If the fault appears on G, it moved with the switch, and the switch is the likely cause. If it stays on E, the socket, the PCB or the matrix is the likely cause.",
+      "note": "Swap test. Both keys, 3 rounds."
+    },
+    "outcome": null
   }
 }

@@ -35,6 +35,7 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         test_session::list_keyboards,
         test_session::start_test,
+        test_session::start_swap_test,
         test_session::pause_test,
         test_session::continue_test,
         test_session::skip_key,

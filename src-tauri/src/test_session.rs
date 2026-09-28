@@ -6,7 +6,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 
-use keytriage_input::{Capture, Input};
+use keytriage_diagnostics::Swap;
+use keytriage_input::{Capture, Input, Keyboard};
 use tauri::{Emitter, WebviewWindow};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     COREWEBVIEW2_PROCESS_FAILED_KIND, COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED,
@@ -27,11 +28,22 @@ struct Session {
     page: WebviewWindow,
     hwnd: isize,
     user_paused: bool,
+    paths: Vec<String>,
+}
+
+// The swap an ended test offered, and the tested keyboard's device paths, so that the retest finds
+// the keyboard again after a replug. Neither holds a time or an order, and the paths never leave
+// Rust.
+#[derive(Clone)]
+struct Offer {
+    swap: Swap,
+    paths: Vec<String>,
 }
 
 // Capture lives on the window's thread, which is also where Tauri runs synchronous commands.
 thread_local! {
     static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
+    static OFFER: RefCell<Option<Offer>> = const { RefCell::new(None) };
 }
 
 // The navigation guard runs on the same thread, but reads this without borrowing the session.
@@ -43,6 +55,7 @@ static REPORT: Mutex<Option<String>> = Mutex::new(None);
 
 const NO_TEST: &str = "No test is running.";
 const NO_PLAN: &str = "This test has no plan to diagnose.";
+const NO_SWAP: &str = "There is no swap test to run.";
 
 fn set_report(report: Option<String>) {
     *REPORT.lock().unwrap_or_else(PoisonError::into_inner) = report;
@@ -73,18 +86,52 @@ pub fn start_test(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), S
 
 fn start(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), String> {
     let test = plan.map(view::plan).transpose()?;
-    if let Some((_, keyboard, _)) = &test {
-        let listed = keytriage_input::keyboards().map_err(|e| e.to_string())?;
-        view::still_listed(keyboard, &listed)?;
+    let paths = match &test {
+        Some((_, keyboard, _)) => view::still_listed(keyboard, &listed()?)?,
+        None => Vec::new(),
+    };
+    launch(window, paths, |start| Core::new(start, test))
+}
+
+// The retest of the kept offer. The page sends nothing, so no page code chooses which keys are
+// recorded. It returns the handles the retest reads, which are new if the keyboard was replugged.
+#[tauri::command]
+pub fn start_swap_test(window: WebviewWindow) -> Result<Vec<isize>, String> {
+    let started = start_swap(window);
+    #[cfg(debug_assertions)]
+    if let Err(e) = &started {
+        crate::echo::note(&format!("kt-input: swap start failed: {e}"));
     }
+    started
+}
+
+fn start_swap(window: WebviewWindow) -> Result<Vec<isize>, String> {
+    let Offer { swap, paths } = OFFER.with_borrow(Option::clone).ok_or(NO_SWAP)?;
+    let keyboard = view::refind(&paths, &listed()?)?;
+    let test = view::swap_plan(&swap, keyboard.clone())?;
+    launch(window, paths, |start| Core::swap(start, test, swap))?;
+    Ok(keyboard)
+}
+
+fn listed() -> Result<Vec<Keyboard>, String> {
+    keytriage_input::keyboards().map_err(|e| e.to_string())
+}
+
+// This stops any running test first, so the plan and the keyboard are checked before it.
+fn launch(
+    window: WebviewWindow,
+    paths: Vec<String>,
+    core: impl FnOnce(Instant) -> Core,
+) -> Result<(), String> {
     stop_test();
     let start = Instant::now();
-    let core = Rc::new(RefCell::new(Core::new(start, test)));
+    let core = Rc::new(RefCell::new(core(start)));
     let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
     let capture = capture(hwnd, &core, &window)?;
-    // A failed Test again leaves the last findings on the page, so their report stays exportable
-    // until a new test has actually started.
+    // A failed Test again or swap test leaves the last findings on the page, so their report and
+    // swap offer stay until a new test has actually started.
     set_report(None);
+    OFFER.set(None);
     let open = capture.is_open();
     SESSION.with_borrow_mut(|session| {
         *session = Some(Session {
@@ -93,6 +140,7 @@ fn start(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), String> {
             page: window.clone(),
             hwnd,
             user_paused: false,
+            paths,
         })
     });
     RUNNING.store(true, Ordering::SeqCst);
@@ -236,15 +284,19 @@ pub fn end_test(labels: Vec<KeyName>) -> Result<TestResult, String> {
         capture,
         core,
         page,
+        paths,
         ..
     } = session;
     // Once capture is gone no input can reach Core, so the diagnosis sees the whole test.
     drop(capture);
-    let report = core.borrow_mut().finish(Instant::now()).ok_or(NO_PLAN)?;
-    set_report(Some(export::report_json(&report.saved())));
-    let result = view::result(&report, &names);
+    let ended = core
+        .borrow_mut()
+        .end(Instant::now(), &names)
+        .ok_or(NO_PLAN)?;
+    set_report(Some(export::report_json(&ended.report.saved())));
+    OFFER.set(ended.offer.map(|swap| Offer { swap, paths }));
     let _ = page.emit("test:stopped", ());
-    Ok(result)
+    Ok(ended.result)
 }
 
 // The only way a test's data reaches the disk. A sync command would run the dialog's modal loop

@@ -1,13 +1,13 @@
 // A test's events, stamped on the test's own clock. Nothing here touches Win32 or Tauri, so the
 // same code runs in the capture callback and in tests fed a synthetic stream.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
-use keytriage_diagnostics::{self as diagnostics, BoardKind, Guide, Report};
+use keytriage_diagnostics::{self as diagnostics, BoardKind, Guide, Report, Swap};
 use keytriage_input::Input;
 use serde::{Deserialize, Serialize};
 
-use crate::view::{GuideView, guide_view};
+use crate::view::{self, GuideView, TestResult, guide_view};
 
 // The `test:event` payload. The page, the debug echo and the scripts' checks all read this shape.
 // Debug only in tests, because a printed list of these is the typed text.
@@ -129,6 +129,15 @@ pub struct Core {
     entries: Vec<diagnostics::Entry>,
     test: Option<(Guide, Vec<isize>, BoardKind)>,
     resumed_us: Option<u64>,
+    // The offer a swap test retests. It holds two positions and no times.
+    retest: Option<Swap>,
+}
+
+// What an ended test leaves: the report for export, the page's result, and the swap Rust keeps.
+pub struct Ended {
+    pub report: Report,
+    pub result: TestResult,
+    pub offer: Option<Swap>,
 }
 
 impl Core {
@@ -138,6 +147,14 @@ impl Core {
             entries: Vec::new(),
             test,
             resumed_us: None,
+            retest: None,
+        }
+    }
+
+    pub fn swap(start: Instant, test: (Guide, Vec<isize>, BoardKind), swap: Swap) -> Core {
+        Core {
+            retest: Some(swap),
+            ..Core::new(start, Some(test))
         }
     }
 
@@ -198,6 +215,19 @@ impl Core {
             board,
         }))
     }
+
+    // finish() takes the board with the Guide, so it is read first.
+    pub fn end(&mut self, at: Instant, names: &BTreeMap<u16, String>) -> Option<Ended> {
+        let board = self.test.as_ref()?.2;
+        let retest = self.retest.take();
+        let report = self.finish(at)?;
+        let (result, offer) = view::ended(&report, board, retest.as_ref(), names);
+        Some(Ended {
+            report,
+            result,
+            offer,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -238,7 +268,7 @@ pub fn rounds(core: &mut Core, end_us: u64) -> Vec<diagnostics::Round> {
 mod tests {
     use std::time::Duration;
 
-    use keytriage_diagnostics::fixture::guided_chatter;
+    use keytriage_diagnostics::fixture::{Fixture, guided_chatter, swap_chatter};
     use keytriage_diagnostics::{Plan, RULES, Round};
     use keytriage_input::KeyEvent;
 
@@ -742,6 +772,44 @@ mod tests {
         for time in [r#""micros""#, r#"_us""#, r#""start"#, r#""end"#] {
             assert!(!json.contains(time), "{time}");
         }
+    }
+
+    fn fed(mut core: Core, start: Instant, f: &Fixture) -> Core {
+        for e in &f.entries {
+            core.input(input(start, e));
+        }
+        core
+    }
+
+    #[test]
+    fn res06_a_main_test_offers_the_swap_and_its_retest_ends_in_the_judgment() {
+        let (plan, main) = guided_chatter();
+        let start = Instant::now();
+        // The fixture's board is unknown, and the board the test was started with decides.
+        let guide = Guide::new(plan, &main.keyboard).unwrap();
+        let test = (guide, main.keyboard.clone(), BoardKind::HotSwap);
+        let mut core = fed(Core::new(start, Some(test)), start, &main);
+        let ended = core.end(at(start, main.end_us), &BTreeMap::new()).unwrap();
+        let swap = ended.offer.expect("an offer");
+        assert_eq!((swap.suspect, swap.partner), (E, G));
+        assert!(ended.result.swap.is_some() && ended.result.outcome.is_none());
+
+        let after = swap_chatter(swap.plan(), &[E]);
+        let guide = Guide::new(swap.plan(), &after.keyboard).unwrap();
+        let test = (guide, after.keyboard.clone(), BoardKind::HotSwap);
+        let mut core = fed(Core::swap(start, test, swap), start, &after);
+        let labels = names(named(&[(E, "E"), (G, "G")])).unwrap();
+        let ended = core.end(at(start, after.end_us), &labels).unwrap();
+        assert_eq!(ended.report, after.diagnose());
+        assert!(ended.offer.is_none() && ended.result.swap.is_none());
+        let o = ended.result.outcome.as_ref().expect("a judgment");
+        assert_eq!(
+            (o.outcome, o.tile, o.title.as_str()),
+            ("stays", Some(E), "The fault stayed on E.")
+        );
+        // The offer went with the Guide, so ending again finds nothing to judge.
+        assert!(core.retest.is_none());
+        assert!(core.end(at(start, after.end_us), &labels).is_none());
     }
 
     #[test]

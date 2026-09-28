@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use keytriage_diagnostics::params::{EDGES_MS, END_WAIT_US};
 use keytriage_diagnostics::{
-    BoardKind, Confidence, Guide, Histogram, Kind, MAX_PRESSES, MAX_ROUNDS, Note, Plan, PlanError,
-    Report, code_label,
+    BoardKind, Confidence, Guide, Histogram, Kind, Label, MAX_PRESSES, MAX_ROUNDS, Note, Outcome,
+    OutcomeLines, Plan, PlanError, Report, Swap, SwapLines, SwapResult, code_label,
 };
 use keytriage_input::Keyboard;
 use serde::{Deserialize, Serialize};
@@ -145,16 +145,59 @@ const RECONNECTED: &str =
     "This keyboard was unplugged or reconnected. Pick it again on the Start screen.";
 
 // Windows gives a keyboard new handles when it reconnects, and no event carries the old ones, so a
-// plan on them would wait on its first prompt for good.
-pub fn still_listed(keyboard: &[isize], listed: &[Keyboard]) -> Result<(), String> {
-    if keyboard
+// plan on them would wait on its first prompt for good. The paths let a swap test find the same
+// keyboard again, and stay in Rust.
+pub fn still_listed(keyboard: &[isize], listed: &[Keyboard]) -> Result<Vec<String>, String> {
+    keyboard
         .iter()
-        .all(|&handle| listed.iter().any(|k| k.handle == handle))
-    {
-        Ok(())
-    } else {
-        Err(RECONNECTED.to_string())
-    }
+        .map(|&handle| {
+            listed
+                .iter()
+                .find(|k| k.handle == handle)
+                .map(|k| k.path.clone())
+                .ok_or_else(|| RECONNECTED.to_string())
+        })
+        .collect()
+}
+
+// Names no path, so a refusal the debug echo prints can't leak one.
+const UNPLUGGED: &str =
+    "The keyboard isn't listed. Plug it back into the port it used, then try again.";
+
+// The user pulls switches between the two tests, and may unplug the keyboard to do it. It comes back
+// on new handles, but on the same port with the same device path. A handle is never matched on its
+// own, because Windows may have given an old one to another device.
+pub fn refind(paths: &[String], listed: &[Keyboard]) -> Result<Vec<isize>, String> {
+    paths
+        .iter()
+        .map(|path| {
+            listed
+                .iter()
+                .find(|k| k.path == *path)
+                .map(|k| k.handle)
+                .ok_or_else(|| UNPLUGGED.to_string())
+        })
+        .collect()
+}
+
+// The retest is the engine's plan for the kept offer, checked as a plan from the page is. Only a
+// hot-swap board gets an offer.
+pub fn swap_plan(
+    swap: &Swap,
+    keyboard: Vec<isize>,
+) -> Result<(Guide, Vec<isize>, BoardKind), String> {
+    let Plan {
+        keys,
+        rounds,
+        presses,
+    } = swap.plan();
+    plan(PlanArgs {
+        keyboard,
+        keys,
+        rounds,
+        presses,
+        board: Some(BoardArg::HotSwap),
+    })
 }
 
 fn refusal(error: PlanError) -> String {
@@ -232,6 +275,37 @@ pub struct TestResult {
     pub clean: Vec<String>,
     pub keys: Vec<KeyCount>,
     pub resolution: String,
+    pub swap: Option<SwapView>,
+    pub outcome: Option<OutcomeView>,
+}
+
+// The swap a main test offers, in the engine's words. The page chooses no keys.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwapView {
+    pub suspect: u16,
+    pub partner: u16,
+    pub title: String,
+    pub known_good: String,
+    pub steps: Vec<String>,
+    pub means: String,
+    pub note: String,
+}
+
+// A swap test's judgment. Unclear carries no confidence, so it shows no badge.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutcomeView {
+    pub outcome: &'static str,
+    pub tile: Option<u16>,
+    pub flagged: Vec<u16>,
+    pub title: String,
+    pub confidence: Option<&'static str>,
+    pub level: Option<String>,
+    pub strong: bool,
+    pub evidence: Vec<String>,
+    pub diagnosis: String,
+    pub next: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -297,40 +371,55 @@ fn sentence(text: &str) -> String {
     })
 }
 
+fn kind_name(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Chatter => "chatter",
+        Kind::Dead => "dead",
+        Kind::Stuck => "stuck",
+    }
+}
+
+fn level_name(level: Confidence) -> &'static str {
+    match level {
+        Confidence::Low => "low",
+        Confidence::Medium => "medium",
+        Confidence::High => "high",
+        Confidence::VeryHigh => "very-high",
+    }
+}
+
+fn sentences(lines: &[String]) -> Vec<String> {
+    lines.iter().map(|l| sentence(l)).collect()
+}
+
 // Keys the page didn't name read as their code, "key 0012".
-pub fn result(report: &Report, names: &BTreeMap<u16, String>) -> TestResult {
-    let label = |scan: u16| {
+fn labeller(names: &BTreeMap<u16, String>) -> impl Fn(u16) -> String + '_ {
+    |scan| {
         names
             .get(&scan)
             .cloned()
             .unwrap_or_else(|| code_label(scan))
-    };
+    }
+}
+
+pub fn result(report: &Report, names: &BTreeMap<u16, String>) -> TestResult {
+    let label = labeller(names);
     let saved = report.saved();
     let findings = report
         .findings
         .iter()
         .map(|f| {
             let lines = f.lines(&label);
-            let all = |lines: &[String]| lines.iter().map(|l| sentence(l)).collect();
             FindingView {
                 key: f.key,
-                kind: match f.kind() {
-                    Kind::Chatter => "chatter",
-                    Kind::Dead => "dead",
-                    Kind::Stuck => "stuck",
-                },
-                confidence: match f.confidence {
-                    Confidence::Low => "low",
-                    Confidence::Medium => "medium",
-                    Confidence::High => "high",
-                    Confidence::VeryHigh => "very-high",
-                },
+                kind: kind_name(f.kind()),
+                confidence: level_name(f.confidence),
                 title: sentence(f.kind().words()),
                 level: sentence(f.confidence.words()),
                 strong: f.confidence >= Confidence::High,
-                evidence: all(&lines.evidence),
-                causes: all(&lines.causes),
-                next: all(&lines.next),
+                evidence: sentences(&lines.evidence),
+                causes: sentences(&lines.causes),
+                next: sentences(&lines.next),
                 gaps: match f.kind() {
                     Kind::Chatter => saved.keys.get(&f.key).map(|a| gap_bars(&a.release_gap)),
                     Kind::Dead | Kind::Stuck => None,
@@ -360,16 +449,106 @@ pub fn result(report: &Report, names: &BTreeMap<u16, String>) -> TestResult {
             })
             .collect(),
         resolution: report.aggregates.limits.poll.words().to_string(),
+        swap: None,
+        outcome: None,
+    }
+}
+
+// A main test may offer the swap, which Rust keeps for the retest. A swap test ends in its judgment,
+// with none of its own findings or notes: their steps would name a swap already made.
+pub fn ended(
+    report: &Report,
+    board: BoardKind,
+    retest: Option<&Swap>,
+    names: &BTreeMap<u16, String>,
+) -> (TestResult, Option<Swap>) {
+    let label = labeller(names);
+    match retest {
+        None => {
+            let offer = Swap::offer(report, board);
+            let swap = offer.map(|s| swap_view(&s, &label));
+            (
+                TestResult {
+                    swap,
+                    ..result(report, names)
+                },
+                offer,
+            )
+        }
+        Some(retest) => {
+            let outcome = outcome_view(&retest.judge(report), &label);
+            (
+                TestResult {
+                    findings: Vec::new(),
+                    notes: Vec::new(),
+                    clean: Vec::new(),
+                    outcome: Some(outcome),
+                    ..result(report, names)
+                },
+                None,
+            )
+        }
+    }
+}
+
+// Both views name every field of the engine's lines, so a line the engine adds fails to compile
+// until it reaches the page.
+fn swap_view(swap: &Swap, label: Label) -> SwapView {
+    let SwapLines {
+        title,
+        known_good,
+        steps,
+        means,
+        note,
+    } = swap.lines(label);
+    SwapView {
+        suspect: swap.suspect,
+        partner: swap.partner,
+        title: sentence(&title),
+        known_good: sentence(&known_good),
+        steps: sentences(&steps),
+        means: sentence(&means),
+        note: sentence(&note),
+    }
+}
+
+fn outcome_view(judged: &SwapResult, label: Label) -> OutcomeView {
+    let OutcomeLines {
+        title,
+        evidence,
+        diagnosis,
+        next,
+    } = judged.lines(label);
+    OutcomeView {
+        outcome: match judged.outcome {
+            Outcome::Follows => "follows",
+            Outcome::Stays => "stays",
+            Outcome::Both => "both",
+            Outcome::Gone => "gone",
+            Outcome::Unclear => "unclear",
+        },
+        tile: judged.tile(),
+        flagged: judged.flagged(),
+        title: sentence(&title),
+        confidence: judged.confidence.map(level_name),
+        level: judged.confidence.map(|c| sentence(c.words())),
+        strong: judged.confidence.is_some_and(|c| c >= Confidence::High),
+        evidence: sentences(&evidence),
+        diagnosis: sentence(&diagnosis),
+        next: sentences(&next),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use keytriage_diagnostics::fixture::{
-        GAP, HOLD, Synth, guided, guided_chatter, interleaved, ms, normal,
+        Fixture, GAP, HOLD, Synth, guided, guided_chatter, interleaved, ms, normal, swap_chatter,
     };
     use keytriage_diagnostics::hedged;
     use keytriage_diagnostics::params::BINS;
+    use serde_json::{Value, json};
 
     use super::*;
 
@@ -492,7 +671,9 @@ mod tests {
     }
 
     const E: u16 = 0x12;
+    const F: u16 = 0x21;
     const G: u16 = 0x22;
+    const H: u16 = 0x23;
     const J: u16 = 0x24;
 
     fn args(keyboard: &[isize], keys: &[u16], rounds: u16, presses: u16) -> PlanArgs {
@@ -592,7 +773,9 @@ mod tests {
             keyboard(65603, "Keychron K2", K2_IDS, Some(K2)),
             keyboard(65605, "Keychron K2, consumer control", K2_IDS, Some(K2)),
         ];
-        assert_eq!(still_listed(&[65603, 65605], &listed), Ok(()));
+        let paths: Vec<String> = listed.iter().map(|k| k.path.clone()).collect();
+        assert_eq!(still_listed(&[65603, 65605], &listed), Ok(paths.clone()));
+        assert_eq!(still_listed(&[65605], &listed), Ok(vec![paths[1].clone()]));
         // Replugged, it came back as 65611 and 65613.
         for stale in [&[65603, 65611][..], &[65609][..]] {
             assert_eq!(
@@ -686,13 +869,20 @@ mod tests {
             all.extend(f.evidence.iter().chain(&f.causes).chain(&f.next).cloned());
         }
         all.extend(r.notes.iter().chain(&r.clean).cloned());
+        if let Some(s) = &r.swap {
+            all.extend([&s.title, &s.known_good, &s.means, &s.note].map(String::clone));
+            all.extend(s.steps.iter().cloned());
+        }
+        if let Some(o) = &r.outcome {
+            all.extend([&o.title, &o.diagnosis].map(String::clone));
+            all.extend(o.level.iter().chain(&o.evidence).chain(&o.next).cloned());
+        }
         all
     }
 
-    #[test]
-    fn res03_every_rendered_line_keeps_to_evidence_and_likelihood() {
-        const H: u16 = 0x23;
-        let dead = guided(
+    // H skipped after 3 s in each of its rounds, between answered rounds of G and J.
+    fn dead_run() -> Fixture {
+        guided(
             Plan {
                 keys: vec![G, H, J],
                 rounds: 3,
@@ -705,7 +895,77 @@ mod tests {
                     (normal(s, k), false)
                 }
             },
-        );
+        )
+    }
+
+    // E's first answer is held for 3 s with autorepeat.
+    fn stuck_run() -> Fixture {
+        let mut first = true;
+        guided(
+            Plan {
+                keys: vec![G, J, E],
+                rounds: 3,
+                presses: 10,
+            },
+            move |s, k, _| {
+                if k == E && first {
+                    first = false;
+                    (s.hold(E, ms(3_000), ms(500), ms(33)).wait(ms(200)), false)
+                } else {
+                    (normal(s, k), false)
+                }
+            },
+        )
+    }
+
+    // The swap test of `swap` over `rounds` rounds, in which the `faulty` keys show its kind of
+    // fault.
+    fn retest(swap: &Swap, faulty: &[u16], rounds: u16) -> Report {
+        let kind = swap.kind;
+        let mut held = BTreeSet::new();
+        let plan = Plan {
+            rounds,
+            ..swap.plan()
+        };
+        let f = guided(plan, |s, k, n| {
+            if !faulty.contains(&k) {
+                return (normal(s, k), false);
+            }
+            match kind {
+                Kind::Chatter if n % 5 == 0 => (
+                    s.fragments(k, &[ms(5), ms(5), ms(100)]).wait(ms(200)),
+                    false,
+                ),
+                Kind::Chatter => (normal(s, k), false),
+                // A press of another key shows someone was at the keyboard, so two silent keys
+                // still read as dead.
+                Kind::Dead => (s.press(F, ms(90)).wait(ms(3_000)), true),
+                Kind::Stuck if held.insert(k) => {
+                    (s.hold(k, ms(3_000), ms(500), ms(33)).wait(ms(200)), false)
+                }
+                Kind::Stuck => (normal(s, k), false),
+            }
+        });
+        on(BoardKind::HotSwap, f).diagnose()
+    }
+
+    fn on(board: BoardKind, f: Fixture) -> Fixture {
+        Fixture { board, ..f }
+    }
+
+    // guided_chatter on the Start screen's default board offers E with G.
+    fn offered() -> Swap {
+        let report = on(BoardKind::HotSwap, guided_chatter().1).diagnose();
+        Swap::offer(&report, BoardKind::HotSwap).expect("an offer")
+    }
+
+    fn labels() -> BTreeMap<u16, String> {
+        names(vec![name(E, "E"), name(G, "G"), name(H, "H")]).unwrap()
+    }
+
+    #[test]
+    fn res03_every_rendered_line_keeps_to_evidence_and_likelihood() {
+        let dead = dead_run();
         let mut stuck = Synth::new();
         for _ in 0..2 {
             stuck = stuck.round(E, 10, |s| s.hold(E, ms(6_000), ms(500), ms(33)));
@@ -725,7 +985,7 @@ mod tests {
             paused.build().diagnose(),
             interleaved(7).diagnose(),
         ];
-        let labels = names(vec![name(E, "E"), name(G, "G"), name(H, "H")]).unwrap();
+        let labels = labels();
         let mut kinds = Vec::new();
         let mut notes = 0;
         for report in &reports {
@@ -743,6 +1003,229 @@ mod tests {
             assert!(kinds.contains(&kind), "{kind}");
         }
         assert!(notes > 0);
+
+        // The swap's words, for each kind the engine offers it and each outcome.
+        let mut outcomes = BTreeSet::new();
+        for (main, kind) in [
+            (guided_chatter().1, Kind::Chatter),
+            (dead_run(), Kind::Dead),
+            (stuck_run(), Kind::Stuck),
+        ] {
+            let report = on(BoardKind::HotSwap, main).diagnose();
+            let swap = Swap::offer(&report, BoardKind::HotSwap).expect("an offer");
+            assert_eq!(swap.kind, kind);
+            let (a, b, full) = (swap.suspect, swap.partner, swap.plan().rounds);
+            for (faulty, rounds, expected) in [
+                (&[b][..], full, "follows"),
+                (&[a][..], full, "stays"),
+                (&[a, b][..], full, "both"),
+                (&[][..], full, "gone"),
+                (&[][..], 1, "unclear"),
+            ] {
+                let after = retest(&swap, faulty, rounds);
+                for named in [&labels, &BTreeMap::new()] {
+                    let (offer, _) = ended(&report, BoardKind::HotSwap, None, named);
+                    let (judged, _) = ended(&after, BoardKind::HotSwap, Some(&swap), named);
+                    assert!(offer.swap.is_some());
+                    let outcome = judged.outcome.as_ref().expect("a judgment").outcome;
+                    assert_eq!(outcome, expected, "{kind:?}");
+                    outcomes.insert(outcome);
+                    for text in texts(&offer).into_iter().chain(texts(&judged)) {
+                        assert!(hedged(&text), "{text}");
+                        assert!(!text.starts_with(char::is_lowercase), "{text}");
+                    }
+                }
+            }
+        }
+        assert_eq!(outcomes.len(), 5);
+    }
+
+    #[test]
+    fn swap01_the_offer_reaches_the_page_only_on_a_hot_swap_board() {
+        let named = labels();
+        for board in [BoardKind::Soldered, BoardKind::Laptop, BoardKind::Unknown] {
+            let report = on(board, guided_chatter().1).diagnose();
+            let (r, offer) = ended(&report, board, None, &named);
+            assert!(offer.is_none() && r.swap.is_none(), "{board:?}");
+            assert_eq!(r.findings.len(), 1);
+            let json = serde_json::to_string(&r).unwrap();
+            assert!(
+                json.ends_with(r#""swap":null,"outcome":null}"#),
+                "{board:?}"
+            );
+        }
+        // Positive control: the same stream on a hot-swap board.
+        let report = on(BoardKind::HotSwap, guided_chatter().1).diagnose();
+        let (r, offer) = ended(&report, BoardKind::HotSwap, None, &named);
+        assert_eq!(offer, Some(offered()));
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(
+            json.contains(r#""swap":{"suspect":18,"partner":34,"title":"Move the E switch"#),
+            "{json}"
+        );
+        assert!(json.ends_with(r#""outcome":null}"#));
+    }
+
+    #[test]
+    fn swap02_the_swap_plan_is_the_engines() {
+        let swap = offered();
+        let Ok((guide, keyboard, board)) = swap_plan(&swap, vec![1]) else {
+            panic!("refused");
+        };
+        assert_eq!(
+            (guide.plan(), keyboard, board),
+            (&swap.plan(), vec![1], BoardKind::HotSwap)
+        );
+        assert_eq!(
+            swap.plan(),
+            Plan {
+                keys: vec![E, G],
+                rounds: 3,
+                presses: 30
+            }
+        );
+        let refused = |keyboard: Vec<isize>| match swap_plan(&swap, keyboard) {
+            Ok(_) => panic!("the plan was accepted"),
+            Err(e) => e,
+        };
+        assert_eq!(
+            refused(vec![0]),
+            "Handle 0 is injected input, not a keyboard."
+        );
+        assert_eq!(
+            refused((1..=65).collect()),
+            "A keyboard can't have more than 64 entries."
+        );
+    }
+
+    // Keys that would hold a time, and a device path as JSON writes it.
+    const LEAKS: [&str; 6] = [
+        r#""micros""#,
+        r#"_us""#,
+        r#""start"#,
+        r#""end"#,
+        "HID#",
+        r"\\\\?\\",
+    ];
+
+    fn leaks(json: &str) -> Vec<&'static str> {
+        LEAKS.into_iter().filter(|l| json.contains(l)).collect()
+    }
+
+    #[test]
+    fn swap03_swap_views_hold_no_times_or_paths() {
+        let swap = offered();
+        let main = on(BoardKind::HotSwap, guided_chatter().1).diagnose();
+        let (offer, _) = ended(&main, BoardKind::HotSwap, None, &labels());
+        let after = swap_chatter(swap.plan(), &[G]).diagnose();
+        let (judged, _) = ended(&after, BoardKind::HotSwap, Some(&swap), &labels());
+        assert!(offer.swap.is_some() && judged.outcome.is_some());
+        for r in [&offer, &judged] {
+            assert_eq!(leaks(&serde_json::to_string(r).unwrap()), [""; 0]);
+        }
+        // Positive controls: a planted time and a planted path are caught.
+        let mut planted: Value = serde_json::to_value(&judged).unwrap();
+        planted["outcome"]["micros"] = json!(1_500);
+        assert_eq!(leaks(&planted.to_string()), [r#""micros""#]);
+        let mut planted: Value = serde_json::to_value(&offer).unwrap();
+        planted["swap"]["title"] = json!(r"\\?\HID#VID_05AC&PID_024F&MI_00#8&2d5c1f1a&0&0000");
+        assert_eq!(leaks(&planted.to_string()), ["HID#", r"\\\\?\\"]);
+    }
+
+    #[test]
+    fn swap04_a_retest_ends_in_its_judgment_and_offers_nothing_more() {
+        let swap = offered();
+        let after = swap_chatter(swap.plan(), &[G]).diagnose();
+        // The retest's own report would offer G with E, a swap already made.
+        assert!(Swap::offer(&after, BoardKind::HotSwap).is_some());
+        let (r, offer) = ended(&after, BoardKind::HotSwap, Some(&swap), &labels());
+        assert_eq!(offer, None);
+        assert!(r.swap.is_none());
+        assert!(r.findings.is_empty() && r.notes.is_empty() && r.clean.is_empty());
+        let o = r.outcome.as_ref().expect("a judgment");
+        assert_eq!(
+            (
+                o.outcome,
+                o.tile,
+                o.flagged.as_slice(),
+                o.confidence,
+                o.level.as_deref(),
+                o.strong
+            ),
+            (
+                "follows",
+                Some(G),
+                &[G][..],
+                Some("very-high"),
+                Some("Very high"),
+                true
+            )
+        );
+        assert_eq!(o.title, "The fault moved with the switch.");
+        assert_eq!(
+            o.evidence[1],
+            "G: 18 of 90 presses sent an extra key-down (a rate of at least 13%)"
+        );
+        // The drawing still gets the retest's counts.
+        let keys: Vec<(u16, u32)> = r.keys.iter().map(|k| (k.scan, k.count)).collect();
+        assert_eq!(keys, [(E, 90), (G, 108)]);
+        assert_eq!(r.resolution, after.aggregates.limits.poll.words());
+
+        // Too short to judge: no confidence and no badge.
+        let (r, _) = ended(
+            &retest(&swap, &[], 1),
+            BoardKind::HotSwap,
+            Some(&swap),
+            &labels(),
+        );
+        let o = r.outcome.as_ref().expect("a judgment");
+        assert_eq!(
+            (o.outcome, o.confidence, o.level.as_deref(), o.strong),
+            ("unclear", None, None, false)
+        );
+        let json = serde_json::to_string(o).unwrap();
+        assert!(
+            json.contains(r#""confidence":null,"level":null,"strong":false"#),
+            "{json}"
+        );
+    }
+
+    fn at_path(handle: isize, path: &str) -> Keyboard {
+        Keyboard {
+            path: path.to_string(),
+            ..keyboard(handle, "Galaxy80", Some((0x05ac, 0x024f)), Some(K2))
+        }
+    }
+
+    #[test]
+    fn refind01_the_same_device_is_found_again_by_its_path() {
+        const MAIN: &str = r"\\?\HID#VID_05AC&PID_024F&MI_00#8&2d5c1f1a&0&0000#{884b96c3}";
+        const CONSUMER: &str =
+            r"\\?\HID#VID_05AC&PID_024F&MI_01&Col01#8&13b2a5e4&0&0000#{884b96c3}";
+        const OTHER: &str = r"\\?\HID#VID_046D&PID_C31C&MI_00#8&3f2e9d01&0&0000#{884b96c3}";
+        let kept = [MAIN.to_string(), CONSUMER.to_string()];
+        let same = [at_path(11, MAIN), at_path(12, CONSUMER)];
+        assert_eq!(refind(&kept, &same), Ok(vec![11, 12]));
+        // Replugged on the same port: new handles, listed in another order.
+        let replugged = [at_path(22, CONSUMER), at_path(21, MAIN)];
+        assert_eq!(refind(&kept, &replugged), Ok(vec![21, 22]));
+        // Another keyboard now holds an old handle, which is never taken.
+        let reused = [at_path(11, OTHER), at_path(21, MAIN), at_path(22, CONSUMER)];
+        assert_eq!(refind(&kept, &reused), Ok(vec![21, 22]));
+        for listed in [
+            &[at_path(11, OTHER), at_path(12, CONSUMER)][..],
+            &[at_path(21, MAIN)][..],
+            &[][..],
+        ] {
+            assert_eq!(
+                refind(&kept, listed),
+                Err(
+                    "The keyboard isn't listed. Plug it back into the port it used, then try \
+                     again."
+                        .to_string()
+                )
+            );
+        }
     }
 
     fn refusal(labels: Vec<KeyName>) -> String {

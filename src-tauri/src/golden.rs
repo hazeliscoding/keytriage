@@ -8,14 +8,14 @@ use std::time::Instant;
 
 use keytriage_diagnostics::fixture::{Fixture, guided_chatter};
 use keytriage_diagnostics::params::END_WAIT_US;
-use keytriage_diagnostics::{BoardKind, Confidence, Evidence, NextTest, Report};
+use keytriage_diagnostics::{BoardKind, Confidence, Evidence, Kind, NextTest, Swap};
 use keytriage_input::Keyboard;
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::export::{no_sequence, report_json};
-use crate::session_core::{Core, at, input, rounds};
-use crate::view::{self, KeyName, KeyboardGroup, PlanArgs, TestResult, groups, names, result};
+use crate::session_core::{Core, Ended, at, input, rounds};
+use crate::view::{self, KeyName, KeyboardGroup, PlanArgs, TestResult, groups, names};
 
 const E: u16 = 0x12;
 const G: u16 = 0x22;
@@ -87,11 +87,13 @@ fn run() -> Run {
     }
 }
 
-fn finish(run: &mut Run) -> (Report, TestResult) {
-    let report = run.core.finish(at(run.start, run.fixture.end_us)).unwrap();
+// As end_test ends it.
+fn finish(run: &mut Run) -> Ended {
     let labels: Vec<KeyName> = serde_json::from_str(LABELS).unwrap();
-    let result = result(&report, &names(labels).unwrap());
-    (report, result)
+    let names = names(labels).unwrap();
+    run.core
+        .end(at(run.start, run.fixture.end_us), &names)
+        .unwrap()
 }
 
 fn indented(value: &impl Serialize) -> String {
@@ -127,7 +129,11 @@ fn m3_done_guided_chatter() {
         stamped.iter().map(|r| r.key).collect::<Vec<u16>>(),
         [G, J, E, G, J, E, G, J, E]
     );
-    let (report, result) = finish(&mut run);
+    let Ended {
+        report,
+        result,
+        offer,
+    } = finish(&mut run);
 
     // The app's run is the engine's own run, on the board the Start screen preselects.
     let hot_swap = Fixture {
@@ -175,6 +181,29 @@ fn m3_done_guided_chatter() {
     );
     assert!(card.next[0].starts_with("Swap the E switch with the G switch"));
 
+    // Rust keeps the offer for the retest, and the page gets only its words.
+    assert_eq!(
+        offer,
+        Some(Swap {
+            suspect: E,
+            partner: G,
+            kind: Kind::Chatter,
+            before: Confidence::VeryHigh,
+            floor_permille: 95,
+        })
+    );
+    let swap = result.swap.as_ref().expect("a swap offer");
+    assert_eq!((swap.suspect, swap.partner), (E, G));
+    assert!(
+        swap.title
+            .starts_with("Move the E switch into the G socket"),
+        "{}",
+        swap.title
+    );
+    assert_eq!(swap.steps.len(), 4);
+    assert_eq!(swap.note, "Swap test. Both keys, 3 rounds.");
+    assert!(result.outcome.is_none());
+
     // The last view says the plan is done, and the page ends the test END_WAIT_US after it. The E
     // round's last chatter fragment follows it as events, within that wait.
     let script: Vec<Value> = run.script.iter().map(|s| parsed(s)).collect();
@@ -213,7 +242,7 @@ fn m3_done_guided_chatter() {
 #[test]
 fn golden_holds_only_the_synthetic_stream() {
     let mut run = run();
-    let (_, result) = finish(&mut run);
+    let Ended { result, .. } = finish(&mut run);
     let text = golden(&run.script, &result);
     let file = parsed(&text);
     let script: Vec<Value> = run.script.iter().map(|s| parsed(s)).collect();
@@ -264,7 +293,7 @@ fn bless_needs_exactly_1_and_never_runs_in_ci() {
 #[test]
 fn golden_is_current() {
     let mut run = run();
-    let (_, result) = finish(&mut run);
+    let Ended { result, .. } = finish(&mut run);
     let text = golden(&run.script, &result);
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(FILE);
     let value = std::env::var("KEYTRIAGE_BLESS").ok();
