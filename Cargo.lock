@@ -1654,6 +1654,8 @@ dependencies = [
  "keytriage-input",
  "tauri",
  "tauri-build",
+ "webview2-com",
+ "windows-core",
 ]
 
 [[package]]

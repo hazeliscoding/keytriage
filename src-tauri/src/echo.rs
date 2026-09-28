@@ -1,18 +1,25 @@
-// Debug builds only. With KEYTRIAGE_ECHO_INPUT set, capture starts with the window and prints each
-// event, so scripts/check-focus-capture.ps1 can prove where input stops. Only that check's marker
-// keys, F13 to F15, print their scan code, so real typing never shows up in a terminal or a CI log.
+// Debug builds only. With KEYTRIAGE_ECHO set, capture starts with the window and prints each
+// event, and page loads and WebView2's browser settings print too, so the checks in scripts/ can
+// prove where input stops and that browser keys do nothing. Only the checks' marker keys, F13 to
+// F15, print their scan code, so real typing never shows up in a terminal or a CI log.
 use std::io::Write;
 
 use keytriage_input::{Capture, KeyEvent, registrations};
-use tauri::{App, Manager};
+use tauri::webview::{PageLoadEvent, PageLoadPayload};
+use tauri::{Runtime, Webview, WebviewWindow};
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    ICoreWebView2Controller, ICoreWebView2Settings3,
+};
+use windows_core::{BOOL, Interface};
 
-pub fn start(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    if std::env::var_os("KEYTRIAGE_ECHO_INPUT").is_none() {
+fn enabled() -> bool {
+    std::env::var_os("KEYTRIAGE_ECHO").is_some()
+}
+
+pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::error::Error>> {
+    if !enabled() {
         return Ok(());
     }
-    let window = app
-        .get_webview_window("main")
-        .ok_or("the main window is missing")?;
     let capture = Capture::start(window.hwnd()?.0 as isize, |event| print(&line(&event)))?;
     for r in registrations()? {
         print(&format!(
@@ -21,9 +28,40 @@ pub fn start(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         ));
     }
     print("kt-input: ready");
+    // with_webview calls run in order, so this reads the settings after browser_ui changed them.
+    window.with_webview(|webview| print(&settings_line(&webview.controller())))?;
     // The echo lasts as long as the window.
     std::mem::forget(capture);
     Ok(())
+}
+
+pub fn page_load<R: Runtime>(_: &Webview<R>, payload: &PageLoadPayload<'_>) {
+    if enabled() && payload.event() == PageLoadEvent::Finished {
+        print("kt-shell: page-load");
+    }
+}
+
+fn settings_line(controller: &ICoreWebView2Controller) -> String {
+    match browser_settings(controller) {
+        Ok((keys, menus)) => format!(
+            "kt-shell: browser-keys={} context-menus={}",
+            u8::from(keys),
+            u8::from(menus)
+        ),
+        Err(e) => format!("kt-shell: settings unreadable: {e}"),
+    }
+}
+
+fn browser_settings(controller: &ICoreWebView2Controller) -> windows_core::Result<(bool, bool)> {
+    let (mut keys, mut menus) = (BOOL::default(), BOOL::default());
+    unsafe {
+        let settings = controller.CoreWebView2()?.Settings()?;
+        settings.AreDefaultContextMenusEnabled(&mut menus)?;
+        settings
+            .cast::<ICoreWebView2Settings3>()?
+            .AreBrowserAcceleratorKeysEnabled(&mut keys)?;
+    }
+    Ok((keys.as_bool(), menus.as_bool()))
 }
 
 // A closed pipe must not panic inside the window procedure.

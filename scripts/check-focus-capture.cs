@@ -262,7 +262,7 @@ namespace FocusCheck
             // The debug build is a console app and would otherwise open a console that can take
             // the foreground.
             psi.CreateNoWindow = true;
-            psi.Environment["KEYTRIAGE_ECHO_INPUT"] = "1";
+            psi.Environment["KEYTRIAGE_ECHO"] = "1";
             // The hosting mode decides which process holds keyboard focus, so the check sets it
             // instead of inheriting it.
             const string hosting = "COREWEBVIEW2_FORCED_HOSTING_MODE";

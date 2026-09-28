@@ -1,6 +1,8 @@
 use tauri::plugin::{Builder as PluginBuilder, TauriPlugin};
 use tauri::{Manager, Runtime, Url};
 
+#[cfg(windows)]
+mod browser_ui;
 #[cfg(all(debug_assertions, windows))]
 mod echo;
 
@@ -10,11 +12,29 @@ pub fn run() {
         // would add RIDEV_INPUTSINK. Capture belongs to crates/input, and only during a test.
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(navigation_guard());
+    #[cfg(windows)]
+    let builder = builder.setup(setup);
     #[cfg(all(debug_assertions, windows))]
-    let builder = builder.setup(echo::start);
+    let builder = builder.on_page_load(echo::page_load);
     builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(windows)]
+fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("the main window is missing")?;
+    // The browser keys check's positive control leaves them on, in debug builds only.
+    let keep_browser_keys =
+        cfg!(debug_assertions) && std::env::var_os("KEYTRIAGE_BROWSER_KEYS").is_some();
+    if !keep_browser_keys {
+        browser_ui::turn_off(&window)?;
+    }
+    #[cfg(debug_assertions)]
+    echo::start(&window)?;
+    Ok(())
 }
 
 // The CSP can't stop the page from navigating itself, so a link, a location change or a meta

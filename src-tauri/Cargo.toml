@@ -17,3 +17,8 @@ tauri-build = { version = "2.7.0", features = [] }
 [dependencies]
 keytriage-input = { path = "../crates/input" }
 tauri = { version = "2.12.0", features = [] }
+
+# The same versions tauri uses, so nothing compiles twice.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows-core = "0.62"
