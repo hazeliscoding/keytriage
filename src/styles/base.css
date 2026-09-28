@@ -17,6 +17,19 @@ app-root {
   display: block;
 }
 
+/* Read by screen readers and never drawn. Out of the flow, so it adds no gap to a flex column. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 :focus-visible {
   outline: 2px solid var(--auburn);
   outline-offset: 2px;

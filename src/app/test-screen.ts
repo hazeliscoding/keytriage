@@ -108,6 +108,19 @@ export class TestScreen {
     this.pressedAway = false;
   }
 
+  // Read aloud from a region that is on the page before either notice appears. It leaves out the
+  // count, so injected input is announced once rather than at every event.
+  protected readonly notice = computed(() => {
+    if (this.run.pause()) return `${this.pauseLabel()}. ${this.pauseBody()}`;
+    if (this.run.injected()) {
+      return (
+        'INJECTED INPUT. Events that did not come from a physical keyboard stay in the event ' +
+        'list, marked injected, and are left out of every count.'
+      );
+    }
+    return '';
+  });
+
   protected readonly injectedBody = computed(() => {
     const n = this.run.injected();
     return n === 1

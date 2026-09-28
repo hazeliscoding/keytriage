@@ -43,3 +43,6 @@
     <app-start-screen />
   }
 }
+
+<!-- A live region inserted with its text is often not read, so this one stays across screens. -->
+<div class="visually-hidden" role="status">{{ run.note() }}</div>

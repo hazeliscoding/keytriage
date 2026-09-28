@@ -1,12 +1,14 @@
+<div class="visually-hidden" role="status">{{ notice() }}</div>
+
 <div class="test">
   <div class="test__main">
     @if (run.pause()) {
-      <div class="notice notice--attention" role="status">
+      <div class="notice notice--attention">
         <div class="notice__label">{{ pauseLabel() }}</div>
         <div class="notice__body">{{ pauseBody() }}</div>
       </div>
     } @else if (run.injected()) {
-      <div class="notice" role="status">
+      <div class="notice">
         <div class="notice__label">INJECTED INPUT</div>
         <div class="notice__body">{{ injectedBody() }}</div>
       </div>
@@ -16,7 +18,7 @@
       <div class="prompt" [class.prompt--paused]="run.pause()">
         <div class="prompt__key">{{ prompt.label }}</div>
         <div class="prompt__text">
-          <div class="prompt__ask">{{ prompt.ask }}</div>
+          <div class="prompt__ask" aria-live="polite">{{ prompt.ask }}</div>
           <div class="prompt__sub">
             @if (run.pause()) {
               Waiting for focus. Presses are not read.
@@ -114,7 +116,7 @@
     Skip this key
   </button>
   @if (run.note()) {
-    <div class="meta footer__note" role="status">{{ run.note() }}</div>
+    <div class="meta footer__note">{{ run.note() }}</div>
   } @else {
     <div class="meta footer__note">Capture stops when the window loses focus.</div>
   }

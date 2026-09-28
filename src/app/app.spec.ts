@@ -229,4 +229,24 @@ describe('App', () => {
       expect(sent('list_keyboards')).toHaveLength(2);
     });
   });
+
+  describe('status', () => {
+    // A live region inserted together with its text is often not read, so the region must be on
+    // the page before the text it announces.
+    it('announces each note from one region that stays on the page across screens', async () => {
+      inApp((cmd) => {
+        if (cmd === 'start_test') throw RECONNECTED;
+        return null;
+      });
+      const fixture = await render();
+      const [region] = all(fixture, '[role="status"]');
+      expect(all(fixture, '[role="status"]')).toHaveLength(1);
+      expect(region.classList).toContain('visually-hidden');
+      expect(text(region)).toBe('');
+      await click(fixture, button(fixture, 'Begin test'));
+      expect(all(fixture, '[role="status"]')).toEqual([region]);
+      expect(text(region)).toBe(RECONNECTED);
+      expect(el(fixture).querySelector('.footer__note')?.hasAttribute('role')).toBe(false);
+    });
+  });
 });

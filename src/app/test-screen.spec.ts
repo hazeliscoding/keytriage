@@ -305,6 +305,42 @@ describe('Test screen', () => {
     });
   });
 
+  describe('announcements', () => {
+    const region = (fixture: ComponentFixture<App>) =>
+      el(fixture).querySelector('app-test-screen > [role="status"]') as HTMLElement;
+
+    it('reads a pause and injected input from a region already on the test screen', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      const status = region(fixture);
+      expect(text(status)).toBe('');
+      await send(fixture, 'test:event', key(E, false, 0, 1_000), key(E, true, 0, 51_000));
+      const injected =
+        'INJECTED INPUT. Events that did not come from a physical keyboard stay in the event ' +
+        'list, marked injected, and are left out of every count.';
+      expect(text(status)).toBe(injected);
+      await send(fixture, 'test:event', PAUSED);
+      expect(region(fixture)).toBe(status);
+      expect(text(status)).toMatch(
+        /^PAUSED · WINDOW LOST FOCUS \d{2}:\d{2}\. Click back into the window to continue\. No key was down at that moment\. This round of E will be repeated\.$/,
+      );
+      await send(fixture, 'test:event', RESUMED);
+      expect(text(status)).toBe(injected);
+      expect(all(fixture, '.notice[role], .footer__note[role]')).toEqual([]);
+    });
+
+    it('reads each new prompt, but not each press', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      const ask = el(fixture).querySelector('.prompt__ask') as HTMLElement;
+      expect(ask.getAttribute('aria-live')).toBe('polite');
+      expect(el(fixture).querySelector('.prompt [aria-live]:not(.prompt__ask)')).toBeNull();
+      await send(fixture, 'test:guide', { ...VIEW, key: G, count: 0, index: 1 });
+      expect(el(fixture).querySelector('.prompt__ask')).toBe(ask);
+      expect(text(ask)).toBe('Press G ten times.');
+    });
+  });
+
   describe('controls', () => {
     it("pauses on request, reads the pause as the user's own, and continues", async () => {
       const fixture = await testing();
