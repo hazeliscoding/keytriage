@@ -181,12 +181,11 @@ export function key(scan: number, up: boolean, device: number, micros: number): 
   return { kind: 'key', scan, up, device, micros };
 }
 
-// A press and its release, 60 ms apart.
 export function press(scan: number, device: number, micros: number): TestEvent[] {
   return [key(scan, false, device, micros), key(scan, true, device, micros + 60_000)];
 }
 
-// The drawn cap for a scan code.
+// The tested keyboard's cap. The Start screen's bare preview draws the same scan codes.
 export function cap(fixture: ComponentFixture<App>, scan: number): HTMLElement {
   const found = el(fixture).querySelector<HTMLElement>(
     `.keyboard:not(.keyboard--bare) .cap[data-scan="${scan}"]`,

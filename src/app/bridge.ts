@@ -17,7 +17,6 @@ function call<T>(cmd: string, args?: InvokeArgs): Promise<T> {
   return inApp() ? invoke<T>(cmd, args) : Promise.reject(OUTSIDE_APP);
 }
 
-// The text of a rejected command, for the footer note.
 export function reasonOf(error: unknown): string {
   if (typeof error === 'string') return error;
   if (error instanceof Error) return error.message;
