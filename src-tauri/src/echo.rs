@@ -9,7 +9,7 @@ use keytriage_input::{keyboards, registrations};
 use tauri::webview::{PageLoadEvent, PageLoadPayload};
 use tauri::{Listener, Runtime, Webview, WebviewWindow};
 
-use crate::test_session::Recorded;
+use crate::test_session::Entry;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2Controller, ICoreWebView2Settings3,
 };
@@ -34,9 +34,21 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
         print_registrations();
         print("kt-input: ready");
     });
-    window.listen_any("test:key", |event| {
-        if let Ok(key) = serde_json::from_str::<Recorded>(event.payload()) {
-            print(&line(&key));
+    window.listen_any("test:event", |event| {
+        match serde_json::from_str::<Entry>(event.payload()) {
+            Ok(Entry::Key {
+                scan, up, device, ..
+            }) => print(&line(scan, up, device)),
+            Ok(Entry::Paused { interrupted, .. }) => print(&format!(
+                "kt-input: paused registrations={} interrupted={}",
+                registrations().map_or(0, |r| r.len()),
+                interrupted.len()
+            )),
+            Ok(Entry::Resumed { .. }) => {
+                print("kt-input: resumed");
+                print_registrations();
+            }
+            Err(_) => {}
         }
     });
     for k in keyboards()? {
@@ -57,8 +69,11 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
+// Each snapshot starts with its count, so a reader can drop the one before.
 fn print_registrations() {
-    for r in registrations().unwrap_or_default() {
+    let all = registrations().unwrap_or_default();
+    print(&format!("kt-input: registrations n={}", all.len()));
+    for r in all {
         print(&format!(
             "kt-input: registered page=0x{:x} usage=0x{:x} flags=0x{:x} target=0x{:x}",
             r.usage_page, r.usage, r.flags, r.target
@@ -107,15 +122,14 @@ fn print(line: &str) {
     let _ = writeln!(std::io::stdout(), "{line}");
 }
 
-fn line(event: &Recorded) -> String {
-    let key = match event.scan {
-        0x64..=0x66 => format!("0x{:x}", event.scan),
+fn line(scan: u16, up: bool, device: isize) -> String {
+    let key = match scan {
+        0x64..=0x66 => format!("0x{scan:x}"),
         _ => "other".to_string(),
     };
     format!(
-        "kt-input: key={key} up={} device=0x{:x}",
-        u8::from(event.up),
-        event.device
+        "kt-input: key={key} up={} device=0x{device:x}",
+        u8::from(up)
     )
 }
 
@@ -123,23 +137,14 @@ fn line(event: &Recorded) -> String {
 mod tests {
     use super::*;
 
-    fn event(scan: u16, up: bool) -> Recorded {
-        Recorded {
-            scan,
-            up,
-            device: 0x2a,
-            micros: 5,
-        }
-    }
-
     #[test]
     fn prints_the_marker_keys() {
         assert_eq!(
-            line(&event(0x64, false)),
+            line(0x64, false, 0x2a),
             "kt-input: key=0x64 up=0 device=0x2a"
         );
         assert_eq!(
-            line(&event(0x66, true)),
+            line(0x66, true, 0x2a),
             "kt-input: key=0x66 up=1 device=0x2a"
         );
     }
@@ -148,7 +153,7 @@ mod tests {
     fn hides_every_other_key() {
         for scan in [0x1e, 0x63, 0x67, 0xe01d, 0xe11d] {
             assert_eq!(
-                line(&event(scan, false)),
+                line(scan, false, 0x2a),
                 "kt-input: key=other up=0 device=0x2a"
             );
         }

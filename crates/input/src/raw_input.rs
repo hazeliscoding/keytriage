@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -14,40 +14,78 @@ use windows::Win32::UI::Shell::{
     DefSubclassProc, GetWindowSubclass, RemoveWindowSubclass, SetWindowSubclass,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1, RIM_INPUT, WM_INPUT, WM_NCDESTROY,
+    GetForegroundWindow, RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1, RIM_INPUT, WM_ACTIVATEAPP, WM_INPUT,
+    WM_NCDESTROY,
 };
 
-use crate::KeyEvent;
+use crate::{Input, KeyEvent};
 
 const GENERIC_DESKTOP: u16 = 0x01;
 const KEYBOARD: u16 = 0x06;
 const SUBCLASS_ID: usize = 0x6b74;
 
-type OnKey = RefCell<Box<dyn FnMut(KeyEvent)>>;
+struct State {
+    hwnd: HWND,
+    // Open only while the app is in the foreground. Input queued before the app lost the foreground
+    // can still arrive after it, and is dropped.
+    open: Cell<bool>,
+    on_input: RefCell<Box<dyn FnMut(Input)>>,
+}
+
+impl State {
+    fn open(&self, at: Instant) {
+        // Registration fails only if the window is gone, and then capture stays closed.
+        if self.open.get() || register(self.hwnd).is_err() {
+            return;
+        }
+        self.open.set(true);
+        self.send(Input::Resumed(at));
+    }
+
+    fn close(&self, at: Instant) {
+        if !self.open.replace(false) {
+            return;
+        }
+        unregister();
+        self.send(Input::Paused(at));
+    }
+
+    // A handler that pumps messages would re-enter here. Its input is dropped rather than handed to
+    // a second mutable borrow.
+    fn send(&self, input: Input) {
+        if let Ok(mut on_input) = self.on_input.try_borrow_mut() {
+            on_input(input);
+        }
+    }
+}
 
 pub struct Capture {
-    hwnd: HWND,
-    on_key: *const OnKey,
+    state: *const State,
 }
 
 impl Capture {
     // Call this on the thread that owns `hwnd`. comctl32 cannot subclass a window across threads.
+    // Capture opens only while the app is in the foreground: it pauses when the app loses it and
+    // resumes when the app gets it back.
     pub fn start(
         hwnd: isize,
-        on_key: impl FnMut(KeyEvent) + 'static,
+        on_input: impl FnMut(Input) + 'static,
     ) -> windows::core::Result<Self> {
         let hwnd = HWND(hwnd as *mut c_void);
-        let on_key: Box<dyn FnMut(KeyEvent)> = Box::new(on_key);
+        let on_input: Box<dyn FnMut(Input)> = Box::new(on_input);
         let capture = Capture {
-            hwnd,
-            on_key: Rc::into_raw(Rc::new(RefCell::new(on_key))),
+            state: Rc::into_raw(Rc::new(State {
+                hwnd,
+                open: Cell::new(false),
+                on_input: RefCell::new(on_input),
+            })),
         };
         let subclassed = unsafe {
             SetWindowSubclass(
                 hwnd,
                 Some(subclass_proc),
                 SUBCLASS_ID,
-                capture.on_key as usize,
+                capture.state as usize,
             )
         };
         // comctl32 sets no error code when this fails.
@@ -57,40 +95,51 @@ impl Capture {
                 "SetWindowSubclass failed: the window is invalid or belongs to another thread",
             ));
         }
-        // No sink flag, so Windows sends WM_INPUT only while this process owns the foreground
-        // window. The target must be set: a null target follows keyboard focus, and focus sits in
-        // WebView2's own process.
-        let keyboard = RAWINPUTDEVICE {
-            usUsagePage: GENERIC_DESKTOP,
-            usUsage: KEYBOARD,
-            dwFlags: RAWINPUTDEVICE_FLAGS(0),
-            hwndTarget: hwnd,
-        };
-        unsafe { RegisterRawInputDevices(&[keyboard], size_of::<RAWINPUTDEVICE>() as u32) }?;
+        if unsafe { GetForegroundWindow() } == hwnd {
+            register(hwnd)?;
+            unsafe { &*capture.state }.open.set(true);
+        }
         Ok(capture)
     }
 }
 
 impl Drop for Capture {
     fn drop(&mut self) {
-        // Removal requires a null target.
-        let keyboard = RAWINPUTDEVICE {
-            usUsagePage: GENERIC_DESKTOP,
-            usUsage: KEYBOARD,
-            dwFlags: RIDEV_REMOVE,
-            hwndTarget: HWND::default(),
-        };
-        let _ = unsafe { RegisterRawInputDevices(&[keyboard], size_of::<RAWINPUTDEVICE>() as u32) };
+        unregister();
+        let hwnd = unsafe { &*self.state }.hwnd;
         // The window may be gone and its handle reused, so only remove a subclass that is still ours.
         let mut data = 0;
-        let attached = unsafe {
-            GetWindowSubclass(self.hwnd, Some(subclass_proc), SUBCLASS_ID, Some(&mut data))
-        };
-        if attached.as_bool() && data == self.on_key as usize {
-            let _ = unsafe { RemoveWindowSubclass(self.hwnd, Some(subclass_proc), SUBCLASS_ID) };
+        let attached =
+            unsafe { GetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, Some(&mut data)) };
+        if attached.as_bool() && data == self.state as usize {
+            let _ = unsafe { RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID) };
         }
-        drop(unsafe { Rc::from_raw(self.on_key) });
+        drop(unsafe { Rc::from_raw(self.state) });
     }
+}
+
+// No sink flag, so Windows sends WM_INPUT only while this process owns the foreground window. The
+// target must be set: a null target follows keyboard focus, and focus sits in WebView2's own
+// process.
+fn register(hwnd: HWND) -> windows::core::Result<()> {
+    let keyboard = RAWINPUTDEVICE {
+        usUsagePage: GENERIC_DESKTOP,
+        usUsage: KEYBOARD,
+        dwFlags: RAWINPUTDEVICE_FLAGS(0),
+        hwndTarget: hwnd,
+    };
+    unsafe { RegisterRawInputDevices(&[keyboard], size_of::<RAWINPUTDEVICE>() as u32) }
+}
+
+fn unregister() {
+    // Removal requires a null target.
+    let keyboard = RAWINPUTDEVICE {
+        usUsagePage: GENERIC_DESKTOP,
+        usUsage: KEYBOARD,
+        dwFlags: RIDEV_REMOVE,
+        hwndTarget: HWND::default(),
+    };
+    let _ = unsafe { RegisterRawInputDevices(&[keyboard], size_of::<RAWINPUTDEVICE>() as u32) };
 }
 
 unsafe extern "system" fn subclass_proc(
@@ -99,31 +148,31 @@ unsafe extern "system" fn subclass_proc(
     wparam: WPARAM,
     lparam: LPARAM,
     _id: usize,
-    on_key: usize,
+    state: usize,
 ) -> LRESULT {
-    match msg {
-        // Nothing registers a sink, so only RIM_INPUT can arrive: input made while this process
-        // was in the foreground. Any other code is never read.
-        WM_INPUT if wparam.0 & 0xff == RIM_INPUT as usize => {
-            let at = Instant::now();
-            if let Some(event) = read(HRAWINPUT(lparam.0 as *mut c_void), at) {
-                // The handler may drop the Capture, so this call holds its own reference until
-                // the handler returns.
-                let handler = unsafe {
-                    Rc::increment_strong_count(on_key as *const OnKey);
-                    Rc::from_raw(on_key as *const OnKey)
-                };
-                // A handler that pumps messages would re-enter here. Its events are dropped
-                // rather than handed to a second mutable borrow.
-                if let Ok(mut on_key) = handler.try_borrow_mut() {
-                    on_key(event);
+    if matches!(msg, WM_INPUT | WM_ACTIVATEAPP) {
+        let at = Instant::now();
+        // The handler may drop the Capture, so this call holds its own reference until the
+        // handler returns.
+        let state = unsafe {
+            Rc::increment_strong_count(state as *const State);
+            Rc::from_raw(state as *const State)
+        };
+        match msg {
+            WM_ACTIVATEAPP if wparam.0 != 0 => state.open(at),
+            WM_ACTIVATEAPP => state.close(at),
+            // Nothing registers a sink, so only RIM_INPUT can arrive: input made while this process
+            // was in the foreground. Any other code is never read.
+            _ if state.open.get() && wparam.0 & 0xff == RIM_INPUT as usize => {
+                if let Some(event) = read(HRAWINPUT(lparam.0 as *mut c_void), at) {
+                    state.send(Input::Key(event));
                 }
             }
+            _ => {}
         }
-        WM_NCDESTROY => {
-            let _ = unsafe { RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID) };
-        }
-        _ => {}
+    }
+    if msg == WM_NCDESTROY {
+        let _ = unsafe { RemoveWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID) };
     }
     // The chain ends in DefWindowProc, which frees the input for RIM_INPUT.
     unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }

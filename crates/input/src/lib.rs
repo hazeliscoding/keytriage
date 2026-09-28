@@ -23,6 +23,15 @@ pub struct KeyEvent {
     pub at: Instant,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Input {
+    Key(KeyEvent),
+    // The app lost the foreground, so capture stopped. Keys still down never report their release.
+    Paused(Instant),
+    // The app is back in the foreground, and capture with it.
+    Resumed(Instant),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Keyboard {
     // The Raw Input device handle, the value KeyEvent::device carries.
