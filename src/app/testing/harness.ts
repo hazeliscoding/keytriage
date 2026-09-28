@@ -4,7 +4,9 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { App } from '../app';
-import type { Events, KeyboardGroup, PlanArgs, TestEvent, TestResult } from '../ipc';
+import type { Events, KeyName, KeyboardGroup, PlanArgs, TestEvent, TestResult } from '../ipc';
+import { PLAN } from '../plan';
+import golden from './guided-chatter.json';
 
 export type Call = [string, unknown];
 
@@ -57,12 +59,13 @@ export function sent(cmd: string): unknown[] {
 // Every command succeeds unless `answer` throws for it.
 export function inApp(
   answer: (cmd: string, args: unknown) => unknown = (cmd) => (cmd === 'end_test' ? EMPTY : null),
+  groups: KeyboardGroup[] = GROUPS,
 ): void {
   log = [];
   mockIPC(
     (cmd, args) => {
       log.push([cmd, args]);
-      return cmd === 'list_keyboards' ? GROUPS : answer(cmd, args);
+      return cmd === 'list_keyboards' ? groups : answer(cmd, args);
     },
     { shouldMockEvents: true },
   );
@@ -136,6 +139,29 @@ export async function send<K extends keyof Events>(
 
 // One emitted event, in the shape the golden script uses.
 export type Emitted = { [K in keyof Events]: { event: K; payload: Events[K] } }[keyof Events];
+
+export interface Golden {
+  source: string;
+  plan: PlanArgs;
+  keyboards: KeyboardGroup[];
+  labels: KeyName[];
+  script: Emitted[];
+  result: TestResult;
+}
+
+// The engine's synthetic chatter run as Rust emits it. src-tauri/src/golden.rs writes the file from
+// the real engine and fails while it is out of date, so a spec that replays it follows Rust.
+export const GOLDEN = golden as Golden;
+
+// The golden run's three keys in place of every plain key of the layout.
+export const GOLDEN_PLAN: Provider = {
+  provide: PLAN,
+  useValue: {
+    keys: () => GOLDEN.plan.keys,
+    rounds: GOLDEN.plan.rounds,
+    presses: GOLDEN.plan.presses,
+  },
+};
 
 export async function replay(
   fixture: ComponentFixture<App>,
