@@ -48,6 +48,11 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - tao registers Raw Input for mice and keyboards on its hidden window when its event loop is created, inside `Builder::build`. Tauri's `Always` filter removes both registrations later in `Builder::build`, before any app window exists. Nothing else in tauri or wry registers.
     - tao calls `GetAsyncKeyState` for every key when its window gains focus, to replay keys that are already held. It stores nothing. Accepted (2026.09.27): it reads which keys are down at that moment, only when our window gains focus, and is not a keylogger. The dependency scan pins this read to tao's one call and to the one caller of the function that wraps it, the focus handler.
 - **Dependency scan** (2026.09.27): the capture guard also scans the source of every crate the Windows build compiles for the banned capture APIs. It skips the crates.io `windows` and `windows-sys` bindings, which declare every API without calling it. Known calls are listed in `DEPENDENCY_ALLOWED` in `scripts/check-capture.mjs`, with their file and how many lines outside `use` declarations name the API. An upgrade that adds a line naming one of these APIs fails CI, even in a file that already has one. The only entries are tao's key-state read and its `Never`-filter input sink, which `Always` never reaches.
+- **Browser keys** (2026.09.27): WebView2's browser shortcuts and default context menu are off in every build, set on the live webview in `src-tauri/src/browser_ui.rs`, because wry supports both settings but Tauri doesn't pass them on. `scripts/check-browser-keys.ps1` proves it against a debug build: the settings read back as off, F5 and Ctrl+R don't reload the page, and a right-click opens no menu. It passes in both hosting modes. Its positive control starts the app with them left on (`KEYTRIAGE_BROWSER_KEYS`, debug builds only), must read them back as on, and must catch all three. Ctrl+P rests on the same setting and isn't pressed, because a print dialog is hard to close. The settings don't cover everything a key test presses:
+  - A Browser Refresh or Back key, or a mouse side button, arrives as `WM_APPCOMMAND`, which WebView2 still acts on, so it can reload the page or go back.
+  - A lone Alt or F10 can put the window in menu mode, Alt+Space opens the window menu, and Alt+F4 closes the app.
+  - Tab, Space and the movement keys still act on the page.
+  - The OS keeps its own keys: the Windows key and its combinations, Ctrl+Alt+Del, Print Screen, the Copilot key, Sleep and Power, launch keys, and the accessibility shortcuts (Shift five times, right Shift or Num Lock held down).
 
 ## M0: Placeholder (as soon as possible)
 
@@ -66,7 +71,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 ## M1: Input
 
 - [x] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here. Raw Input registration is per process and the last call wins, so nothing may call `set_device_event_filter` once capture has registered.
-- [ ] Before capture lands, turn off WebView2's browser shortcuts and default context menu (`SetAreBrowserAcceleratorKeysEnabled`, `SetAreDefaultContextMenusEnabled`) through `with_webview`. The key test presses F5, Ctrl+R and Ctrl+P, which reload or print the page. Tauri has no setting for this.
+- [x] Before capture lands, turn off WebView2's browser shortcuts and default context menu (`SetAreBrowserAcceleratorKeysEnabled`, `SetAreDefaultContextMenusEnabled`) through `with_webview`. The key test presses F5, Ctrl+R and Ctrl+P, which reload or print the page. Tauri has no setting for this.
 - [ ] Decide how crash output stays local. WebView2 sends renderer crash reports to Microsoft by default (`IsCustomCrashReportingEnabled` is off), and a renderer dump can hold the live event stream.
 - [ ] Device list: name, VID/PID, device path, and manufacturer and product strings.
 - [ ] Live event view: key position, down or up, a high-resolution timestamp and the source device, held in memory only.
