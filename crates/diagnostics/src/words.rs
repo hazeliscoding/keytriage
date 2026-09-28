@@ -568,6 +568,29 @@ fn side_line(side: &Side, swap: &Swap, label: Label) -> String {
     format!("{}: {line}", label(side.key))
 }
 
+// The swapped kind, as what a cleared side showed no sign of.
+fn sign_of(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Chatter => "chatter",
+        Kind::Dead => "a dead key",
+        Kind::Stuck => "a stuck key",
+    }
+}
+
+// A side's findings of other kinds, which the swap doesn't clear: "G shows a possible stuck key".
+fn other_findings(side: &Side, label: Label) -> Option<String> {
+    let kinds: Vec<&str> = side
+        .also
+        .iter()
+        .map(|f| match f.kind() {
+            Kind::Chatter => "possible chatter",
+            Kind::Dead => "a possible dead key",
+            Kind::Stuck => "a possible stuck key",
+        })
+        .collect();
+    (!kinds.is_empty()).then(|| format!("{} shows {}", label(side.key), kinds.join(" and ")))
+}
+
 impl SwapResult {
     pub fn lines(&self, label: Label) -> OutcomeLines {
         let swap = &self.swap;
@@ -598,7 +621,16 @@ impl SwapResult {
                          clear it, so it remains possible too."
                     )
                 } else {
-                    format!("The {a} socket and the PCB behaved normally with a known-good switch.")
+                    match other_findings(&self.suspect, label) {
+                        None => format!(
+                            "The {a} socket and the PCB behaved normally with a known-good switch."
+                        ),
+                        Some(other) => format!(
+                            "The {a} socket and the PCB showed no sign of {} with a known-good \
+                             switch, but {other}.",
+                            sign_of(swap.kind)
+                        ),
+                    }
                 }
             ),
             (Outcome::Stays, kind) => {
@@ -625,7 +657,14 @@ impl SwapResult {
                          it, so it remains possible too."
                     )
                 } else {
-                    "The original switch is probably fine.".to_string()
+                    match other_findings(&self.partner, label) {
+                        None => "The original switch is probably fine.".to_string(),
+                        Some(other) => format!(
+                            "The {a} switch, now in the {b} socket, showed no sign of {}, but \
+                             {other}.",
+                            sign_of(kind)
+                        ),
+                    }
                 };
                 format!("{found} {switch}")
             }
@@ -639,10 +678,25 @@ impl SwapResult {
                     Kind::Stuck => "to a lost release report or software holding keys",
                 }
             ),
-            (Outcome::Gone, _) => "Both keys registered normally after the swap. Reseating the \
-                switches may have cleared a poor contact, or the fault comes and goes and didn't \
-                show in this test."
-                .to_string(),
+            (Outcome::Gone, kind) => {
+                let others: Vec<String> = [&self.suspect, &self.partner]
+                    .into_iter()
+                    .filter_map(|s| other_findings(s, label))
+                    .collect();
+                let neither = if others.is_empty() {
+                    "Both keys registered normally after the swap.".to_string()
+                } else {
+                    format!(
+                        "Neither key showed any sign of {} after the swap, but {}.",
+                        sign_of(kind),
+                        others.join(", and ")
+                    )
+                };
+                format!(
+                    "{neither} Reseating the switches may have cleared a poor contact, or the \
+                     fault comes and goes and didn't show in this test."
+                )
+            }
             (Outcome::Unclear, _) => {
                 let short: Vec<String> = [&self.suspect, &self.partner]
                     .into_iter()

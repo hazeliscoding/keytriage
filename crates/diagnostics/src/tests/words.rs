@@ -433,7 +433,8 @@ fn sample(kind: Kind) -> Finding {
     }
 }
 
-// Each kind's instruct words, and every outcome, cap and side status rendered for it.
+// Each kind's instruct words, and every outcome, cap and side status rendered for it, with none,
+// one or both of the other kinds also found on each side.
 fn every_swap_line() -> Vec<String> {
     let kinds = [Kind::Chatter, Kind::Dead, Kind::Stuck];
     let mut statuses: Vec<Status> = vec![Status::Clear];
@@ -469,7 +470,11 @@ fn every_swap_line() -> Vec<String> {
                 Outcome::Gone,
                 Outcome::Unclear,
             ] {
-                for capped in [false, true] {
+                let others = [sample(kinds[(i + 1) % 3]), sample(kinds[(i + 2) % 3])];
+                for (capped, also) in [false, true]
+                    .into_iter()
+                    .flat_map(|c| [0, 1, 2].map(|n| (c, others[..n].to_vec())))
+                {
                     for status in std::iter::once(&shows).chain(&statuses) {
                         let side = |key| Side {
                             key,
@@ -478,7 +483,7 @@ fn every_swap_line() -> Vec<String> {
                             rounds: 3,
                             bound_permille: 34,
                             not_assessed: if capped { 2 } else { 1 },
-                            also: vec![sample(kinds[(i + 1) % 3])],
+                            also: also.clone(),
                         };
                         let l = SwapResult {
                             swap,
@@ -525,5 +530,66 @@ fn w11_every_swap_line_is_hedged() {
         "The E switch is broken.",
     ] {
         assert!(!swap_worded(planted), "{planted}");
+    }
+}
+
+#[test]
+fn w12_a_side_with_another_finding_is_never_cleared_outright() {
+    let kinds = [Kind::Chatter, Kind::Dead, Kind::Stuck];
+    for (i, &kind) in kinds.iter().enumerate() {
+        let swap = Swap {
+            suspect: E,
+            partner: G,
+            kind,
+            before: Confidence::High,
+            floor_permille: 95,
+        };
+        for (outcome, shown) in [
+            (Outcome::Follows, Some(G)),
+            (Outcome::Stays, Some(E)),
+            (Outcome::Gone, None),
+        ] {
+            // Positive control: without another finding, the cleared side reads as normal.
+            for other in [false, true] {
+                let side = |key| Side {
+                    key,
+                    status: if shown == Some(key) {
+                        Status::Shows(Finding {
+                            key,
+                            ..sample(kind)
+                        })
+                    } else {
+                        Status::Clear
+                    },
+                    presses: 90,
+                    rounds: 3,
+                    bound_permille: 34,
+                    not_assessed: 0,
+                    also: if other {
+                        vec![Finding {
+                            key,
+                            ..sample(kinds[(i + 1) % 3])
+                        }]
+                    } else {
+                        vec![]
+                    },
+                };
+                let l = SwapResult {
+                    swap,
+                    outcome,
+                    confidence: Some(Confidence::Medium),
+                    capped: false,
+                    suspect: side(E),
+                    partner: side(G),
+                }
+                .lines(&label);
+                assert_eq!(
+                    super::swap::clears_a_side(&l.diagnosis),
+                    !other,
+                    "{kind:?} {outcome:?}: {}",
+                    l.diagnosis
+                );
+            }
+        }
     }
 }

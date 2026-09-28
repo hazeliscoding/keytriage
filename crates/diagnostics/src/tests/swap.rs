@@ -1013,3 +1013,110 @@ fn sw20_a_key_the_main_test_never_prompted_gets_no_offer() {
         Some((E, G))
     );
 }
+
+// The sentences that clear a side outright, which another finding on that side contradicts.
+pub(super) fn clears_a_side(text: &str) -> bool {
+    ["behaved normally", "probably fine", "registered normally"]
+        .iter()
+        .any(|phrase| text.contains(phrase))
+}
+
+// `offer`'s retest: `skipped` sends nothing, every 5th answer of `chatters` is the fault, and the
+// first answer of `held` is held for 3 s.
+fn retest_with(offer: &Swap, skipped: Option<u16>, chatters: &[u16], held: Option<u16>) -> Report {
+    let mut first = true;
+    hot_swap(guided(offer.plan(), |s, key, n| {
+        if Some(key) == skipped {
+            (s.wait(ms(3_000)), true)
+        } else if Some(key) == held && first {
+            first = false;
+            (s.hold(key, ms(3_000), ms(500), ms(33)).wait(ms(200)), false)
+        } else if chatters.contains(&key) && n % 5 == 0 {
+            (fault(s, key), false)
+        } else {
+            (normal(s, key), false)
+        }
+    }))
+    .diagnose()
+}
+
+#[test]
+fn sw21_another_finding_on_a_cleared_side_is_named_not_cleared() {
+    let offer = offered();
+    let also = |r: &SwapResult, key: u16| -> Vec<(Kind, u16)> {
+        let side = if key == r.suspect.key {
+            &r.suspect
+        } else {
+            &r.partner
+        };
+        side.also.iter().map(|f| (f.kind(), f.key)).collect()
+    };
+
+    // The fault stays on E, and G, which holds the E switch now, shows a possible stuck key.
+    let r = offer.judge(&retest_with(&offer, None, &[E], Some(G)));
+    assert_eq!(
+        (r.outcome, r.confidence, r.capped, &r.partner.status),
+        (
+            Outcome::Stays,
+            Some(Confidence::VeryHigh),
+            false,
+            &Status::Clear
+        )
+    );
+    assert_eq!(also(&r, G), [(Kind::Stuck, G)]);
+    let l = r.lines(&label);
+    assert!(
+        l.evidence
+            .contains(&"G: also possible stuck key, medium confidence".into())
+    );
+    assert_eq!(
+        l.diagnosis,
+        "A known-good switch in the E socket shows the same fault. The socket, the solder joints \
+         under it, or the matrix trace is the most likely cause. The E switch, now in the G \
+         socket, showed no sign of chatter, but G shows a possible stuck key."
+    );
+    // Control: with G clean, the switch reads as probably fine.
+    let control = offer.judge(&stays_stream()).lines(&label).diagnosis;
+    assert!(clears_a_side(&control), "{control}");
+
+    // A dead key moves to G, and H, with the known-good switch, chatters.
+    let dead = Swap::offer(&hot_swap(dead_run()).diagnose(), BoardKind::HotSwap).unwrap();
+    let r = dead.judge(&retest_with(&dead, Some(G), &[H], None));
+    assert_eq!(
+        (r.outcome, r.confidence, r.capped, &r.suspect.status),
+        (
+            Outcome::Follows,
+            Some(Confidence::High),
+            false,
+            &Status::Clear
+        )
+    );
+    assert_eq!(also(&r, H), [(Kind::Chatter, H)]);
+    assert_eq!(
+        r.lines(&label).diagnosis,
+        "The H switch now sits in the G socket, and the fault appeared there. The switch is the \
+         most likely cause. The H socket and the PCB showed no sign of a dead key with a \
+         known-good switch, but H shows possible chatter."
+    );
+    let control = dead.judge(&skipping(&dead, G)).lines(&label).diagnosis;
+    assert!(clears_a_side(&control), "{control}");
+
+    // Neither key chatters, and E shows a possible stuck key.
+    let r = offer.judge(&retest_with(&offer, None, &[], Some(E)));
+    assert_eq!(
+        (r.outcome, r.confidence),
+        (Outcome::Gone, Some(Confidence::Low))
+    );
+    assert_eq!(also(&r, E), [(Kind::Stuck, E)]);
+    assert_eq!(
+        r.lines(&label).diagnosis,
+        "Neither key showed any sign of chatter after the swap, but E shows a possible stuck key. \
+         Reseating the switches may have cleared a poor contact, or the fault comes and goes and \
+         didn't show in this test."
+    );
+    let control = offer
+        .judge(&swap_chatter(offer.plan(), &[]).diagnose())
+        .lines(&label)
+        .diagnosis;
+    assert!(clears_a_side(&control), "{control}");
+}
