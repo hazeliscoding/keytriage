@@ -19,7 +19,7 @@ const G = 0x22;
 const E = 0x12;
 const OWN = 11;
 const RESULT: TestResult = {
-  rules: 3,
+  rules: 4,
   findings: [],
   notes: [],
   clean: [],

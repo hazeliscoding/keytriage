@@ -1,6 +1,7 @@
 // Times are microseconds. The chatter limits (20, 36 and 100 ms) and every bin edge after the first
 // are 4 mod 8, so a 125 Hz keyboard's readings (multiples of 8 ms, plus read jitter under 1 ms)
 // never straddle one. Changing any limit or bin edge here means bumping `RULES`.
+use crate::report::Confidence;
 
 // Each transition needs its own HID report, and full speed polls at most every 1 ms, so readings
 // closer than this were bunched by the input queue. Raw Input carries no hardware timestamp.
@@ -60,9 +61,16 @@ pub const POLL_TOLERANCE_US: u64 = 1_000;
 // At 1000 Hz about a quarter of samples fall near the 8 ms lattice by chance; at 125 Hz, nearly all.
 pub const POLL_FIT_PERCENT: usize = 80;
 // At 30 presses per round a 5% rate shows in 79% of rounds, and 90 clean presses bound the rate at
-// 3.3%.
+// 3.4%.
 pub const RETEST_ROUNDS: u16 = 3;
 pub const RETEST_PRESSES: u16 = 30;
+// 90 clean presses bound a key's rate at 3.4%, which is at or under the floor of a High chatter
+// finding from 30 presses (3 of 30 floors at 3.4%) and of every Very high one, so a key that stays
+// clean after the swap counts as evidence.
+pub const SWAP_ROUNDS: u16 = RETEST_ROUNDS;
+pub const SWAP_PRESSES: u16 = RETEST_PRESSES;
+// A side left with too little evidence to clear it leaves both the switch and the socket possible.
+pub const SWAP_UNCLEARED: Confidence = Confidence::Medium;
 
 // Half-open [lo, hi) bins; bin 0 is too close to time. The limits above (1, 20, 36 and 100 ms) are
 // edges, so a saved report can recount them.

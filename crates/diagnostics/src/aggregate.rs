@@ -74,7 +74,7 @@ pub struct Aggregates {
 }
 
 // The keys a note names, each with whether its evidence can lie outside that key's own rounds.
-fn named(note: &Note) -> [Option<(u16, bool)>; 2] {
+pub(crate) fn named(note: &Note) -> [Option<(u16, bool)>; 2] {
     match *note {
         Note::Clean { key, .. }
         | Note::OneExtraDown { key, .. }

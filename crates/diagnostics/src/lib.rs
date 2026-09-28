@@ -11,6 +11,7 @@ mod poll;
 mod report;
 mod stats;
 mod stuck;
+mod swap;
 mod words;
 
 #[cfg(any(test, feature = "fixtures"))]
@@ -19,6 +20,7 @@ pub mod fixture;
 mod tests;
 
 use std::cmp::Reverse;
+use std::collections::BTreeSet;
 
 pub use aggregate::{Aggregates, Histogram, KeyAggregate, PromptTally};
 pub use chatter::chatter_confidence;
@@ -27,10 +29,12 @@ pub use input::{BoardKind, Device, Entry, HeldKey, Round, Session};
 
 pub use report::*;
 pub use stats::{rule_of_three_permille, wilson_at_least, wilson_floor_permille};
-pub use words::{Label, Lines, code_label, criteria, hedged};
+pub use swap::{Gap, Outcome, Side, Status, Swap, SwapResult};
+pub use words::{Label, Lines, OutcomeLines, SwapLines, code_label, criteria, hedged};
 
-// Bumped whenever a threshold, bin edge or rule changes, so M4 only compares like with like.
-pub const RULES: u16 = 3;
+// Bumped whenever a threshold, bin edge or rule changes, so reports are compared only under the
+// same rules.
+pub const RULES: u16 = 4;
 
 pub fn diagnose(session: &Session<'_>) -> Report {
     // A round with no length can't be answered, and would read as silent.
@@ -70,10 +74,24 @@ pub fn diagnose(session: &Session<'_>) -> Report {
     let aggregates = aggregate::build(&folded, &tallies, &dead, &rounds, &beyond, limits);
 
     let flagged: Vec<u16> = findings.iter().map(|f| f.key).collect();
+    // The known-good switch must have shown nothing at all, so a key that another note names, for
+    // chatter in free typing, a long hold, an uncounted round or another code, can't be the
+    // partner.
+    let noted: BTreeSet<u16> = notes
+        .iter()
+        .filter(|n| !matches!(n, Note::Clean { .. }))
+        .flat_map(aggregate::named)
+        .flatten()
+        .map(|(key, _)| key)
+        .collect();
     let partner = notes
         .iter()
         .filter_map(|n| match *n {
-            Note::Clean { key, presses, .. } if !flagged.contains(&key) => Some((key, presses)),
+            Note::Clean { key, presses, .. }
+                if !flagged.contains(&key) && !noted.contains(&key) =>
+            {
+                Some((key, presses))
+            }
             _ => None,
         })
         .max_by_key(|&(key, presses)| (keys::is_plain(key), presses, Reverse(key)))

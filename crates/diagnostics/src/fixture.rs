@@ -426,6 +426,23 @@ pub fn guided_chatter() -> (Plan, Fixture) {
     (plan, fixture)
 }
 
+// A swap retest on a hot-swap board. Every 5th answer of a key in `faulty` in each round is
+// guided_chatter's fault, at its rate of 1 in 5.
+pub fn swap_chatter(plan: Plan, faulty: &[u16]) -> Fixture {
+    let fixture = guided(plan, |s, key, n| {
+        let s = if faulty.contains(&key) && n % 5 == 0 {
+            s.fragments(key, &[ms(5), ms(5), ms(100)]).wait(ms(200))
+        } else {
+            normal(s, key)
+        };
+        (s, false)
+    });
+    Fixture {
+        board: BoardKind::HotSwap,
+        ..fixture
+    }
+}
+
 // Drawn-keyboard names for the positions the fixtures use.
 pub fn label(scan: u16) -> String {
     match scan {
@@ -433,6 +450,7 @@ pub fn label(scan: u16) -> String {
         0x13 => "R".into(),
         0x21 => "F".into(),
         0x22 => "G".into(),
+        0x23 => "H".into(),
         0x24 => "J".into(),
         _ => crate::words::code_label(scan),
     }

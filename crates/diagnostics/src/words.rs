@@ -1,5 +1,7 @@
 // The fallback English. Findings describe evidence and likelihood; none says a part is broken.
+use crate::params::{SWAP_PRESSES, SWAP_ROUNDS};
 use crate::report::*;
+use crate::swap::{Gap, Outcome, Side, Status, Swap, SwapResult};
 
 pub type Label<'a> = &'a dyn Fn(u16) -> String;
 
@@ -440,6 +442,267 @@ impl Note {
                 label(key),
                 seconds(held_ms)
             ),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SwapLines {
+    pub title: String,
+    pub known_good: String,
+    pub steps: Vec<String>,
+    pub means: String,
+    pub note: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OutcomeLines {
+    pub title: String,
+    pub evidence: Vec<String>,
+    pub diagnosis: String,
+    pub next: Vec<String>,
+}
+
+impl Swap {
+    pub fn lines(&self, label: Label) -> SwapLines {
+        let (a, b) = (label(self.suspect), label(self.partner));
+        let mut known_good = format!(
+            "{b} showed no finding, so it serves as the known-good switch. Both keys are tested \
+             again afterwards, {SWAP_PRESSES} presses in each of {SWAP_ROUNDS} rounds."
+        );
+        // A key that sends nothing never completes its count, so only Skip ends its round.
+        if self.kind == Kind::Dead {
+            known_good.push_str(&format!(
+                " A key that sends nothing doesn't move the prompt on, so press Skip this key \
+                 once you have pressed it {SWAP_PRESSES} times."
+            ));
+        }
+        let stays = match self.kind {
+            Kind::Chatter => "the socket, the PCB or the matrix",
+            Kind::Dead => "the socket, the PCB, the matrix or a keymap",
+            // The keycap goes back on its own key, so a keycap that catches stays too.
+            Kind::Stuck => "the keycap, the socket or software holding the key",
+        };
+        SwapLines {
+            title: format!(
+                "Move the {a} switch into the {b} socket, and the {b} switch into the {a} socket."
+            ),
+            known_good,
+            steps: [
+                "Pull both keycaps.",
+                "Pull both switches straight up with the switch puller. Note which is which.",
+                "Seat each switch in the other socket. Check that both pins are straight before \
+                 pressing down.",
+                "Refit the keycaps and continue below.",
+            ]
+            .map(String::from)
+            .to_vec(),
+            means: format!(
+                "If the fault appears on {b}, it moved with the switch, and the switch is the \
+                 likely cause. If it stays on {a}, {stays} is the likely cause."
+            ),
+            note: format!("Swap test. Both keys, {SWAP_ROUNDS} rounds."),
+        }
+    }
+}
+
+fn first_line(f: &Finding) -> String {
+    let lines = match &f.evidence {
+        Evidence::Chatter(e) => chatter_lines(e),
+        Evidence::Dead(e) => dead_lines(e),
+        Evidence::Stuck(e) => stuck_lines(e),
+    };
+    lines.into_iter().next().unwrap_or_default()
+}
+
+fn side_line(side: &Side, swap: &Swap, label: Label) -> String {
+    let presses = plural(side.presses, "press", "presses");
+    let line = match (&side.status, swap.kind) {
+        (Status::Shows(f), _) => first_line(f),
+        (Status::Clear, Kind::Chatter) => format!(
+            "no extra key-downs in {presses}, so a rate above {} would very likely have shown",
+            percent(side.bound_permille)
+        ),
+        (Status::Clear, Kind::Dead) => {
+            format!("a key-down in each of its {} rounds", side.rounds)
+        }
+        (Status::Clear, Kind::Stuck) => format!(
+            "every press in its {} rounds released within 2 s",
+            side.rounds
+        ),
+        (Status::Short(Gap::Untested), _) => {
+            "no key-down arrived in its own rounds, so it can't be compared".to_string()
+        }
+        (Status::Short(Gap::TooFew), Kind::Chatter) => format!(
+            "no extra key-downs in {presses}, too few to rule out the first test's rate{}",
+            // A floor that rounds down to 0% names no rate.
+            match swap.floor_permille {
+                0 => String::new(),
+                p => format!(" of at least {}", percent(p)),
+            }
+        ),
+        (Status::Short(Gap::TooFew), Kind::Dead | Kind::Stuck) => format!(
+            "tested in {} of {SWAP_ROUNDS} rounds, too few to compare",
+            side.rounds
+        ),
+        (Status::Short(Gap::OneExtraDown), _) => {
+            format!("1 of {presses} sent an extra key-down, one short of a finding")
+        }
+        (Status::Short(Gap::CoarseTiming), _) => format!(
+            "extra key-downs in {presses} that a keyboard reporting every 16 ms or slower \
+             can't tell from fast presses"
+        ),
+        (Status::Short(Gap::NotAssessed), _) => format!(
+            "{} of its rounds {} counted, so it can't be cleared",
+            side.not_assessed,
+            if side.not_assessed == 1 {
+                "wasn't"
+            } else {
+                "weren't"
+            }
+        ),
+        (Status::Short(Gap::HeldLong), _) => {
+            "a press stayed down 2 s or more without a finding, so it can't be cleared".to_string()
+        }
+    };
+    format!("{}: {line}", label(side.key))
+}
+
+impl SwapResult {
+    pub fn lines(&self, label: Label) -> OutcomeLines {
+        let swap = &self.swap;
+        let (a, b) = (label(swap.suspect), label(swap.partner));
+        let title = match self.outcome {
+            Outcome::Follows => "The fault moved with the switch.".to_string(),
+            Outcome::Stays => format!("The fault stayed on {a}."),
+            Outcome::Both => "The fault showed on both keys.".to_string(),
+            Outcome::Gone => "Neither key showed the fault.".to_string(),
+            Outcome::Unclear => "This swap test can't place the fault.".to_string(),
+        };
+        let mut evidence = Vec::new();
+        for side in [&self.suspect, &self.partner] {
+            evidence.push(side_line(side, swap, label));
+            evidence.extend(
+                side.also
+                    .iter()
+                    .map(|f| format!("{}: also {}", label(side.key), f.headline())),
+            );
+        }
+        let diagnosis = match (self.outcome, swap.kind) {
+            (Outcome::Follows, _) => format!(
+                "The {a} switch now sits in the {b} socket, and the fault appeared there. The \
+                 switch is the most likely cause. {}",
+                if self.capped {
+                    format!(
+                        "The {a} socket gave too little evidence with the known-good switch to \
+                         clear it, so it remains possible too."
+                    )
+                } else {
+                    format!("The {a} socket and the PCB behaved normally with a known-good switch.")
+                }
+            ),
+            (Outcome::Stays, kind) => {
+                let found = match kind {
+                    Kind::Chatter => format!(
+                        "A known-good switch in the {a} socket shows the same fault. The socket, \
+                         the solder joints under it, or the matrix trace is the most likely cause."
+                    ),
+                    Kind::Dead => format!(
+                        "A known-good switch in the {a} socket shows the same fault. The socket, \
+                         the solder joints under it, or the matrix trace is the most likely \
+                         cause. A keymap, layer or Windows remap for {a} would also stay with the \
+                         key."
+                    ),
+                    Kind::Stuck => format!(
+                        "A known-good switch in the {a} socket still stayed down. The {a} keycap, \
+                         which went back on {a}, software holding the key, or a lost release \
+                         report is more likely than the switch."
+                    ),
+                };
+                let switch = if self.capped {
+                    format!(
+                        "The {a} switch, now in the {b} socket, gave too little evidence to clear \
+                         it, so it remains possible too."
+                    )
+                } else {
+                    "The original switch is probably fine.".to_string()
+                };
+                format!("{found} {switch}")
+            }
+            (Outcome::Both, kind) => format!(
+                "The fault showed on {a} with the known-good switch and on {b} with the {a} \
+                 switch, so this swap can't tell the switch from the socket. That points past a \
+                 single switch, {}.",
+                match kind {
+                    Kind::Chatter => "to firmware debounce or the keyboard as a whole",
+                    Kind::Dead => "to a keymap or the PCB",
+                    Kind::Stuck => "to a lost release report or software holding keys",
+                }
+            ),
+            (Outcome::Gone, _) => "Both keys registered normally after the swap. Reseating the \
+                switches may have cleared a poor contact, or the fault comes and goes and didn't \
+                show in this test."
+                .to_string(),
+            (Outcome::Unclear, _) => {
+                let short: Vec<String> = [&self.suspect, &self.partner]
+                    .into_iter()
+                    .filter(|s| matches!(s.status, Status::Short(_)))
+                    .map(|s| label(s.key))
+                    .collect();
+                format!(
+                    "This swap test gave too little evidence on {} to compare with the first \
+                     test, so the first test's finding still stands.",
+                    short.join(" and ")
+                )
+            }
+        };
+        let socket = format!(
+            "Inspect the {a} socket for a loose pin and the joints under it for a crack. \
+             Reflowing the socket pins is a small job. If the board is under warranty, this \
+             result is what the vendor needs."
+        );
+        let step = |t: NextTest| t.words(label);
+        let next = match (self.outcome, swap.kind) {
+            (Outcome::Follows, kind) => {
+                // Only the same model is sure to fit the socket. M6 gives other switches' reasons.
+                let mut next = vec![format!(
+                    "Replace the switch that came from {a}, now in the {b} socket, with a switch \
+                     of the same model. Then test {b} again."
+                )];
+                if kind == Kind::Chatter {
+                    next.push(step(NextTest::CleanContacts { key: swap.partner }));
+                }
+                next
+            }
+            (Outcome::Stays, Kind::Chatter) => vec![socket],
+            (Outcome::Stays, Kind::Dead) => {
+                vec![step(NextTest::CheckKeymap { key: swap.suspect }), socket]
+            }
+            (Outcome::Stays, Kind::Stuck) => vec![
+                step(NextTest::InspectUnderKeycap { key: swap.suspect }),
+                step(NextTest::CheckConnection),
+            ],
+            (Outcome::Both, Kind::Chatter) => vec![step(NextTest::RaiseDebounce)],
+            (Outcome::Both, Kind::Dead) => vec![
+                step(NextTest::CheckKeymap { key: swap.suspect }),
+                step(NextTest::CheckConnection),
+            ],
+            (Outcome::Both, Kind::Stuck) => vec![step(NextTest::CheckConnection)],
+            (Outcome::Gone, _) => vec![format!(
+                "Use the keyboard for a day. If the fault returns on {a}, repeat this swap test. \
+                 If it returns on {b}, the switch that came from {a} is the likely cause."
+            )],
+            (Outcome::Unclear, _) => vec![
+                "Start a new test with the switches where they are now, and press each key as it \
+                 is prompted."
+                    .to_string(),
+            ],
+        };
+        OutcomeLines {
+            title,
+            evidence,
+            diagnosis,
+            next,
         }
     }
 }

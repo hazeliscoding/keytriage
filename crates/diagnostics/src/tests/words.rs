@@ -406,3 +406,124 @@ fn w10_a_keyboard_on_neither_lattice_gets_no_resolution_it_lacks() {
         );
     }
 }
+
+fn sample(kind: Kind) -> Finding {
+    Finding {
+        evidence: match kind {
+            Kind::Chatter => chatter(0, 0, 130, 90).evidence,
+            Kind::Dead => Evidence::Dead(DeadEvidence {
+                rounds: 3,
+                silent_rounds: 3,
+                asked_in_silent: 90,
+                control_rounds: 3,
+                bracketed: false,
+                other_presses_meanwhile: 0,
+            }),
+            Kind::Stuck => Evidence::Stuck(StuckEvidence {
+                held_ms: 3_000,
+                still_down: false,
+                episodes: 1,
+                repeats: 76,
+                others_completed: 0,
+                own_prompts: 1,
+                other_rounds_answered: 0,
+            }),
+        },
+        ..chatter(0, 0, 130, 90)
+    }
+}
+
+// Each kind's instruct words, and every outcome, cap and side status rendered for it.
+fn every_swap_line() -> Vec<String> {
+    let kinds = [Kind::Chatter, Kind::Dead, Kind::Stuck];
+    let mut statuses: Vec<Status> = vec![Status::Clear];
+    statuses.extend(
+        [
+            Gap::Untested,
+            Gap::TooFew,
+            Gap::OneExtraDown,
+            Gap::CoarseTiming,
+            Gap::NotAssessed,
+            Gap::HeldLong,
+        ]
+        .map(Status::Short),
+    );
+    let mut out = Vec::new();
+    for (i, &kind) in kinds.iter().enumerate() {
+        for floor_permille in [0, 95] {
+            let swap = Swap {
+                suspect: E,
+                partner: G,
+                kind,
+                before: Confidence::High,
+                floor_permille,
+            };
+            let l = swap.lines(&label);
+            out.extend([l.title, l.known_good, l.means, l.note]);
+            out.extend(l.steps);
+            let shows = Status::Shows(sample(kind));
+            for outcome in [
+                Outcome::Follows,
+                Outcome::Stays,
+                Outcome::Both,
+                Outcome::Gone,
+                Outcome::Unclear,
+            ] {
+                for capped in [false, true] {
+                    for status in std::iter::once(&shows).chain(&statuses) {
+                        let side = |key| Side {
+                            key,
+                            status: status.clone(),
+                            presses: 90,
+                            rounds: 3,
+                            bound_permille: 34,
+                            not_assessed: if capped { 2 } else { 1 },
+                            also: vec![sample(kinds[(i + 1) % 3])],
+                        };
+                        let l = SwapResult {
+                            swap,
+                            outcome,
+                            confidence: Some(Confidence::Medium),
+                            capped,
+                            suspect: side(E),
+                            partner: side(G),
+                        }
+                        .lines(&label);
+                        out.extend([l.title, l.diagnosis]);
+                        out.extend(l.evidence);
+                        out.extend(l.next);
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+// A swap line keeps to likelihood, claims no cure, and makes no compatibility claim without its
+// reason or promise of prices before M6.
+fn swap_worded(text: &str) -> bool {
+    hedged(text)
+        && !super::swap::claims_a_cure(text)
+        && !["v0.2", "fits this socket", "is the cause"]
+            .iter()
+            .any(|phrase| text.contains(phrase))
+}
+
+#[test]
+fn w11_every_swap_line_is_hedged() {
+    let all = every_swap_line();
+    assert!(all.len() > 1_000);
+    for text in &all {
+        assert!(swap_worded(text), "{text}");
+    }
+    // Positive controls: the design's stand-in copy fails the check.
+    for planted in [
+        "Any switch with the same pin count and mount fits this socket.",
+        "Compatible switches with prices are planned for v0.2.",
+        "If the fault appears on G, it moved with the switch, and the switch is the cause.",
+        "The E switch is broken.",
+    ] {
+        assert!(!swap_worded(planted), "{planted}");
+    }
+}
