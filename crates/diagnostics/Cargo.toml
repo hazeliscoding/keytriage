@@ -11,3 +11,7 @@ publish.workspace = true
 # The engine stays pure Rust, with no FFI.
 [lints.rust]
 unsafe_code = "forbid"
+
+[features]
+# Exposes the synthetic stream builder to later milestones' tests. It adds no dependencies.
+fixtures = []

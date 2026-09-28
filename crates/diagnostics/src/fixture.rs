@@ -1,0 +1,311 @@
+// Synthetic event streams for fixtures. Every value comes from numbers here, never from typing.
+use std::collections::BTreeMap;
+
+use crate::input::{BoardKind, Device, Entry, HeldKey, Round, Session};
+use crate::report::Report;
+
+pub const fn ms(n: u64) -> u64 {
+    n * 1_000
+}
+
+#[derive(Clone)]
+pub struct Synth {
+    entries: Vec<Entry>,
+    rounds: Vec<Round>,
+    now: u64,
+    device: Device,
+    keyboard: Vec<Device>,
+    board: BoardKind,
+    seed: u64,
+}
+
+pub struct Fixture {
+    pub entries: Vec<Entry>,
+    pub rounds: Vec<Round>,
+    pub end_us: u64,
+    pub keyboard: Vec<Device>,
+    pub board: BoardKind,
+}
+
+impl Fixture {
+    pub fn session(&self) -> Session<'_> {
+        Session {
+            entries: &self.entries,
+            end_us: self.end_us,
+            keyboard: &self.keyboard,
+            rounds: &self.rounds,
+            board: self.board,
+        }
+    }
+
+    pub fn diagnose(&self) -> Report {
+        crate::diagnose(&self.session())
+    }
+}
+
+impl Default for Synth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Synth {
+    pub fn new() -> Self {
+        Synth {
+            entries: Vec::new(),
+            rounds: Vec::new(),
+            now: 0,
+            device: 1,
+            keyboard: vec![1],
+            board: BoardKind::Unknown,
+            seed: 0x9E37_79B9_7F4A_7C15,
+        }
+    }
+
+    pub fn board(mut self, board: BoardKind) -> Self {
+        self.board = board;
+        self
+    }
+
+    pub fn keyboard(mut self, handles: &[Device]) -> Self {
+        self.keyboard = handles.to_vec();
+        self
+    }
+
+    pub fn on(mut self, device: Device) -> Self {
+        self.device = device;
+        self
+    }
+
+    pub fn now(&self) -> u64 {
+        self.now
+    }
+
+    pub fn wait(mut self, us: u64) -> Self {
+        self.now += us;
+        self
+    }
+
+    pub fn down(mut self, scan: u16) -> Self {
+        self.key(scan, false);
+        self
+    }
+
+    pub fn up(mut self, scan: u16) -> Self {
+        self.key(scan, true);
+        self
+    }
+
+    pub fn raw(mut self, entry: Entry) -> Self {
+        self.entries.push(entry);
+        self
+    }
+
+    // One press; the clock stops at its release.
+    pub fn press(self, scan: u16, hold: u64) -> Self {
+        self.down(scan).wait(hold).up(scan)
+    }
+
+    // Alternating hold and gap lengths, starting and ending with a hold: [5 ms, 5 ms, 100 ms] is a
+    // 5 ms press, a 5 ms release, then a 100 ms press.
+    pub fn fragments(mut self, scan: u16, spans: &[u64]) -> Self {
+        for (i, &span) in spans.iter().enumerate() {
+            self = if i % 2 == 0 {
+                self.press(scan, span)
+            } else {
+                self.wait(span)
+            };
+        }
+        self
+    }
+
+    // n deliberate presses, each hold and the gap after it drawn from the given ranges.
+    pub fn taps(mut self, scan: u16, n: u32, hold: (u64, u64), gap: (u64, u64)) -> Self {
+        for _ in 0..n {
+            let h = self.draw(hold);
+            let g = self.draw(gap);
+            self = self.press(scan, h).wait(g);
+        }
+        self
+    }
+
+    // A held key with autorepeat: a down, repeats from `delay` every `period`, one up at `len`.
+    pub fn hold(mut self, scan: u16, len: u64, delay: u64, period: u64) -> Self {
+        let start = self.now;
+        self = self.down(scan);
+        let mut t = delay;
+        while t < len {
+            self.now = start + t;
+            self = self.down(scan);
+            t += period;
+        }
+        self.now = start + len;
+        self.up(scan)
+    }
+
+    // Autorepeat downs only, for a key that is already down.
+    pub fn repeats(mut self, scan: u16, delay: u64, period: u64, count: u32) -> Self {
+        for i in 0..count {
+            self = self.wait(if i == 0 { delay } else { period }).down(scan);
+        }
+        self
+    }
+
+    pub fn pause(mut self, interrupted: &[u16]) -> Self {
+        let device = self.device;
+        self.entries.push(Entry::Paused {
+            micros: self.now,
+            interrupted: interrupted
+                .iter()
+                .map(|&scan| HeldKey { device, scan })
+                .collect(),
+        });
+        self
+    }
+
+    pub fn resume(mut self) -> Self {
+        self.entries.push(Entry::Resumed { micros: self.now });
+        self
+    }
+
+    // A guided round: 300 ms of lead-in, the body, 300 ms of lead-out, then 500 ms to the next.
+    pub fn round(mut self, key: u16, asked: u16, body: impl FnOnce(Self) -> Self) -> Self {
+        let start = self.now;
+        self = body(self.wait(ms(300))).wait(ms(300));
+        self.rounds.push(Round {
+            key,
+            asked,
+            start_us: start,
+            end_us: self.now,
+        });
+        self.wait(ms(500))
+    }
+
+    // A keyboard polled every `poll` that sends every transition in its own report (QMK does):
+    // each key event moves to the next report, a key's next transition to a later one, and events
+    // that share a report are read 30 us apart. Not for streams with pauses.
+    pub fn polled(mut self, poll: u64) -> Self {
+        let mut last: BTreeMap<(Device, u16), u64> = BTreeMap::new();
+        for e in &mut self.entries {
+            if let Entry::Key {
+                scan,
+                device,
+                micros,
+                ..
+            } = e
+            {
+                let mut slot = micros.div_ceil(poll) * poll;
+                if let Some(&prev) = last.get(&(*device, *scan)) {
+                    slot = slot.max(prev + poll);
+                }
+                last.insert((*device, *scan), slot);
+                *micros = slot;
+            }
+        }
+        self.entries.sort_by_key(Entry::micros);
+        let mut prev = None;
+        let mut shared = 0;
+        for e in &mut self.entries {
+            if let Entry::Key { micros, .. } = e {
+                let slot = *micros;
+                shared = if prev == Some(slot) { shared + 1 } else { 0 };
+                prev = Some(slot);
+                *micros = slot + 30 * shared;
+            }
+        }
+        self
+    }
+
+    // A keyboard polled every `poll` whose firmware overwrites a pending report: a press and its
+    // release that fall between two polls never reach the host.
+    pub fn polled_lossy(mut self, poll: u64) -> Self {
+        let mut out: Vec<Option<Entry>> = Vec::new();
+        let mut last: BTreeMap<(Device, u16), usize> = BTreeMap::new();
+        for e in std::mem::take(&mut self.entries) {
+            let Entry::Key {
+                scan,
+                up,
+                device,
+                micros,
+            } = e
+            else {
+                out.push(Some(e));
+                continue;
+            };
+            let slot = micros.div_ceil(poll) * poll;
+            if let Some(&i) = last.get(&(device, scan))
+                && let Some(Entry::Key {
+                    up: before,
+                    micros: at,
+                    ..
+                }) = out[i]
+                && at == slot
+                && before != up
+            {
+                out[i] = None;
+                last.remove(&(device, scan));
+                continue;
+            }
+            last.insert((device, scan), out.len());
+            out.push(Some(Entry::Key {
+                scan,
+                up,
+                device,
+                micros: slot,
+            }));
+        }
+        self.entries = out.into_iter().flatten().collect();
+        self
+    }
+
+    pub fn build(self) -> Fixture {
+        let end = self.now + ms(200);
+        self.finish(end)
+    }
+
+    pub fn end_now(self) -> Fixture {
+        let end = self.now;
+        self.finish(end)
+    }
+
+    fn finish(self, end_us: u64) -> Fixture {
+        let mut rounds = self.rounds;
+        rounds.sort_by_key(|r| r.start_us);
+        Fixture {
+            entries: self.entries,
+            rounds,
+            end_us,
+            keyboard: self.keyboard,
+            board: self.board,
+        }
+    }
+
+    fn key(&mut self, scan: u16, up: bool) {
+        self.entries.push(Entry::Key {
+            scan,
+            up,
+            device: self.device,
+            micros: self.now,
+        });
+    }
+
+    // xorshift64: the same numbers on every machine and run.
+    fn draw(&mut self, (lo, hi): (u64, u64)) -> u64 {
+        self.seed ^= self.seed << 13;
+        self.seed ^= self.seed >> 7;
+        self.seed ^= self.seed << 17;
+        lo + self.seed % (hi - lo + 1)
+    }
+}
+
+// Drawn-keyboard names for the positions the fixtures use.
+pub fn label(scan: u16) -> String {
+    match scan {
+        0x12 => "E".into(),
+        0x13 => "R".into(),
+        0x21 => "F".into(),
+        0x22 => "G".into(),
+        0x24 => "J".into(),
+        _ => crate::words::code_label(scan),
+    }
+}
