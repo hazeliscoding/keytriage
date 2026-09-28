@@ -175,18 +175,24 @@
     <button
       type="button"
       class="btn btn--secondary"
-      [disabled]="exporting()"
-      (click)="exportReport()"
+      [disabled]="run.exporting()"
+      (click)="run.exportReport()"
     >
       Export report
     </button>
-    <button
-      type="button"
-      class="btn btn--primary"
-      [disabled]="run.screen() === 'starting'"
-      (click)="run.begin()"
-    >
-      Test again
-    </button>
+    @if (record.result.swap) {
+      <button type="button" class="btn btn--primary" (click)="run.startSwap()">
+        Run the swap test
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="run.screen() === 'starting'"
+        (click)="run.begin()"
+      >
+        Test again
+      </button>
+    }
   </footer>
 }

@@ -1,0 +1,53 @@
+@if (run.findings(); as record) {
+  @if (offer(); as offer) {
+    <div class="findings">
+      <div class="findings__list">
+        <div class="kicker">Swap test // {{ offer.a }} with {{ offer.b }}</div>
+        <article class="finding">
+          <div class="finding__title">{{ offer.title }}</div>
+          <div class="swap__about">{{ offer.knownGood }}</div>
+          <div class="swap__steps">
+            @for (step of offer.steps; track step.num) {
+              <div class="finding__line">
+                <span class="finding__index">{{ step.num }}</span
+                ><span>{{ step.text }}</span>
+              </div>
+            }
+          </div>
+          <div class="finding__section finding__next">
+            <div class="kicker kicker--sm">What the result means</div>
+            <p class="finding__para">{{ offer.means }}</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="findings__side">
+        <app-keyboard [layout]="record.layout" [marks]="marks()" />
+
+        <div class="legend">
+          <span class="legend__item"
+            ><span class="swatch swatch--flagged"></span>Suspect switch</span
+          >
+          <span class="legend__item"
+            ><span class="swatch swatch--prompted"></span>Known-good switch</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <button type="button" class="btn btn--ghost" (click)="run.backToFindings()">
+        Back to findings
+      </button>
+      <div class="meta footer__note">{{ run.note() }}</div>
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="run.screen() === 'starting'"
+        (click)="run.beginSwap()"
+      >
+        Switches swapped. Test both keys
+      </button>
+    </footer>
+  }
+}

@@ -1,0 +1,87 @@
+@if (run.findings(); as record) {
+  @if (card(); as card) {
+    <div class="findings">
+      <div class="findings__list">
+        <div class="kicker">Swap test // Result</div>
+        <article class="finding">
+          <div class="finding__head">
+            <div
+              class="finding__tile"
+              [class.finding__tile--clean]="card.clean"
+              [class.finding__tile--none]="card.none"
+            >
+              <span class="finding__key">{{ card.tile }}</span>
+            </div>
+            <div class="finding__heading">
+              <div class="finding__title">{{ card.title }}</div>
+              @if (card.level) {
+                <div class="finding__badge">
+                  <span class="badge" [class.badge--ink]="card.strong">{{ card.level }}</span>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="finding__section">
+            <div class="kicker kicker--sm">Evidence</div>
+            @for (line of card.evidence; track $index) {
+              <div class="finding__line">
+                <span class="finding__dash">—</span><span>{{ line }}</span>
+              </div>
+            }
+          </div>
+          <div class="finding__section">
+            <div class="kicker kicker--sm">Updated diagnosis</div>
+            <p class="finding__para">{{ card.diagnosis }}</p>
+          </div>
+          <div class="finding__section finding__next">
+            <div class="kicker kicker--sm">Next step</div>
+            @for (step of card.next; track $index) {
+              <p class="finding__para">{{ step }}</p>
+            }
+          </div>
+        </article>
+      </div>
+
+      <div class="findings__side">
+        <div class="summary">
+          @for (item of summary(); track item.label) {
+            <div class="summary__item">
+              <span class="kicker kicker--sm">{{ item.label }}</span>
+              <span class="tabular">{{ item.value }}</span>
+            </div>
+          }
+        </div>
+
+        <app-keyboard [layout]="record.layout" [marks]="marks()" />
+
+        <div class="legend">
+          @if (card.flagged) {
+            <span class="legend__item"
+              ><span class="swatch swatch--flagged"></span>Fault seen after the swap</span
+            >
+          }
+          <span class="legend__item"
+            ><span class="swatch swatch--counted"></span>Tested, no finding</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <button type="button" class="btn btn--ghost" (click)="run.newTest()">New test</button>
+      @if (run.note()) {
+        <div class="meta footer__note">{{ run.note() }}</div>
+      } @else {
+        <div class="meta footer__note">Reports hold per-key counts and timings only.</div>
+      }
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="run.exporting()"
+        (click)="run.exportReport()"
+      >
+        Export report
+      </button>
+    </footer>
+  }
+}

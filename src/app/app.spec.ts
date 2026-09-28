@@ -3,12 +3,14 @@ import { RECONNECTED } from './ipc';
 import { keyCount, layout, plainKeys } from './layout';
 import { PLAN } from './plan';
 import {
+  FOLLOWS,
   all,
   button,
   click,
   el,
   inApp,
   leaveApp,
+  offered,
   render,
   sent,
   started,
@@ -34,6 +36,27 @@ describe('App', () => {
         /^\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}$/,
       );
       expect(text(el(fixture).querySelector('.header__capture'))).toBe('Capture off');
+    });
+
+    it('reads 03 on both swap screens and 02 during the swap test', async () => {
+      const fixture = await offered([FOLLOWS]);
+      const step = () => text(el(fixture).querySelector('.steps__now'));
+      expect(step()).toBe('03 Findings');
+      await click(fixture, button(fixture, 'Run the swap test'));
+      expect(step()).toBe('03 Findings');
+      expect(all(fixture, '.header__end > span').map(text)).toEqual([
+        'Synthetic keyboard · 0000:0001',
+        '75% ANSI',
+        'Hot-swap',
+        'Capture off',
+      ]);
+      await click(fixture, button(fixture, 'Switches swapped. Test both keys'));
+      expect(step()).toBe('02 Test');
+      await click(fixture, button(fixture, 'End test'));
+      expect(step()).toBe('03 Findings');
+      expect(text(el(fixture).querySelector('.findings__list > .kicker'))).toBe(
+        'Swap test // Result',
+      );
     });
 
     it('switches the theme and the lockup, and names the theme it switches to', async () => {

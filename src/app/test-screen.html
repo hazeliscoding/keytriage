@@ -118,7 +118,7 @@
   @if (run.note()) {
     <div class="meta footer__note">{{ run.note() }}</div>
   } @else {
-    <div class="meta footer__note">Capture stops when the window loses focus.</div>
+    <div class="meta footer__note">{{ footnote() }}</div>
   }
   <button type="button" class="btn btn--secondary" [disabled]="run.ending()" (click)="run.end()">
     End test

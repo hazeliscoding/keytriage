@@ -51,6 +51,11 @@ export class TestScreen {
     };
   });
 
+  protected readonly footnote = computed(() => {
+    const swap = this.run.swapping() ? this.run.findings()?.result.swap : null;
+    return swap?.note ?? 'Capture stops when the window loses focus.';
+  });
+
   protected readonly elapsed = computed(
     () => `Elapsed ${mmss(this.run.elapsed())}${this.run.pause() ? ', paused' : ''}`,
   );

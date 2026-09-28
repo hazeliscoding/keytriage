@@ -3,6 +3,8 @@ import { App } from './app';
 import type { GuideView, TestEvent, TestResult } from './ipc';
 import {
   EMPTY,
+  FOLLOWS,
+  GOLDEN,
   all,
   button,
   cap,
@@ -11,6 +13,7 @@ import {
   inApp,
   key,
   leaveApp,
+  offered,
   render,
   send,
   sent,
@@ -496,6 +499,37 @@ describe('Test screen', () => {
       await settle(fixture);
       expect(textOf(fixture, '.steps__now')).toBe('02 Test');
       expect(textOf(fixture, '.footer__note')).toBe('Capture stops when the window loses focus.');
+    });
+  });
+
+  describe('the swap test', () => {
+    const CAPTURE = 'Capture stops when the window loses focus.';
+    const note = (fixture: ComponentFixture<App>) => textOf(fixture, '.footer__note');
+
+    it('says it is the swap test in the footer, and only during the swap test', async () => {
+      const fixture = await offered([FOLLOWS, EMPTY]);
+      await click(fixture, button(fixture, 'Run the swap test'));
+      await click(fixture, button(fixture, 'Switches swapped. Test both keys'));
+      expect(note(fixture)).toBe(GOLDEN.result.swap?.note);
+      expect(note(fixture)).toBe('Swap test. Both keys, 3 rounds.');
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'New test'));
+      await click(fixture, button(fixture, 'Begin test'));
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      expect(note(fixture)).toBe(CAPTURE);
+    });
+
+    it("gives a command's reason in place of the swap note", async () => {
+      const fixture = await offered([], (cmd) => {
+        if (cmd === 'start_swap_test') return [1];
+        if (cmd === 'skip_key') throw 'No test is running.';
+        return null;
+      });
+      await click(fixture, button(fixture, 'Run the swap test'));
+      await click(fixture, button(fixture, 'Switches swapped. Test both keys'));
+      await send(fixture, 'test:guide', { ...VIEW, keys: 2, total: 180, tallies: [] });
+      await click(fixture, button(fixture, 'Skip this key'));
+      expect(note(fixture)).toBe('No test is running.');
     });
   });
 

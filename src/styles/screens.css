@@ -574,3 +574,16 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* Swap */
+
+.swap__about {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.swap__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

@@ -67,7 +67,8 @@ export function inApp(
   mockIPC(
     (cmd, args) => {
       log.push([cmd, args]);
-      return cmd === 'list_keyboards' ? groups : answer(cmd, args);
+      // A copy, as a reply that crossed IPC would be, so a spec can change the list afterwards.
+      return cmd === 'list_keyboards' ? structuredClone(groups) : answer(cmd, args);
     },
     { shouldMockEvents: true },
   );
@@ -170,6 +171,59 @@ export const GOLDEN_PLAN: Provider = {
     presses: GOLDEN.plan.presses,
   },
 };
+
+// What end_test returns after the golden run's swap test when the fault moved to G, in the engine's
+// words. Rust sends a swap test's result with no findings, notes or clean lines.
+export const FOLLOWS: TestResult = {
+  ...EMPTY,
+  keys: [
+    { scan: 0x12, count: 90 },
+    { scan: 0x22, count: 108 },
+  ],
+  resolution: 'This keyboard showed no 8 or 16 ms reporting schedule in this test.',
+  outcome: {
+    outcome: 'follows',
+    tile: 0x22,
+    flagged: [0x22],
+    title: 'The fault moved with the switch.',
+    confidence: 'very-high',
+    level: 'Very high',
+    strong: true,
+    evidence: [
+      'E: no extra key-downs in 90 presses, so a rate above 3.4% would very likely have shown',
+      'G: 18 of 90 presses sent an extra key-down (a rate of at least 13%)',
+    ],
+    diagnosis:
+      'The E switch now sits in the G socket, and the fault appeared there. The switch is the ' +
+      'most likely cause. The E socket and the PCB behaved normally with a known-good switch.',
+    next: [
+      'Replace the switch that came from E, now in the G socket, with a switch of the same ' +
+        'model. Then test G again.',
+      'Blow out the G switch with the key held down, or work contact cleaner into it while ' +
+        'pressing it many times. Then test G again.',
+    ],
+  },
+};
+
+// Ends the golden run's main test, whose result carries Rust's swap offer for E and G. Each later
+// end_test answers with the next of `retests`, and `answer` takes every other command. By default
+// the swap test reads the keyboard the main test did.
+export async function offered(
+  retests: TestResult[] = [],
+  answer: (cmd: string, args: unknown) => unknown = (cmd) =>
+    cmd === 'start_swap_test' ? GOLDEN.plan.keyboard : null,
+  groups: KeyboardGroup[] = GOLDEN.keyboards,
+): Promise<ComponentFixture<App>> {
+  const results = [GOLDEN.result, ...retests];
+  inApp(
+    (cmd, args) => (cmd === 'end_test' ? (results.shift() ?? EMPTY) : answer(cmd, args)),
+    groups,
+  );
+  const fixture = await render([GOLDEN_PLAN]);
+  await click(fixture, button(fixture, 'Begin test'));
+  await click(fixture, button(fixture, 'End test'));
+  return fixture;
+}
 
 export async function replay(
   fixture: ComponentFixture<App>,

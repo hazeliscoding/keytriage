@@ -1,8 +1,8 @@
 import { InjectionToken } from '@angular/core';
 import { plainKeys, type Layout } from './layout';
 
-// What the guided test asks for. It is data, so M4's swap retest and a later suspect-key picker can
-// supply their own keys and rounds.
+// What the main test asks for. It is data, so a later suspect-key picker can supply its own keys and
+// rounds. Rust builds the swap retest's plan from its own offer.
 export interface Plan {
   keys: (drawn: Layout) => number[];
   rounds: number;

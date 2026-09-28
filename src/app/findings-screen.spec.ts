@@ -11,6 +11,7 @@ import { labelsFor, layout } from './layout';
 import { PLAN } from './plan';
 import {
   EMPTY,
+  GOLDEN,
   after,
   all,
   button,
@@ -422,6 +423,31 @@ describe('Findings screen', () => {
   });
 
   describe('the footer', () => {
+    it('offers the swap test as the primary button when Rust sends an offer', async () => {
+      const offer = GOLDEN.result.swap;
+      const fixture = await finished({ ...FOUND, swap: offer });
+      expect(all(fixture, '.footer button').map(text)).toEqual([
+        'New test',
+        'Export report',
+        'Run the swap test',
+      ]);
+      expect(button(fixture, 'Run the swap test').classList).toContain('btn--primary');
+      await click(fixture, button(fixture, 'Run the swap test'));
+      expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
+      expect(started()).toHaveLength(1);
+    });
+
+    // Rust sends no offer for a soldered or laptop board, or without a known-good key.
+    it('offers Test again, and no swap test, when Rust sends no offer', async () => {
+      const fixture = await finished(FOUND);
+      expect(all(fixture, '.footer button').map(text)).toEqual([
+        'New test',
+        'Export report',
+        'Test again',
+      ]);
+      expect(all(fixture, 'button').some((b) => text(b) === 'Run the swap test')).toBe(false);
+    });
+
     it('tests again with the same keyboard, plan and board', async () => {
       const fixture = await finished(FOUND);
       expect(all(fixture, '.footer button').map(text)).toEqual([

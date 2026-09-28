@@ -1,12 +1,13 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Bridge, reasonOf } from './bridge';
-import { clock, fmtMicros } from './format';
+import { clock, fileName, fmtMicros } from './format';
 import {
   RECONNECTED,
   type Board,
   type Events,
   type GuideView,
   type KeyboardGroup,
+  type OutcomeView,
   type PlanArgs,
   type TestEvent,
   type TestResult,
@@ -15,7 +16,7 @@ import { cancelKeys, dropFocus } from './keys';
 import { capLabel, labelsFor, layout, type Layout, type Size, type Std } from './layout';
 import { PLAN } from './plan';
 
-export type Screen = 'start' | 'starting' | 'test' | 'findings';
+export type Screen = 'start' | 'starting' | 'test' | 'findings' | 'swap' | 'swap-result';
 
 export interface BoardOption {
   id: Board;
@@ -70,6 +71,15 @@ export interface Findings {
   reached: { done: number; total: number } | null;
 }
 
+// A finished swap test. Its keys are the retest's, and the main test's record stays in `findings`.
+export interface Swapped {
+  result: TestResult;
+  outcome: OutcomeView;
+  started: Date;
+}
+
+type Started<T> = { value: T } | { reason: string };
+
 const KEPT_ROWS = 60;
 
 // The page's state. Screens are a signal rather than routes, so nothing adds a history entry.
@@ -113,6 +123,10 @@ export class TestRun {
   // True while end_test runs, so the last view and a click on End test end the test once.
   readonly ending = signal(false);
   readonly findings = signal<Findings | null>(null);
+  // True from the swap test's start until a new test, so the test screen can say it is the swap.
+  readonly swapping = signal(false);
+  readonly swapped = signal<Swapped | null>(null);
+  readonly exporting = signal(false);
 
   // A test started from the findings keeps them on screen until it runs, or until it fails and
   // they come back.
@@ -177,39 +191,52 @@ export class TestRun {
       presses: this.plan.presses,
       board: this.board(),
     };
-    this.test++;
-    this.note.set('');
-    this.clear();
-    this.handles = new Set(plan.keyboard);
+    this.swapping.set(false);
     this.asked = plan;
-    this.startedAt.set(new Date());
-    this.origin.set(screen);
-    this.run();
-    this.screen.set('starting');
-    try {
-      await this.bridge.startTest(plan);
-    } catch (error) {
-      if (this.screen() !== 'starting') return;
-      const reason = reasonOf(error);
-      if (reason === RECONNECTED) {
+    const started = await this.launch(screen, plan.keyboard, () => this.bridge.startTest(plan));
+    if (!started) return;
+    if ('reason' in started) {
+      if (started.reason === RECONNECTED) {
         // The keyboard's handles are gone, so it is picked again from a new list. Start lists the
         // keyboards when it opens, and it may already be open.
         this.findings.set(null);
         this.leave('start');
-        this.note.set(reason);
+        this.note.set(started.reason);
         if (screen === 'start') void this.listKeyboards();
         return;
       }
       this.leave(screen);
-      this.note.set(reason);
+      this.note.set(started.reason);
       return;
     }
-    if (this.screen() !== 'starting') return;
     this.findings.set(null);
-    this.screen.set('test');
-    // The plan's last view may have come before start_test returned.
-    const last = this.guide();
-    if (last?.key === null) this.endAfter(last.waitMs);
+    this.testing();
+  }
+
+  // Rust retests the pair it offered with the main test's findings. A refused start keeps the
+  // findings, the offer and the instructions, with the reason in the footer.
+  async beginSwap(): Promise<void> {
+    const group = this.group();
+    if (!group || this.screen() !== 'swap' || !this.findings()?.result.swap) return;
+    const keyboard = group.entries.map((e) => e.handle);
+    this.swapping.set(true);
+    const started = await this.launch('swap', keyboard, () => this.bridge.startSwapTest());
+    if (!started) return;
+    if ('reason' in started) {
+      this.swapping.set(false);
+      this.leave('swap');
+      this.note.set(started.reason);
+      return;
+    }
+    const used = started.value;
+    this.handles = new Set(used);
+    this.testing();
+    // A replugged keyboard is back on new handles, so the header and the live list name it from a
+    // new list.
+    if (used.length !== keyboard.length || used.some((handle, i) => handle !== keyboard[i])) {
+      await this.listKeyboards();
+      this.picked.set(used[0] ?? null);
+    }
   }
 
   // A failure leaves the test running, with the reason in the footer.
@@ -231,6 +258,15 @@ export class TestRun {
       this.ending.set(false);
     }
     if (this.screen() !== 'test') return;
+    if (result.outcome) {
+      this.swapped.set({
+        result,
+        outcome: result.outcome,
+        started: this.startedAt() ?? new Date(),
+      });
+      this.leave('swap-result');
+      return;
+    }
     const group = this.group();
     const keys = this.asked?.keys.length ?? 0;
     const rounds = this.asked?.rounds ?? 0;
@@ -255,9 +291,39 @@ export class TestRun {
 
   // Back to Start, which lists the keyboards again.
   newTest(): void {
-    if (this.screen() !== 'findings') return;
+    const screen = this.screen();
+    if (screen !== 'findings' && screen !== 'swap-result') return;
     this.findings.set(null);
+    this.swapped.set(null);
+    this.swapping.set(false);
     this.leave('start');
+  }
+
+  startSwap(): void {
+    if (this.screen() === 'findings' && this.findings()?.result.swap) this.leave('swap');
+  }
+
+  backToFindings(): void {
+    if (this.screen() === 'swap') this.leave('findings');
+  }
+
+  // Rust writes the file from its own copy of the last ended test's saved report, which is the one
+  // on screen. The page sends only a name, which Rust checks, and a cancelled dialog changes nothing.
+  async exportReport(): Promise<void> {
+    const screen = this.shown();
+    const record = this.record(screen);
+    if (!record || this.exporting()) return;
+    // The reply can come after the page moved on, and then it has nothing to say.
+    const shown = () => this.screen() === screen && this.record(screen) === record;
+    this.exporting.set(true);
+    try {
+      const saved = await this.bridge.exportReport(fileName(record.started));
+      if (saved !== null && shown()) this.note.set(`Saved as ${saved}.`);
+    } catch (error) {
+      if (shown()) this.note.set(reasonOf(error));
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   async pauseTest(): Promise<void> {
@@ -276,6 +342,43 @@ export class TestRun {
     const view = this.guide();
     if (this.screen() !== 'test' || clicks > 1 || !view || view.key === null) return;
     await this.attempt(this.bridge.skipKey(view.round, view.index));
+  }
+
+  private record(screen: Screen): Findings | Swapped | null {
+    if (screen === 'findings') return this.findings();
+    if (screen === 'swap-result') return this.swapped();
+    return null;
+  }
+
+  // Starts a test from `screen`, which stays on view until Rust answers. It resolves to null when
+  // the page moved on before the answer came.
+  private async launch<T>(
+    screen: Screen,
+    keyboard: readonly number[],
+    start: () => Promise<T>,
+  ): Promise<Started<T> | null> {
+    this.test++;
+    this.note.set('');
+    this.clear();
+    this.handles = new Set(keyboard);
+    this.startedAt.set(new Date());
+    this.origin.set(screen);
+    this.run();
+    this.screen.set('starting');
+    let started: Started<T>;
+    try {
+      started = { value: await start() };
+    } catch (error) {
+      started = { reason: reasonOf(error) };
+    }
+    return this.screen() === 'starting' ? started : null;
+  }
+
+  private testing(): void {
+    this.screen.set('test');
+    // The plan's last view may have come before the start's reply.
+    const last = this.guide();
+    if (last?.key === null) this.endAfter(last.waitMs);
   }
 
   // The last press's chatter can still be on its way when the plan is done, so the test ends once

@@ -2,6 +2,8 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FindingsScreen } from './findings-screen';
 import { stamp } from './format';
 import { StartScreen } from './start-screen';
+import { SwapResultScreen } from './swap-result-screen';
+import { SwapScreen } from './swap-screen';
 import { TestScreen } from './test-screen';
 import { TestRun } from './test-run';
 
@@ -16,7 +18,7 @@ function systemTheme(): Theme {
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
-  imports: [StartScreen, TestScreen, FindingsScreen],
+  imports: [StartScreen, TestScreen, FindingsScreen, SwapScreen, SwapResultScreen],
   host: { class: 'shell' },
 })
 export class App {
@@ -26,9 +28,18 @@ export class App {
   // The Start screen's date and time. Only a new minute changes it.
   protected readonly now = signal(stamp(new Date()));
 
+  // The swap's screens belong to the findings, and its retest to the test.
   protected readonly step = computed(() => {
-    const shown = this.run.shown();
-    return shown === 'test' ? 2 : shown === 'findings' ? 3 : 1;
+    switch (this.run.shown()) {
+      case 'test':
+        return 2;
+      case 'findings':
+      case 'swap':
+      case 'swap-result':
+        return 3;
+      default:
+        return 1;
+    }
   });
   protected readonly lockup = computed(() =>
     this.theme() === 'dark' ? 'brand/lockup-dark.svg' : 'brand/lockup.svg',
