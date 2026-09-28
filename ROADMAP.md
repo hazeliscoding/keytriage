@@ -86,6 +86,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - the clean card lists the plan and the engine's notes, and its next test ends "then test again.";
     - a test ended early lists how far it got in place of the plan ("Ended after 40 of 1 410 presses, 4 of 47 keys"), and when no key kept a round, the card reads "Nothing was tested." with no Clean badge;
     - the demo's "dropped presses" and "sticking key" findings don't exist, and "Run the swap test" waits for M4;
+    - the Layout list counts the drawn keys, so 75% reads 83 (84 on ISO) where the design's copy reads 84. The design's own 75% drawing has 83 keys;
     - where the mockups and the demo differ, the demo wins, except for its stand-in findings. Where the specification and the drawn components differ, the components win.
 
 ## M0: Placeholder (as soon as possible)
