@@ -362,6 +362,32 @@ describe('Test screen', () => {
       expect(sent('skip_key')).toEqual([{ round: 0, index: 0 }]);
     });
 
+    it('lets a click that began in a focus pause only bring the window back', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await send(fixture, 'test:event', PAUSED);
+      const skip = button(fixture, 'Skip this key');
+      skip.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      // The click brings the window back, and capture resumes before the click arrives.
+      await send(fixture, 'test:event', RESUMED);
+      await click(fixture, skip);
+      expect(sent('skip_key')).toEqual([]);
+      skip.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      await click(fixture, skip);
+      expect(sent('skip_key')).toEqual([{ round: 0, index: 0 }]);
+    });
+
+    it('skips during a pause the user asked for', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await click(fixture, button(fixture, 'Pause'));
+      await send(fixture, 'test:event', PAUSED);
+      const skip = button(fixture, 'Skip this key');
+      skip.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      await click(fixture, skip);
+      expect(sent('skip_key')).toEqual([{ round: 0, index: 0 }]);
+    });
+
     it('gives the reason a command failed and stays on the test', async () => {
       inApp((cmd) => {
         if (cmd === 'pause_test' || cmd === 'skip_key') throw 'No test is running.';

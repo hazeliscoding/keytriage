@@ -108,7 +108,8 @@
     type="button"
     class="btn btn--ghost"
     [disabled]="run.ending()"
-    (click)="run.skipKey($event.detail)"
+    (pointerdown)="pressSkip()"
+    (click)="skip($event.detail)"
   >
     Skip this key
   </button>

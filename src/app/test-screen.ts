@@ -22,6 +22,11 @@ export class TestScreen {
   protected readonly run = inject(TestRun);
   protected readonly dropFocus = dropFocus;
 
+  // A click on the inactive window brings it back first, and capture resumes before the click
+  // arrives, so a skip would close the resumed round as silent. A press that began during a focus
+  // pause only brings the window back.
+  private pressedAway = false;
+
   protected readonly rows = computed(() => this.run.rows().slice(0, SHOWN_ROWS));
 
   protected readonly prompt = computed(() => {
@@ -93,6 +98,15 @@ export class TestScreen {
     const repeat = prompt ? ` This round of ${prompt.label} will be repeated.` : '';
     return `${lead} ${held}${repeat}`;
   });
+
+  protected pressSkip(): void {
+    this.pressedAway = this.run.pause()?.reason === 'focus';
+  }
+
+  protected skip(clicks: number): void {
+    if (!this.pressedAway) void this.run.skipKey(clicks);
+    this.pressedAway = false;
+  }
 
   protected readonly injectedBody = computed(() => {
     const n = this.run.injected();
