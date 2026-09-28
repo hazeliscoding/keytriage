@@ -8,10 +8,16 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
-# tao and wry already build these features, so the app compiles this crate only once.
+# Features unify, so the app still compiles this crate once. tao and wry already build most of
+# these; the device list adds the ones for opening a HID device and reading its container ID.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Devices_Properties",
     "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
     "Win32_UI_Input",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",

@@ -4,7 +4,7 @@
 // F15, print their scan code, so real typing never shows up in a terminal or a CI log.
 use std::io::Write;
 
-use keytriage_input::{Capture, KeyEvent, registrations};
+use keytriage_input::{Capture, KeyEvent, keyboards, registrations};
 use tauri::webview::{PageLoadEvent, PageLoadPayload};
 use tauri::{Runtime, Webview, WebviewWindow};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
@@ -32,6 +32,16 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
         print(&format!(
             "kt-input: registered page=0x{:x} usage=0x{:x} flags=0x{:x} target=0x{:x}",
             r.usage_page, r.usage, r.flags, r.target
+        ));
+    }
+    for k in keyboards()? {
+        print(&format!(
+            "kt-input: keyboard handle=0x{:x} container={} vid={} pid={} name={:?}",
+            k.handle,
+            k.container.map_or("-".to_string(), |c| format!("{c:032x}")),
+            k.vendor_id.map_or("-".to_string(), |v| format!("{v:04x}")),
+            k.product_id.map_or("-".to_string(), |p| format!("{p:04x}")),
+            k.name()
         ));
     }
     print(&format!("kt-shell: error-mode=0x{:x}", unsafe {
