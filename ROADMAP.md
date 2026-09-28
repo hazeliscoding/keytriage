@@ -53,6 +53,16 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - A lone Alt or F10 can put the window in menu mode, Alt+Space opens the window menu, and Alt+F4 closes the app.
   - Tab, Space and the movement keys still act on the page.
   - The OS keeps its own keys: the Windows key and its combinations, Ctrl+Alt+Del, Print Screen, the Copilot key, Sleep and Power, launch keys, and the accessibility shortcuts (Shift five times, right Shift or Num Lock held down).
+- **Crash output** (2026.09.27): a crash dump can hold the ordered key events a process keeps in memory, so no dump may leave the machine or stay on disk. `src-tauri/src/crash_reports.rs` does three things:
+  - **Crashpad never uploads WebView2 dumps.** The app creates the WebView2 environment itself, with custom crash reporting on, and hands it to the main window, which is built in code (`"create": false`). It repeats the options wry would set, so `additionalBrowserArgs` in `tauri.conf.json` has no effect. Chromium's own switches (`--disable-breakpad`, `--disable-crash-reporter`) were tested and don't stop uploads.
+  - **WebView2 dumps are deleted.** Crashpad still writes a dump of about 7 MB, which can hold page memory, into `EBWebView\Crashpad\reports`. The app deletes it and its attachments at startup, when WebView2 reports a failed process, and at exit. Crashpad's other files keep IDs and the app's name, not memory.
+  - **The app's own crashes skip Windows Error Reporting.** `SEM_NOGPFAULTERRORBOX` is set before anything else runs. That covers Rust aborts, which skip every in-process handler, and access violations. The cost is that keytriage crashes don't show in Reliability Monitor or the event log.
+
+  `scripts/check-crash-reports.ps1` checks all three against a debug build without crashing anything: the browser runs with custom crash reporting, the app watches for failed processes, planted dumps go at startup and at exit, and the error mode skips Windows Error Reporting. Its positive control (`KEYTRIAGE_CRASH_REPORTS`, debug builds only) turns them off and must catch all five. A behavioral crash test was left out, because its positive control would upload a report. What stays outside the app's control:
+  - a WebView2 dump sits on disk between the crash and the sweep: milliseconds for a failed process, until exit for a dump WebView2 doesn't report, and until the next start for a crash while WebView2 shuts down, which finishes after the app has exited;
+  - a crash of WebView2's browser process that Crashpad doesn't catch, for example when its handler can't start, goes to Windows Error Reporting, because that process sets its own error mode. WER then writes a dump to `C:\ProgramData\Microsoft\Windows\WER\Temp` and sends the crash signature, and with Optional diagnostic data it can send the dump. The renderers already run without WER;
+  - hang reports, dumps that someone takes on purpose (Task Manager, ProcDump, a debugger), an admin's WER LocalDumps setting, memory paged to `pagefile.sys` or `hiberfil.sys`, and a memory dump after a system crash;
+  - the WebView2 runtime's own connections to Microsoft, which run whatever the app does. M5's privacy document names them.
 
 ## M0: Placeholder (as soon as possible)
 
@@ -72,7 +82,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 - [x] Spike first: receive `WM_INPUT` in the Tauri main window without an input sink, and confirm that input stops when the window loses focus. Record the approach here. Raw Input registration is per process and the last call wins, so nothing may call `set_device_event_filter` once capture has registered.
 - [x] Before capture lands, turn off WebView2's browser shortcuts and default context menu (`SetAreBrowserAcceleratorKeysEnabled`, `SetAreDefaultContextMenusEnabled`) through `with_webview`. The key test presses F5, Ctrl+R and Ctrl+P, which reload or print the page. Tauri has no setting for this.
-- [ ] Decide how crash output stays local. WebView2 sends renderer crash reports to Microsoft by default (`IsCustomCrashReportingEnabled` is off), and a renderer dump can hold the live event stream.
+- [x] Decide how crash output stays local. WebView2 sends renderer crash reports to Microsoft by default (`IsCustomCrashReportingEnabled` is off), and a renderer dump can hold the live event stream.
 - [ ] Device list: name, VID/PID, device path, and manufacturer and product strings.
 - [ ] Live event view: key position, down or up, a high-resolution timestamp and the source device, held in memory only.
 - [ ] Capture starts only with a test and stops when the test ends or the window loses focus.
