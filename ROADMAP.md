@@ -63,6 +63,12 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - a crash of WebView2's browser process that Crashpad doesn't catch, for example when its handler can't start, goes to Windows Error Reporting, because that process sets its own error mode. WER then writes a dump to `C:\ProgramData\Microsoft\Windows\WER\Temp` and sends the crash signature, and with Optional diagnostic data it can send the dump. The renderers already run without WER;
   - hang reports, dumps that someone takes on purpose (Task Manager, ProcDump, a debugger), an admin's WER LocalDumps setting, memory paged to `pagefile.sys` or `hiberfil.sys`, and a memory dump after a system crash;
   - the WebView2 runtime's own connections to Microsoft, which run whatever the app does. M5's privacy document names them.
+- **Diagnostic engine** (2026.09.28, defaults for the owner to review): `crates/diagnostics` turns a test's events into findings with `diagnose()`. It is std only, with no floats, clocks or hash-order iteration, so the same test always gives the same report. `RULES` (now 1) is bumped whenever a threshold, bin edge or rule changes, so M4 compares only like with like. The numbers come from switch datasheets, QMK, ZMK and laptop firmware debounce, published chatter tools and keystroke timing studies, and each one's reason sits beside it in `params.rs`.
+  - **Chatter.** A second press of the same key counts as chatter when the release-to-press gap is under 20 ms, or when it is under 100 ms and either press lasted under 20 ms. Pairs under 36 ms are shown as borderline and never counted. Readings under 1 ms, or across two handles, aren't timed. A short phantom joins only the nearer of two real presses, and a key whose presses are nearly all short is taken as tapped by its firmware. Only presses in the key's own rounds count, and a finding needs 2 or more affected presses; one is a note, and free typing only gives notes. Confidence comes from the Wilson 95% lower bound of the rate and from the rounds that reproduce it: Very high needs 5 or more affected presses, at least 5%, in every round of 3 or more. Three or more chattering keys, or a keyboard that reports every 16 ms or slower, cap confidence at Medium; at 16 ms, a key with more near misses than hits gives no finding at all.
+  - **Dead key.** A round that asked for 3 or more presses and got no key-down is silent, unless it was mostly paused, the key was already down, the key arrived from another keyboard, software injected input, or the keyboard was at its rollover limit for most of the round. High and Very high need other keys to answer their rounds, before and after for Very high, so the user was there. A round that got another key's code instead is noted, not counted.
+  - **Stuck key.** A key-down with no release by the end of the test after 2 s or more, or a hold of 2 s or more through the key's own round. Other long holds, and keys down at a pause, are never stuck; a key interrupted at a pause may report its release or repeats after the resume.
+  - **Saved data.** `Report::saved()` is the only data that may be written: per-key counts and histograms of holds, release gaps and press-to-press intervals, with no timestamps, orders, lists or key pairs. It keeps only prompted keys and keys a finding or note names, so free typing's keys stay out. Hold histograms are still biometric, which M5's privacy document says.
+  - **For the owner to review:** the 20, 36 and 100 ms limits, which count a phantom of 20 ms or more after a gap of 20 ms or more only as borderline (laptop firmware with a 30 ms release lock can chatter there); prompted-only chatter; and the canned example in `README.md` and `src/app/app.ts`, which the engine would word differently ("a rate of at least 8.5%", "came 5 ms after a release", very high rather than high for 14 of 100 in 3 of 3 rounds).
 
 ## M0: Placeholder (as soon as possible)
 
@@ -93,10 +99,10 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## M2: Diagnostic engine
 
-- [ ] A common result type: finding, confidence, evidence, possible causes and next test.
-- [ ] Detectors for chatter (repeated transitions within a threshold), dead keys (a prompted key produces nothing) and stuck keys (a down without an up). A key listed as interrupted at a pause is not stuck, and its release or repeats after the resume are expected.
-- [ ] Per-key aggregates (counts and interval histograms) as the only data that can be saved.
-- [ ] Fixtures are synthetic event streams, never recorded typing. Each detector has fault fixtures and clean fixtures. Clean fixtures must produce no finding, including fast deliberate double presses.
+- [x] A common result type: finding, confidence, evidence, possible causes and next test.
+- [x] Detectors for chatter (repeated transitions within a threshold), dead keys (a prompted key produces nothing) and stuck keys (a down without an up). A key listed as interrupted at a pause is not stuck, and its release or repeats after the resume are expected.
+- [x] Per-key aggregates (counts and interval histograms) as the only data that can be saved.
+- [x] Fixtures are synthetic event streams, never recorded typing. Each detector has fault fixtures and clean fixtures. Clean fixtures must produce no finding, including fast deliberate double presses.
 
 **Done when:** every fixture produces its expected findings, and the clean fixtures produce none.
 

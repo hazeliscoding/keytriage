@@ -26,6 +26,9 @@ Software that reads a keyboard has to earn trust. Never break these rules, not e
 - Findings describe evidence and likelihood. Never say a part is broken. Say "possible chatter, high confidence" and list the other causes.
 - Each detector has fault fixtures and clean fixtures. Clean fixtures, including fast deliberate double presses, must produce no finding.
 - Diagnosis is deterministic. No LLM in the diagnosis path.
+- Bump `RULES` in `crates/diagnostics/src/lib.rs` whenever a threshold, bin edge or rule changes, and keep each threshold's reason beside it in `params.rs`.
+- Types that hold timestamps or ordered events (`Entry`, `HeldKey`, `Session`) derive `Debug` at most in tests, because a printed list of them is the typed text. Only `Report::saved()` may be written anywhere.
+- Fixtures come from the `Synth` builder in `crates/diagnostics/src/fixture.rs`, which later milestones' tests reach through the `fixtures` feature.
 
 ## Parts and prices
 
