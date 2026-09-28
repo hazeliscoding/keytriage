@@ -1,0 +1,81 @@
+:root{
+  /* base — office paper */
+  --paper:#f2ede2;
+  --ivory:#f8f5ec;
+  --bone:#ece5d5;
+  --bureau:#e0d8c6;
+  --line:#d3cab6;
+  --line-strong:#b3a88f;
+  --graphite:#57503f;
+  --ink:#1b1812;
+  --ink-soft:#3a352a;
+  /* character */
+  --auburn:#7e4a33;
+  --copper:#9a5f38;
+  --amber:#a17b22;
+  --gold:#8f7434;
+  --oxblood:#4f1c22;
+  --wine:#63242c;
+  --directive-red:#9e2b2b;
+  /* semantic */
+  --authorized:#4d6b50;
+  --attention:#a17b22;
+  --restricted:#63242c;
+  --controlled:#9e2b2b;
+  --neutral:#8a8271;
+  /* surfaces */
+  --surface-page:var(--paper);
+  --surface-card:var(--ivory);
+  --surface-raised:#fbf9f3;
+  --surface-inset:var(--bone);
+  --surface-authority:var(--ink);
+  --text-primary:var(--ink);
+  --text-secondary:var(--graphite);
+  --text-meta:#7d7460;
+  --text-inverse:#f0ebdd;
+  --text-link:var(--auburn);
+  /* observation states */
+  --observation-none:transparent;
+  --observation-passive:#b3a88f;
+  --observation-active:var(--amber);
+  --observation-escalated:var(--directive-red);
+  /* contract states */
+  --contract-draft:#8a8271;
+  --contract-active:#4d6b50;
+  --contract-breached:var(--directive-red);
+  --contract-terminated:#57503f;
+  /* authority levels */
+  --authority-general:#8a8271;
+  --authority-internal:#57503f;
+  --authority-restricted:var(--wine);
+  --authority-controlled:var(--oxblood);
+  --authority-directive:var(--directive-red);
+}
+[data-theme="dark"]{
+  --paper:#191712;
+  --ivory:#1f1c16;
+  --bone:#26221a;
+  --bureau:#2e2920;
+  --line:#3a352a;
+  --line-strong:#57503f;
+  --graphite:#a89d85;
+  --ink:#e9e2d1;
+  --ink-soft:#cfc6b0;
+  --amber:#c09a3e;
+  --gold:#ab8d4a;
+  --wine:#7c3540;
+  --directive-red:#b84740;
+  --authorized:#6f8a6f;
+  --neutral:#7d7460;
+  --surface-page:var(--paper);
+  --surface-card:var(--ivory);
+  --surface-raised:#26221a;
+  --surface-inset:#15130f;
+  --surface-authority:#0f0e0b;
+  --text-primary:var(--ink);
+  --text-secondary:var(--graphite);
+  --text-meta:#8a8271;
+  --text-inverse:#1b1812;
+  --text-link:#c98d63;
+  --observation-passive:#57503f;
+}

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/borders.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/motion.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/base.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/styles.css">
+  <script src="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/_ds_bundle.js"></script>
+  <style>
+    body{margin:0;background:#e6dfd0}
+    [data-theme="dark"]{--directive-red:#b5383a;--controlled:#b5383a;--ink:#e8e1d2;--text-inverse:#1b1812}
+    a{color:var(--auburn)} a:hover{color:var(--wine)}
+  </style>
+</helmet>
+
+<section style="padding:40px;display:flex;flex-direction:column;gap:56px;font-family:var(--font-official);color:var(--text-primary)">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <img src="docs/brand/lockup.svg" alt="keytriage" style="height:28px;display:block;align-self:flex-start">
+    <div style="font-size:13px;color:var(--text-secondary)">Desktop UI. Light and dark themes at 1280 × 800, and the 1024 × 700 minimum. The specification follows the mockups.</div>
+  </div>
+
+  <sc-for list="{{ variants }}" as="v" hint-placeholder-count="1">
+    <div data-theme="{{ v.theme }}" style="background:var(--paper);padding:32px;border:1px solid var(--line-strong);display:flex;flex-direction:column;gap:20px;color:var(--text-primary)">
+      <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ v.label }}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+
+        <!-- 01 START -->
+        <div data-screen-label="01 Start" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span style="color:var(--text-primary)">01 Keyboard</span><span>//</span><span>02 Test</span><span>//</span><span>03 Findings</span></div>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums">2026.09.24 18:41</div>
+          </div>
+          <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);gap:20px;padding:20px">
+            <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+              <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">01 // Keyboard</div>
+              <div style="font-size:16px;font-weight:600">Pick the keyboard to test.</div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+                <sc-for list="{{ devices }}" as="d" hint-placeholder-count="4">
+                  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:10px 14px 10px {{ d.pad }}px;border-bottom:1px solid var(--line);border-left:3px solid {{ d.rule }};background:{{ d.bg }}">
+                    <div style="font-weight:500;color:{{ d.color }}">{{ d.name }}</div>
+                    <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;text-align:right">{{ d.id }}</div>
+                    <div style="font-size:12px;color:var(--text-meta);grid-column:1 / -1">{{ d.meta }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:12px;color:var(--text-meta)">One keyboard can appear as several entries. Any of them will do. Events are attributed by device.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+              <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">02 // Layout</div>
+              <div style="font-size:16px;font-weight:600">Pick the layout that matches it.</div>
+              <div style="display:flex;gap:8px">
+                <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" size="sm" hint-size="64px,28px">ANSI</x-import>
+                <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" size="sm" hint-size="64px,28px">ISO</x-import>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+                <sc-for list="{{ sizes }}" as="s" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;padding:10px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ s.rule }};background:{{ s.bg }}">
+                    <div style="font-weight:500">{{ s.name }}</div>
+                    <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums">{{ s.keys }} keys</div>
+                    <div style="grid-column:1 / -1;height:6px;width:{{ s.pct }}%;border:1px solid var(--line-strong);background:var(--surface-inset)"></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:12px;color:var(--text-meta)">Keys are tested by physical position. The layout only decides what is drawn.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+              <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">03 // Board</div>
+              <div style="font-size:16px;font-weight:600">Say what kind of board it is.</div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+                <div style="padding:12px 14px;border-bottom:1px solid var(--line);border-left:3px solid var(--auburn);background:var(--surface-inset);display:flex;flex-direction:column;gap:4px">
+                  <x-import component-from-global-scope="Directive01DesignSystem_03c333.Radio" name="board" value="hotswap" label="Hot-swap" checked="{{ true }}" hint-size="auto,22px"></x-import>
+                  <div style="font-size:12px;color:var(--text-meta);padding-left:25px">Switches pull out. The swap test is available.</div>
+                </div>
+                <div style="padding:12px 14px;border-bottom:1px solid var(--line);border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px">
+                  <x-import component-from-global-scope="Directive01DesignSystem_03c333.Radio" name="board" value="soldered" label="Soldered" hint-size="auto,22px"></x-import>
+                  <div style="font-size:12px;color:var(--text-meta);padding-left:25px">Switches are fixed to the PCB. Next steps skip the swap.</div>
+                </div>
+                <div style="padding:12px 14px;border-left:3px solid transparent;display:flex;flex-direction:column;gap:4px">
+                  <x-import component-from-global-scope="Directive01DesignSystem_03c333.Radio" name="board" value="laptop" label="Laptop or scissor-switch" hint-size="auto,22px"></x-import>
+                  <div style="font-size:12px;color:var(--text-meta);padding-left:25px">Built in. Next steps cover the keycap, the scissor and the membrane.</div>
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--text-meta)">This decides which next test the findings recommend. It can be changed later.</div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;border-top:1px solid var(--line)">
+            <div style="font-size:12px;color:var(--text-meta)">Keys are read only while a test runs and this window is focused. Nothing is written to disk until you export a report.</div>
+            <div style="margin-left:auto;flex:none">
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" hint-size="120px,36px">Begin test</x-import>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 TEST · RUNNING -->
+        <div data-screen-label="02 Test running" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>01 Keyboard</span><span>//</span><span style="color:var(--text-primary)">02 Test</span><span>//</span><span>03 Findings</span></div>
+            <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Keychron K2 · 3434:0220</span><span>75% ANSI</span><span>Hot-swap</span><span style="color:var(--text-primary)">● Capturing</span></div>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;gap:20px;padding:20px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;align-items:center;gap:20px;padding:14px 20px;border:1px solid var(--ink);background:var(--surface-card)">
+                <div style="width:52px;height:52px;flex:none;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:2px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:24px;font-weight:600">E</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:18px;font-weight:600;line-height:1.25">Press E ten times.</div>
+                  <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Normal pace. Release fully between presses. Other keys are ignored.</div>
+                </div>
+                <div style="font-family:var(--font-directive);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;flex:none">4 <span style="color:var(--text-meta)">/ 10</span></div>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:16 / 6.25;flex:none">
+                <sc-for list="{{ kbRun }}" as="k" hint-placeholder-count="0">
+                  <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                    <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                      <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                      <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                      <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:1px"></span>Prompted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Counted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-raised)"></span>Waiting</span>
+                <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">The key area holds no controls and binds no keys.</span>
+              </div>
+            </div>
+            <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:16px;min-height:0">
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>Round 2 of 3</span><span>Key 34 of 84</span></div>
+                <div style="height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:47%;background:var(--ink)"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Elapsed 04:12</span><span>1174 of 2520 presses</span></div>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);flex:1;min-height:0;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)">
+                  <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Live events</span>
+                  <span style="font-size:11px;color:var(--text-meta)">In memory only</span>
+                </div>
+                <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:6px 16px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);border-bottom:1px solid var(--line)"><span>Key</span><span>Edge</span><span style="text-align:right">T, ms</span><span>Device</span></div>
+                <div style="overflow:hidden;flex:1;min-height:0">
+                  <sc-for list="{{ evRun }}" as="e" hint-placeholder-count="8">
+                    <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 16px;font-size:12px;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)"><span style="font-weight:500">{{ e.key }}</span><span style="color:var(--text-secondary)">{{ e.edge }}</span><span style="text-align:right">{{ e.t }}</span><span style="color:{{ e.srcColor }};font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.src }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="90px,36px">Pause</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="120px,36px">Skip this key</x-import>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Capture stops when the window loses focus.</div>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="100px,36px">End test</x-import>
+          </div>
+        </div>
+
+        <!-- 02 TEST · PAUSED -->
+        <div data-screen-label="02 Test paused" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>01 Keyboard</span><span>//</span><span style="color:var(--text-primary)">02 Test</span><span>//</span><span>03 Findings</span></div>
+            <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Keychron K2 · 3434:0220</span><span>75% ANSI</span><span>Hot-swap</span><span style="color:var(--amber)">○ Paused</span></div>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;gap:20px;padding:20px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Notice" tone="attention" label="PAUSED · WINDOW LOST FOCUS 18:42:07" hint-size="100%,72px">Click back into the window to continue. Keys held at that moment are marked interrupted, not stuck, and this round of E will be repeated.</x-import>
+              <div style="display:flex;align-items:center;gap:20px;padding:14px 20px;border:1px solid var(--line-strong);background:var(--surface-card);color:var(--text-secondary)">
+                <div style="width:52px;height:52px;flex:none;border:1px solid var(--line-strong);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:24px;font-weight:600">E</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:18px;font-weight:600;line-height:1.25">Press E ten times.</div>
+                  <div style="font-size:13px;margin-top:4px">Waiting for focus. Presses are not read.</div>
+                </div>
+                <div style="font-family:var(--font-directive);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;flex:none;color:var(--text-meta)">4 / 10</div>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:16 / 6.25;flex:none">
+                <sc-for list="{{ kbPaused }}" as="k" hint-placeholder-count="0">
+                  <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                    <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                      <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                      <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                      <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px dashed var(--amber)"></span>Interrupted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Counted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-raised)"></span>Waiting</span>
+                <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">Alt and Tab were down when focus left. Their release was not seen.</span>
+              </div>
+            </div>
+            <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:16px;min-height:0">
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>Round 2 of 3</span><span>Key 34 of 84</span></div>
+                <div style="height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:47%;background:var(--line-strong)"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Elapsed 04:12, paused</span><span>1174 of 2520 presses</span></div>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);flex:1;min-height:0;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)">
+                  <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Live events</span>
+                  <span style="font-size:11px;color:var(--text-meta)">In memory only</span>
+                </div>
+                <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:6px 16px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);border-bottom:1px solid var(--line)"><span>Key</span><span>Edge</span><span style="text-align:right">T, ms</span><span>Device</span></div>
+                <div style="overflow:hidden;flex:1;min-height:0">
+                  <sc-for list="{{ evPaused }}" as="e" hint-placeholder-count="8">
+                    <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 16px;font-size:12px;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line);color:{{ e.rowColor }}"><span style="font-weight:500">{{ e.key }}</span><span style="color:{{ e.edgeColor }}">{{ e.edge }}</span><span style="text-align:right">{{ e.t }}</span><span style="color:{{ e.srcColor }};font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.src }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" hint-size="90px,36px">Continue</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="120px,36px">Skip this key</x-import>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Clicking anywhere in the window also continues.</div>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="100px,36px">End test</x-import>
+          </div>
+        </div>
+
+        <!-- 02 TEST · INJECTED INPUT -->
+        <div data-screen-label="02 Test injected input" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>01 Keyboard</span><span>//</span><span style="color:var(--text-primary)">02 Test</span><span>//</span><span>03 Findings</span></div>
+            <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Keychron K2 · 3434:0220</span><span>75% ANSI</span><span>Hot-swap</span><span style="color:var(--text-primary)">● Capturing</span></div>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;gap:20px;padding:20px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Notice" tone="neutral" label="INJECTED INPUT" hint-size="100%,72px">Two events did not come from a physical keyboard. They stay in the event list, marked injected, and are left out of every count. Software such as macro tools or remote desktop can send them.</x-import>
+              <div style="display:flex;align-items:center;gap:20px;padding:14px 20px;border:1px solid var(--ink);background:var(--surface-card)">
+                <div style="width:52px;height:52px;flex:none;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:2px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:24px;font-weight:600">E</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:18px;font-weight:600;line-height:1.25">Press E ten times.</div>
+                  <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Normal pace. Release fully between presses. Other keys are ignored.</div>
+                </div>
+                <div style="font-family:var(--font-directive);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;flex:none">4 <span style="color:var(--text-meta)">/ 10</span></div>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:16 / 6.25;flex:none">
+                <sc-for list="{{ kbRun }}" as="k" hint-placeholder-count="0">
+                  <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                    <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                      <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                      <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                      <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:1px"></span>Prompted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Counted</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-raised)"></span>Waiting</span>
+                <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">Injected events never change a key on the drawing.</span>
+              </div>
+            </div>
+            <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:16px;min-height:0">
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;justify-content:space-between;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>Round 2 of 3</span><span>Key 34 of 84</span></div>
+                <div style="height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:47%;background:var(--ink)"></div></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Elapsed 04:14</span><span>2 injected, not counted</span></div>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);flex:1;min-height:0;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)">
+                  <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Live events</span>
+                  <span style="font-size:11px;color:var(--text-meta)">In memory only</span>
+                </div>
+                <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:6px 16px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);border-bottom:1px solid var(--line)"><span>Key</span><span>Edge</span><span style="text-align:right">T, ms</span><span>Device</span></div>
+                <div style="overflow:hidden;flex:1;min-height:0">
+                  <sc-for list="{{ evInj }}" as="e" hint-placeholder-count="8">
+                    <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 16px;font-size:12px;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line);color:{{ e.rowColor }}"><span style="font-weight:500">{{ e.key }}</span><span style="color:{{ e.edgeColor }}">{{ e.edge }}</span><span style="text-align:right">{{ e.t }}</span><span style="color:{{ e.srcColor }};font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.src }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="90px,36px">Pause</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="120px,36px">Skip this key</x-import>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Capture stops when the window loses focus.</div>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="100px,36px">End test</x-import>
+          </div>
+        </div>
+
+        <!-- 03 FINDINGS -->
+        <div data-screen-label="03 Findings" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>01 Keyboard</span><span>//</span><span>02 Test</span><span>//</span><span style="color:var(--text-primary)">03 Findings</span></div>
+            <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Keychron K2 · 3434:0220</span><span>75% ANSI</span><span>Hot-swap</span><span>Capture off</span></div>
+          </div>
+          <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:20px;padding:20px">
+            <div style="display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Findings · 2</span>
+                <span style="font-size:12px;color:var(--text-meta)">Ordered by confidence</span>
+              </div>
+              <sc-for list="{{ findings }}" as="f" hint-placeholder-count="2">
+                <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px;flex:none">
+                  <div style="display:flex;align-items:flex-start;gap:12px">
+                    <div style="width:40px;height:40px;flex:none;border:1px solid var(--directive-red);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:18px;font-weight:600;color:var(--directive-red);position:relative"><span style="position:absolute;right:3px;top:2px;font-size:9px;letter-spacing:0.06em">{{ f.num }}</span>{{ f.key }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:16px;font-weight:600;line-height:1.25">{{ f.title }}</div>
+                      <div style="margin-top:6px"><x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="{{ f.tone }}" dot="{{ false }}" hint-size="120px,20px">{{ f.conf }}</x-import></div>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Evidence</div>
+                    <sc-for list="{{ f.evidence }}" as="ev" hint-placeholder-count="3"><div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>{{ ev }}</span></div></sc-for>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ f.histTitle }}</div>
+                    <div style="display:flex;gap:4px;align-items:flex-end;height:40px;border-bottom:1px solid var(--line-strong)">
+                      <sc-for list="{{ f.bars }}" as="b" hint-placeholder-count="6"><div style="flex:1;height:{{ b.pct }}%;background:var(--graphite);min-height:1px"></div></sc-for>
+                    </div>
+                    <div style="display:flex;gap:4px;font-size:10px;color:var(--text-meta);font-variant-numeric:tabular-nums">
+                      <sc-for list="{{ f.bars }}" as="b" hint-placeholder-count="6"><div style="flex:1;display:flex;justify-content:space-between"><span>{{ b.l }}</span><span>{{ b.n }}</span></div></sc-for>
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Other possible causes</div>
+                    <sc-for list="{{ f.causes }}" as="c" hint-placeholder-count="3"><div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta);font-variant-numeric:tabular-nums">{{ c.n }}</span><span>{{ c.text }}</span></div></sc-for>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+                    <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">Next test</div>
+                    <div style="font-size:13px;text-wrap:pretty">{{ f.next }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0">
+              <div style="display:flex;gap:28px;padding:12px 16px;border:1px solid var(--line);background:var(--surface-card);font-size:12px;flex-wrap:wrap">
+                <sc-for list="{{ summary }}" as="s" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ s.k }}</span><span style="font-variant-numeric:tabular-nums">{{ s.v }}</span></div></sc-for>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:16 / 6.25;flex:none">
+                <sc-for list="{{ kbFind }}" as="k" hint-placeholder-count="0">
+                  <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                    <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                      <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                      <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                      <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--directive-red)"></span>Flagged, numbered by finding</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Tested, no finding</span>
+                <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">Counts are presses registered over three rounds.</span>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:12px 16px;font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Limits</div>
+                <div>The test sees what the firmware reports after its own debounce. Timing resolution for this keyboard is 1 ms. A finding describes evidence and likelihood, not a verdict on a part.</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="90px,36px">New test</x-import>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Reports hold per-key counts and timings only.</div>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="120px,36px">Export report</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" hint-size="150px,36px">Run the swap test</x-import>
+          </div>
+        </div>
+
+        <!-- 03 FINDINGS · CLEAN -->
+        <div data-screen-label="03 Findings clean" style="width:{{ v.w }}px;height:{{ v.h }}px;flex:none;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45">
+          <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+            <img src="{{ v.lockup }}" alt="keytriage" style="height:22px;display:block">
+            <div style="display:flex;gap:14px;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>01 Keyboard</span><span>//</span><span>02 Test</span><span>//</span><span style="color:var(--text-primary)">03 Findings</span></div>
+            <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>Keychron K2 · 3434:0220</span><span>75% ANSI</span><span>Hot-swap</span><span>Capture off</span></div>
+          </div>
+          <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:20px;padding:20px">
+            <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Findings · 0</span>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:flex-start;gap:12px">
+                  <div style="width:40px;height:40px;flex:none;border:1px solid var(--authorized);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:18px;font-weight:600;color:var(--authorized)">—</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:16px;font-weight:600;line-height:1.25">No faults found in this test.</div>
+                    <div style="margin-top:6px"><x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="authorized" hint-size="80px,20px">Clean</x-import></div>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Evidence</div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>84 keys, 10 presses in each of 3 rounds</span></div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>Every prompted press produced one key-down and one key-up</span></div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>No extra transition within 20 ms of a release</span></div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>No key stayed down after its release was expected</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">What this does not rule out</div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">01</span><span>Faults that appear only after warm-up or under sustained use</span></div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">02</span><span>Chatter shorter than the firmware's own debounce window</span></div>
+                  <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">03</span><span>Rollover limits, which are a design property and not tested here</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+                  <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">Next test</div>
+                  <div style="font-size:13px;text-wrap:pretty">If the fault is intermittent, run the test again while it is happening. Type for ten minutes first, then test with 5 rounds.</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0">
+              <div style="display:flex;gap:28px;padding:12px 16px;border:1px solid var(--line);background:var(--surface-card);font-size:12px;flex-wrap:wrap">
+                <sc-for list="{{ summary }}" as="s" hint-placeholder-count="5"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ s.k }}</span><span style="font-variant-numeric:tabular-nums">{{ s.v }}</span></div></sc-for>
+              </div>
+              <div style="position:relative;width:100%;aspect-ratio:16 / 6.25;flex:none">
+                <sc-for list="{{ kbClean }}" as="k" hint-placeholder-count="0">
+                  <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                    <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                      <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                      <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                      <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Tested, no finding</span>
+                <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">Counts are presses registered over three rounds.</span>
+              </div>
+              <div style="border:1px solid var(--line);background:var(--surface-card);padding:12px 16px;font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Limits</div>
+                <div>The test sees what the firmware reports after its own debounce. Timing resolution for this keyboard is 1 ms. A clean result describes this test, not the keyboard for all time.</div>
+              </div>
+            </div>
+          </div>
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="90px,36px">New test</x-import>
+            <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Reports hold per-key counts and timings only.</div>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="120px,36px">Export report</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" hint-size="110px,36px">Test again</x-import>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </sc-for>
+
+  <!-- SPEC -->
+  <div data-theme="light" style="background:var(--paper);padding:32px;border:1px solid var(--line-strong);display:flex;flex-direction:column;gap:20px;max-width:1280px;font-size:14px;line-height:1.5;color:var(--text-primary)">
+    <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Specification</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px;align-items:start">
+
+      <x-import component-from-global-scope="Directive01DesignSystem_03c333.Panel" kicker="01 // Color tokens" hint-size="100%,400px">
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 16px;font-size:12px;align-items:center">
+          <span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Token</span><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Light</span><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Dark</span>
+          <sc-for list="{{ colorTokens }}" as="c" hint-placeholder-count="13">
+            <div><div style="font-variant-numeric:tabular-nums">{{ c.t }}</div><div style="color:var(--text-meta);font-size:11px">{{ c.u }}</div></div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border:1px solid var(--line-strong);background:{{ c.l }}"></span><span style="font-variant-numeric:tabular-nums">{{ c.l }}</span></div>
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border:1px solid var(--line-strong);background:{{ c.d }}"></span><span style="font-variant-numeric:tabular-nums">{{ c.d }}</span></div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:14px;text-wrap:pretty">Flat surfaces only. No gradients, shadows or transparency. Red belongs to the brand key, the slashes and flagged keys. Amber marks a state that needs the user's attention but is not a fault: paused, interrupted, injected. Green appears once, on a clean result.</div>
+      </x-import>
+
+      <x-import component-from-global-scope="Directive01DesignSystem_03c333.Panel" kicker="02 // Type" hint-size="100%,400px">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ typeRows }}" as="t" hint-placeholder-count="8">
+            <div style="display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:16px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px">
+              <div style="font-family:{{ t.fam }};font-size:{{ t.size }}px;font-weight:{{ t.w }};letter-spacing:{{ t.ls }};text-transform:{{ t.tt }};color:{{ t.color }};line-height:1.25;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.sample }}</div>
+              <div style="font-size:11px;color:var(--text-meta)"><div style="color:var(--text-primary);font-weight:500">{{ t.n }}</div>{{ t.s }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:14px;text-wrap:pretty">UI font: Public Sans (SIL OFL), bundled as WOFF2 in 400, 500 and 600. Labels, buttons and the prompt count use Barlow Semi Condensed 600 (SIL OFL), the wordmark's family, also bundled. Counts, times and IDs use tabular numerals. Nothing under 11 px. The wordmark ships only as the SVG.</div>
+      </x-import>
+
+      <x-import component-from-global-scope="Directive01DesignSystem_03c333.Panel" kicker="03 // Spacing and layout" hint-size="100%,260px">
+        <div style="display:flex;align-items:flex-end;gap:12px">
+          <sc-for list="{{ spaces }}" as="s" hint-placeholder-count="9"><div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:{{ s }}px;height:{{ s }}px;background:var(--ink)"></div><span style="font-size:11px;color:var(--text-meta);font-variant-numeric:tabular-nums">{{ s }}</span></div></sc-for>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:14px;display:flex;flex-direction:column;gap:6px;text-wrap:pretty">
+          <div>Scale in px: 2, 4, 8, 12, 16, 20, 24, 32, 40. Window padding 20; panel padding 16; row padding 10 × 14; list gap 12.</div>
+          <div>Shell: header 48, footer 56, content fills the rest. Test screen: event column fixed at 300, keyboard column fluid. Findings: list column 440, keyboard column fluid.</div>
+          <div>Keyboard drawing: 1 unit = column width ÷ 16 (75%). Keys are positioned in units, 2 px gutter, radius 2. It scales from 1024 × 700 up without a scrollbar.</div>
+          <div>Rules and borders are 1 px. Radius is 0 to 2 px. No shadows.</div>
+        </div>
+      </x-import>
+
+      <x-import component-from-global-scope="Directive01DesignSystem_03c333.Panel" kicker="04 // Component states" hint-size="100%,520px">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Key</div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <sc-for list="{{ keyStates }}" as="k" hint-placeholder-count="5">
+                <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+                  <div style="position:relative;width:54px;height:54px;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                    <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                    <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums">{{ k.count }}</span>
+                    <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                  </div>
+                  <span style="font-size:11px;color:var(--text-meta)">{{ k.name }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);text-wrap:pretty">Keys are drawings, not controls. No hover, no focus, no click. Prompted = ink border with a 1 px auburn frame 2 px outside, the brand's jaws. Flagged keys carry the finding number.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Buttons</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" hint-size="100px,36px">Primary</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" hint-size="100px,36px">Secondary</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" hint-size="100px,36px">Ghost</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" disabled="{{ true }}" hint-size="100px,36px">Disabled</x-import>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);text-wrap:pretty">Hover: primary lightens to ink-soft, others fill with the inset paper. Press: same as hover, no movement. Disabled: 45% opacity. Focus: 2 px auburn outline, 2 px offset. One primary per screen. No red buttons: nothing in this app is destructive.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Confidence</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="neutral" dot="{{ false }}" hint-size="90px,20px">Low confidence</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="neutral" dot="{{ false }}" hint-size="90px,20px">Medium confidence</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="ink" dot="{{ false }}" hint-size="90px,20px">High confidence</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="ink" dot="{{ false }}" hint-size="90px,20px">Very high confidence</x-import>
+              <x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="authorized" hint-size="60px,20px">Clean</x-import>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary)">Always a word, never a number alone. High and Very high fill with ink; Low and Medium stay outlined.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Notices and event sources</div>
+            <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 12px;font-size:12px;font-variant-numeric:tabular-nums;border:1px solid var(--line);background:var(--surface-card)"><span style="font-weight:500">E</span><span style="color:var(--text-secondary)">down</span><span style="text-align:right">128 402.4</span><span style="font-size:11px;color:var(--text-meta)">3434:0220</span></div>
+            <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 12px;font-size:12px;font-variant-numeric:tabular-nums;border:1px solid var(--line);background:var(--surface-card);color:var(--amber)"><span style="font-weight:500">E</span><span>down</span><span style="text-align:right">129 210.0</span><span style="font-size:11px">injected</span></div>
+            <div style="font-size:12px;color:var(--text-secondary);text-wrap:pretty">Notices use one tone each: attention (amber rule) for paused, neutral for injected input, approved (green rule) for a clean result. Each states what happened, what the app did, and what the user can do, in that order. Motion: 160 ms fades, cubic-bezier(0.4, 0, 0.2, 1). Pause and resume switch instantly.</div>
+          </div>
+        </div>
+      </x-import>
+
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const ROWS = [
+      [0, [['Esc'],['F1'],['F2'],['F3'],['F4'],['F5'],['F6'],['F7'],['F8'],['F9'],['F10'],['F11'],['F12'],['PrtSc'],['Del']]],
+      [1.25, [['`'],['1'],['2'],['3'],['4'],['5'],['6'],['7'],['8'],['9'],['0'],['-'],['='],['Backspace',2],['Home']]],
+      [2.25, [['Tab',1.5],['Q'],['W'],['E'],['R'],['T'],['Y'],['U'],['I'],['O'],['P'],['['],[']'],['\\',1.5],['PgUp']]],
+      [3.25, [['Caps',1.75],['A'],['S'],['D'],['F'],['G'],['H'],['J'],['K'],['L'],[';'],["'"],['Enter',2.25],['PgDn']]],
+      [4.25, [['Shift',2.25,'LShift'],['Z'],['X'],['C'],['V'],['B'],['N'],['M'],[','],['.'],['/'],['Shift',1.75,'RShift'],['↑'],['End']]],
+      [5.25, [['Ctrl',1.25,'LCtrl'],['Win',1.25],['Alt',1.25,'LAlt'],['',6.25,'Space'],['Alt',1,'RAlt'],['Fn'],['Ctrl',1,'RCtrl'],['←'],['↓'],['→']]],
+    ];
+    const RED = 'var(--directive-red)', AMBER = 'var(--amber)';
+    const styleFor = (state, tag) => {
+      const s = { border: '1px solid var(--line-strong)', bg: 'var(--surface-raised)', color: 'var(--text-secondary)', outline: 'none', tag: '', tagColor: 'transparent' };
+      if (state === 'counted') s.bg = 'var(--surface-inset)';
+      if (state === 'prompted') Object.assign(s, { border: '1px solid var(--ink)', outline: '1px solid var(--auburn)', color: 'var(--text-primary)', bg: 'var(--surface-card)' });
+      if (state === 'interrupted') Object.assign(s, { border: '1px dashed ' + AMBER, tag: '○', tagColor: AMBER, color: AMBER });
+      if (state === 'flagged') Object.assign(s, { border: '1px solid ' + RED, color: RED, tag: tag, tagColor: RED, bg: 'var(--surface-card)' });
+      return s;
+    };
+    const buildKb = (o) => {
+      const out = []; let idx = 0;
+      ROWS.forEach(([y, keys]) => {
+        let x = 0;
+        keys.forEach(([label, w = 1, id]) => {
+          id = id || label;
+          let state = 'idle', count = '';
+          if (o.mode === 'run') { if (idx < 33) { state = 'counted'; count = '20'; } else if (idx === 33) { state = 'prompted'; count = '14'; } else count = '10'; }
+          if (o.mode === 'done') { state = 'counted'; count = '30'; }
+          if (o.interrupted && o.interrupted.includes(id)) state = 'interrupted';
+          if (o.flagged && o.flagged[id]) { state = 'flagged'; count = o.flagged[id].count; }
+          out.push({ label, count, l: x / 16 * 100, t: y / 6.25 * 100, w: w / 16 * 100, h: 1 / 6.25 * 100, ...styleFor(state, o.flagged && o.flagged[id] && o.flagged[id].num) });
+          x += w; idx++;
+        });
+      });
+      return out;
+    };
+    const K2 = '3434:0220', META = 'var(--text-meta)', INH = 'inherit';
+    const ev = (key, edge, t, src, opts = {}) => ({ key, edge, t, src, srcColor: opts.inj ? AMBER : META, edgeColor: opts.sys ? AMBER : 'var(--text-secondary)', rowColor: opts.inj || opts.sys ? AMBER : INH });
+    const evRun = [ev('E','down','128 466.3',K2), ev('E','up','128 461.9',K2), ev('E','down','128 402.4',K2), ev('E','up','127 911.0',K2), ev('E','down','127 848.2',K2), ev('E','up','127 402.6',K2), ev('E','down','127 341.9',K2), ev('E','up','126 880.4',K2), ev('E','down','126 812.7',K2), ev('W','up','118 233.7',K2), ev('W','down','118 171.5',K2), ev('W','up','117 690.8',K2), ev('W','down','117 630.2',K2)];
+    const evPaused = [ev('—','focus lost','18:42:07','window',{sys:true}), ev('Tab','down','131 004.8',K2), ev('Alt','down','130 962.1',K2), ev('E','up','128 461.9',K2), ev('E','down','128 402.4',K2), ev('E','up','127 911.0',K2), ev('E','down','127 848.2',K2), ev('E','up','127 402.6',K2), ev('E','down','127 341.9',K2), ev('E','up','126 880.4',K2), ev('E','down','126 812.7',K2), ev('W','up','118 233.7',K2)];
+    const evInj = [ev('E','up','129 262.0','injected',{inj:true}), ev('E','down','129 210.0','injected',{inj:true}), ev('E','up','128 470.1',K2), ev('E','down','128 466.3',K2), ev('E','up','128 461.9',K2), ev('E','down','128 402.4',K2), ev('E','up','127 911.0',K2), ev('E','down','127 848.2',K2), ev('E','up','127 402.6',K2), ev('E','down','127 341.9',K2), ev('E','up','126 880.4',K2), ev('E','down','126 812.7',K2), ev('W','up','118 233.7',K2)];
+    const mkBars = (bars) => { const m = Math.max(...bars.map(b => b.n)); return bars.map(b => ({ ...b, pct: m ? Math.round(b.n / m * 100) : 0 })); };
+    const num = (arr) => arr.map((text, i) => ({ n: '0' + (i + 1), text }));
+    const findings = [
+      { num: '01', key: 'E', title: 'Possible chatter', conf: 'High confidence', tone: 'ink',
+        evidence: ['14 of 30 presses sent an extra key-down 4 to 9 ms after release', 'Reproduced in 3 of 3 rounds', 'No neighbouring key affected'],
+        histTitle: 'Interval to the extra key-down, ms', bars: mkBars([{l:'0–2',n:0},{l:'2–4',n:1},{l:'4–6',n:6},{l:'6–8',n:5},{l:'8–10',n:2},{l:'10+',n:0}]),
+        causes: num(['Switch contacts', 'Hot-swap socket or solder joint', 'Firmware debounce']),
+        next: 'Swap the E switch with the G switch and test both keys again. If the fault moves to G, the switch is the cause. If it stays on E, look at the socket or the PCB.' },
+      { num: '02', key: 'K', title: 'Possible dropped presses', conf: 'Medium confidence', tone: 'neutral',
+        evidence: ['3 of 30 prompted presses produced no event', 'Seen in 1 of 3 rounds', 'Every registered press had a normal duration'],
+        histTitle: 'Registered presses per round', bars: mkBars([{l:'R1',n:10},{l:'R2',n:7},{l:'R3',n:10}]),
+        causes: num(['Switch actuation', 'Socket contact', 'Presses that did not reach the actuation point']),
+        next: 'Repeat K for 30 firm presses in one round. If every press registers, the earlier round was light presses. If presses still drop, run the swap test with the L switch.' },
+    ];
+    const devices = [
+      { name: 'Keychron K2', id: K2, meta: 'USB · 3 entries, one device', pad: 14, rule: 'var(--auburn)', bg: 'var(--surface-inset)', color: 'var(--text-primary)' },
+      { name: 'Keychron K2, consumer control', id: K2, meta: 'Same device, media keys', pad: 28, rule: 'transparent', bg: 'transparent', color: 'var(--text-secondary)' },
+      { name: 'Keychron K2, system control', id: K2, meta: 'Same device, power keys', pad: 28, rule: 'transparent', bg: 'transparent', color: 'var(--text-secondary)' },
+      { name: 'HID Keyboard Device', id: '046D:C52B', meta: 'USB receiver · 2 entries', pad: 14, rule: 'transparent', bg: 'transparent', color: 'var(--text-primary)' },
+      { name: 'Standard PS/2 Keyboard', id: '—', meta: 'Built in', pad: 14, rule: 'transparent', bg: 'transparent', color: 'var(--text-primary)' },
+    ];
+    const sizes = [['Full size', 104, 100], ['Tenkeyless', 87, 80], ['75%', 84, 71], ['65%', 68, 66], ['60%', 61, 62]].map(([name, keys, pct], i) => ({ name, keys, pct, rule: i === 2 ? 'var(--auburn)' : 'transparent', bg: i === 2 ? 'var(--surface-inset)' : 'transparent' }));
+    const summary = [{ k: 'Keyboard', v: 'Keychron K2 · ' + K2 }, { k: 'Layout', v: '75% ANSI' }, { k: 'Board', v: 'Hot-swap' }, { k: 'Rounds', v: '3 × 10 presses' }, { k: 'Started', v: '2026.09.24 18:41' }, { k: 'Duration', v: '06:12' }];
+    const colorTokens = [
+      ['--kt-paper', '#f2ede2', '#191712', 'Window background'], ['--kt-card', '#f8f5ec', '#1f1c16', 'Panels, cards, prompt'], ['--kt-raised', '#fbf9f3', '#26221a', 'Key caps'],
+      ['--kt-inset', '#ece5d5', '#15130f', 'Selected rows, counted keys, hover'], ['--kt-line', '#d3cab6', '#3a352a', 'Hairline rules'], ['--kt-line-strong', '#b3a88f', '#57503f', 'Key outlines, badges'],
+      ['--kt-ink', '#1b1812', '#e8e1d2', 'Text, primary button, prompted key'], ['--kt-graphite', '#57503f', '#a89d85', 'Secondary text, histogram bars'], ['--kt-meta', '#7d7460', '#8a8271', 'Labels, timestamps'],
+      ['--kt-accent', '#9e2b2b', '#b5383a', 'Brand key, slashes, flagged keys'], ['--kt-auburn', '#7e4a33', '#c98d63', 'Focus outline, prompted frame, selection rule'], ['--kt-amber', '#a17b22', '#c09a3e', 'Paused, interrupted, injected'], ['--kt-clean', '#4d6b50', '#6f8a6f', 'Clean result'],
+    ].map(([t, l, d, u]) => ({ t, l, d, u }));
+    const OFF = 'var(--font-official)', DIR = 'var(--font-directive)';
+    const typeRows = [
+      { n: 'Prompt count', s: 'Barlow Semi Condensed 600 · 32 · tabular', fam: DIR, size: 32, w: 600, ls: '0', tt: 'none', color: 'var(--text-primary)', sample: '4 / 10' },
+      { n: 'Prompt', s: 'Public Sans 600 · 18 / 1.25', fam: OFF, size: 18, w: 600, ls: '0', tt: 'none', color: 'var(--text-primary)', sample: 'Press E ten times.' },
+      { n: 'Card title', s: 'Public Sans 600 · 16 / 1.25', fam: OFF, size: 16, w: 600, ls: '0', tt: 'none', color: 'var(--text-primary)', sample: 'Possible chatter' },
+      { n: 'Body', s: 'Public Sans 400 · 14 / 1.45', fam: OFF, size: 14, w: 400, ls: '0', tt: 'none', color: 'var(--text-primary)', sample: 'Swap the E switch with the G switch and test both keys again.' },
+      { n: 'Secondary', s: 'Public Sans 400 · 13 / 1.45', fam: OFF, size: 13, w: 400, ls: '0', tt: 'none', color: 'var(--text-primary)', sample: 'Reproduced in 3 of 3 rounds' },
+      { n: 'Meta', s: 'Public Sans 400 · 12 · tabular', fam: OFF, size: 12, w: 400, ls: '0', tt: 'none', color: META, sample: '2026.09.24 18:42 · 3434:0220' },
+      { n: 'Label, button', s: 'Barlow Semi Condensed 600 · 12 · uppercase · 0.08em', fam: DIR, size: 12, w: 600, ls: '0.08em', tt: 'uppercase', color: META, sample: '02 // Test' },
+      { n: 'Key cap', s: 'Public Sans 500 · 11', fam: OFF, size: 11, w: 500, ls: '0', tt: 'none', color: 'var(--text-secondary)', sample: 'Backspace' },
+    ];
+    const keyStates = [
+      { label: 'Q', count: '', name: 'Waiting', ...styleFor('idle') }, { label: 'W', count: '20', name: 'Counted', ...styleFor('counted') }, { label: 'E', count: '14', name: 'Prompted', ...styleFor('prompted') },
+      { label: 'Alt', count: '10', name: 'Interrupted', ...styleFor('interrupted') }, { label: 'E', count: '44', name: 'Flagged', ...styleFor('flagged', '01') },
+    ];
+    return {
+      variants: [
+        { theme: 'light', w: 1280, h: 800, label: 'Light // 1280 × 800', lockup: 'docs/brand/lockup.svg' },
+        { theme: 'dark', w: 1280, h: 800, label: 'Dark // 1280 × 800', lockup: 'docs/brand/lockup-dark.svg' },
+        { theme: 'light', w: 1024, h: 700, label: 'Light // 1024 × 700, minimum window', lockup: 'docs/brand/lockup.svg' },
+      ],
+      kbRun: buildKb({ mode: 'run' }), kbPaused: buildKb({ mode: 'run', interrupted: ['LAlt', 'Tab'] }),
+      kbFind: buildKb({ mode: 'done', flagged: { E: { num: '01', count: '44' }, K: { num: '02', count: '27' } } }), kbClean: buildKb({ mode: 'done' }),
+      evRun, evPaused, evInj, findings, devices, sizes, summary, colorTokens, typeRows, keyStates, spaces: [2, 4, 8, 12, 16, 20, 24, 32, 40],
+    };
+  }
+}
+</script>
+</body>
+</html>

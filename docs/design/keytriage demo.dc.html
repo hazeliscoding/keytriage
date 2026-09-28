@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/fonts.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/colors.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/typography.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/spacing.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/borders.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/motion.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/tokens/base.css">
+  <link rel="stylesheet" href="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/styles.css">
+  <script src="_ds/directive-01-design-system-03c333c1-d956-434f-8b7e-dbd8a8ac9925/_ds_bundle.js"></script>
+  <style>
+    body{margin:0;background:#e6dfd0}
+    [data-theme="dark"]{--directive-red:#b5383a;--controlled:#b5383a;--ink:#e8e1d2;--text-inverse:#1b1812}
+    a{color:var(--auburn)} a:hover{color:var(--wine)}
+  </style>
+</helmet>
+
+<div style="padding:24px;display:flex;flex-direction:column;gap:16px;align-items:center;font-family:var(--font-official)">
+
+  <div data-theme="{{ theme }}" onClick="{{ appClick }}" style="width:100%;max-width:1280px;height:800px;background:var(--surface-page);border:1px solid var(--line-strong);display:flex;flex-direction:column;overflow:hidden;font-size:14px;line-height:1.45;color:var(--text-primary);box-sizing:border-box">
+
+    <div style="height:48px;flex:none;display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:1px solid var(--line)">
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}"><img src="docs/brand/lockup.svg" alt="keytriage" style="height:22px;display:block"></sc-if>
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}"><img src="docs/brand/lockup-dark.svg" alt="keytriage" style="height:22px;display:block"></sc-if>
+      <div style="display:flex;gap:14px;white-space:nowrap;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span style="color:{{ c1 }}">01 Keyboard</span><span>//</span><span style="color:{{ c2 }}">02 Test</span><span>//</span><span style="color:{{ c3 }}">03 Findings</span></div>
+      <div style="margin-left:auto;display:flex;gap:16px;align-items:center;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:0">
+        <span style="overflow:hidden;text-overflow:ellipsis">{{ ctxText }}</span>
+        <span style="color:{{ captureColor }}">{{ captureText }}</span>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" size="sm" onClick="{{ toggleTheme }}" hint-size="60px,28px">{{ themeLabel }}</x-import>
+      </div>
+    </div>
+
+    <!-- START -->
+    <sc-if value="{{ isStart }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1fr);gap:20px;padding:20px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">01 // Keyboard</div>
+          <div style="font-size:16px;font-weight:600">Pick the keyboard to test.</div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+            <sc-for list="{{ devices }}" as="d" hint-placeholder-count="5">
+              <div onClick="{{ d.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:10px 14px 10px {{ d.pad }}px;border-bottom:1px solid var(--line);border-left:3px solid {{ d.rule }};background:{{ d.bg }}" style-hover="background:var(--surface-inset)">
+                <div style="font-weight:500;color:{{ d.color }}">{{ d.name }}</div>
+                <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;text-align:right">{{ d.id }}</div>
+                <div style="font-size:12px;color:var(--text-meta);grid-column:1 / -1">{{ d.meta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px;color:var(--text-meta)">One keyboard can appear as several entries. Any of them will do. Events are attributed by device.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">02 // Layout</div>
+          <div style="font-size:16px;font-weight:600">Pick the layout that matches it.</div>
+          <div style="display:flex;gap:8px">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ ansiVariant }}" size="sm" onClick="{{ setAnsi }}" hint-size="64px,28px">ANSI</x-import>
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ isoVariant }}" size="sm" onClick="{{ setIso }}" hint-size="64px,28px">ISO</x-import>
+          </div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+            <sc-for list="{{ sizes }}" as="s" hint-placeholder-count="5">
+              <div onClick="{{ s.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:8px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ s.rule }};background:{{ s.bg }}" style-hover="background:var(--surface-inset)">
+                <div style="font-weight:500">{{ s.name }}</div>
+                <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;white-space:nowrap">{{ s.keys }} keys</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
+            <sc-for list="{{ kbPreview }}" as="k" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:1px;box-sizing:border-box"><div style="width:100%;height:100%;box-sizing:border-box;border:1px solid var(--line-strong);background:var(--surface-raised);border-radius:1px"></div></div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px;color:var(--text-meta)">Keys are tested by physical position. The layout only decides what is drawn.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">03 // Board</div>
+          <div style="font-size:16px;font-weight:600">Say what kind of board it is.</div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
+            <sc-for list="{{ boards }}" as="b" hint-placeholder-count="3">
+              <div style="padding:12px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ b.rule }};background:{{ b.bg }};display:flex;flex-direction:column;gap:4px">
+                <x-import component-from-global-scope="Directive01DesignSystem_03c333.Radio" name="board" value="{{ b.id }}" label="{{ b.name }}" checked="{{ b.checked }}" onChange="{{ setBoard }}" hint-size="auto,22px"></x-import>
+                <div style="font-size:12px;color:var(--text-meta);padding-left:25px">{{ b.desc }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font-size:12px;color:var(--text-meta)">This decides which next test the findings recommend.</div>
+        </div>
+      </div>
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;border-top:1px solid var(--line)">
+        <div style="font-size:12px;color:var(--text-meta)">Keys are read only while a test runs and this window is focused. Nothing is written to disk until you export a report.</div>
+        <div style="margin-left:auto;flex:none">
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ begin }}" hint-size="120px,36px">Begin test</x-import>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TEST -->
+    <sc-if value="{{ isTest }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:flex;gap:20px;padding:20px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+          <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Notice" tone="attention" label="{{ pauseLabel }}" hint-size="100%,72px">{{ pauseText }}</x-import>
+          </sc-if>
+          <sc-if value="{{ showInjected }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Notice" tone="neutral" label="INJECTED INPUT" hint-size="100%,72px">{{ injectedText }}</x-import>
+          </sc-if>
+          <div style="display:flex;align-items:center;gap:20px;padding:14px 20px;border:1px solid {{ promptBorder }};background:var(--surface-card);color:{{ promptColor }}">
+            <div style="width:52px;height:52px;flex:none;border:1px solid {{ promptBorder }};outline:{{ promptOutline }};outline-offset:2px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:24px;font-weight:600">{{ promptKey }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:18px;font-weight:600;line-height:1.25">Press {{ promptKey }} ten times.</div>
+              <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">{{ promptSub }}</div>
+            </div>
+            <div style="font-family:var(--font-directive);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;flex:none;white-space:nowrap">{{ promptCount }} <span style="color:var(--text-meta)">/ 10</span></div>
+          </div>
+          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
+            <sc-for list="{{ kb }}" as="k" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                  <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                  <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                  <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:1px"></span>Prompted</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--ink);background:var(--bureau)"></span>Down</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Counted</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px dashed var(--amber)"></span>Interrupted</span>
+            <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">The key area holds no controls and binds no keys.</span>
+          </div>
+        </div>
+        <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:16px;min-height:0">
+          <div style="border:1px solid var(--line);background:var(--surface-card);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)"><span>{{ roundText }}</span><span>{{ keyText }}</span></div>
+            <div style="height:2px;background:var(--line);position:relative"><div style="position:absolute;left:0;top:0;bottom:0;width:{{ progressPct }}%;background:{{ progressColor }}"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums"><span>{{ elapsedText }}</span><span>{{ pressesText }}</span></div>
+          </div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);flex:1;min-height:0;display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)">
+              <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Live events</span>
+              <span style="font-size:11px;color:var(--text-meta)">In memory only</span>
+            </div>
+            <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:6px 16px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);border-bottom:1px solid var(--line)"><span>Key</span><span>Edge</span><span style="text-align:right">T, ms</span><span>Device</span></div>
+            <div style="overflow:hidden;flex:1;min-height:0">
+              <sc-for list="{{ events }}" as="e" hint-placeholder-count="0">
+                <div style="display:grid;grid-template-columns:44px 44px 1fr 84px;gap:0 8px;padding:5px 16px;font-size:12px;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line);color:{{ e.rowColor }}"><span style="font-weight:500">{{ e.label }}</span><span style="color:{{ e.edgeColor }}">{{ e.edge }}</span><span style="text-align:right">{{ e.t }}</span><span style="color:{{ e.srcColor }};font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.src }}</span></div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+        <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ resumeUser }}" hint-size="100px,36px">Continue</x-import>
+        </sc-if>
+        <sc-if value="{{ notPaused }}" hint-placeholder-val="{{ true }}">
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" onClick="{{ pauseUser }}" hint-size="90px,36px">Pause</x-import>
+        </sc-if>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" onClick="{{ skipKey }}" hint-size="120px,36px">Skip this key</x-import>
+        <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">{{ footerNote }}</div>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" onClick="{{ endTest }}" hint-size="100px,36px">End test</x-import>
+      </div>
+    </sc-if>
+
+    <!-- FINDINGS -->
+    <sc-if value="{{ isFindings }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:20px;padding:20px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <span style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Findings · {{ findingCount }}</span>
+            <span style="font-size:12px;color:var(--text-meta)">{{ findingsSub }}</span>
+          </div>
+          <sc-if value="{{ isClean }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px;flex:none">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="width:40px;height:40px;flex:none;border:1px solid var(--authorized);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:18px;font-weight:600;color:var(--authorized)">—</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:16px;font-weight:600;line-height:1.25">No faults found in this test.</div>
+                  <div style="margin-top:6px"><x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="authorized" hint-size="80px,20px">Clean</x-import></div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Evidence</div>
+                <sc-for list="{{ cleanEvidence }}" as="ev" hint-placeholder-count="3"><div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>{{ ev }}</span></div></sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">What this does not rule out</div>
+                <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">01</span><span>Faults that appear only after warm-up or under sustained use</span></div>
+                <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">02</span><span>Chatter shorter than the firmware's own debounce window</span></div>
+                <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">03</span><span>Keys outside this test's set</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">Next test</div>
+                <div style="font-size:13px;text-wrap:pretty">If the fault is intermittent, run the test again while it is happening. Type for ten minutes first, then test with 5 rounds.</div>
+              </div>
+            </div>
+          </sc-if>
+          <sc-for list="{{ findings }}" as="f" hint-placeholder-count="0">
+            <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px;flex:none">
+              <div style="display:flex;align-items:flex-start;gap:12px">
+                <div style="width:40px;height:40px;flex:none;border:1px solid var(--directive-red);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:18px;font-weight:600;color:var(--directive-red);position:relative"><span style="position:absolute;right:3px;top:2px;font-size:9px;letter-spacing:0.06em">{{ f.num }}</span>{{ f.label }}</div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:16px;font-weight:600;line-height:1.25">{{ f.title }}</div>
+                  <div style="margin-top:6px"><x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="{{ f.tone }}" dot="{{ false }}" hint-size="120px,20px">{{ f.conf }} confidence</x-import></div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Evidence</div>
+                <sc-for list="{{ f.evidence }}" as="ev" hint-placeholder-count="3"><div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>{{ ev }}</span></div></sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ f.histTitle }}</div>
+                <div style="display:flex;gap:4px;align-items:flex-end;height:40px;border-bottom:1px solid var(--line-strong)">
+                  <sc-for list="{{ f.bars }}" as="b" hint-placeholder-count="0"><div style="flex:1;height:{{ b.pct }}%;background:var(--graphite);min-height:1px"></div></sc-for>
+                </div>
+                <div style="display:flex;gap:4px;font-size:10px;color:var(--text-meta);font-variant-numeric:tabular-nums">
+                  <sc-for list="{{ f.bars }}" as="b" hint-placeholder-count="0"><div style="flex:1;display:flex;justify-content:space-between"><span>{{ b.l }}</span><span>{{ b.n }}</span></div></sc-for>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Other possible causes</div>
+                <sc-for list="{{ f.causes }}" as="c" hint-placeholder-count="0"><div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta);font-variant-numeric:tabular-nums">{{ c.n }}</span><span>{{ c.text }}</span></div></sc-for>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+                <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">Next test</div>
+                <div style="font-size:13px;text-wrap:pretty">{{ f.next }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0">
+          <div style="display:flex;gap:28px;padding:12px 16px;border:1px solid var(--line);background:var(--surface-card);font-size:12px;flex-wrap:wrap">
+            <sc-for list="{{ summary }}" as="s" hint-placeholder-count="0"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ s.k }}</span><span style="font-variant-numeric:tabular-nums">{{ s.v }}</span></div></sc-for>
+          </div>
+          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
+            <sc-for list="{{ kb }}" as="k" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                  <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                  <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                  <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--directive-red)"></span>Flagged, numbered by finding</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Tested, no finding</span>
+            <span style="margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--font-official);font-weight:400;font-size:12px">Counts are key-downs registered over all rounds.</span>
+          </div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);padding:12px 16px;font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;gap:4px">
+            <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Limits</div>
+            <div>The test sees what the firmware reports after its own debounce. Timing resolution for this keyboard is 1 ms. A finding describes evidence and likelihood, not a verdict on a part.</div>
+          </div>
+        </div>
+      </div>
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" onClick="{{ newTest }}" hint-size="90px,36px">New test</x-import>
+        <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Reports hold per-key counts and timings only.</div>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" onClick="{{ exportReport }}" hint-size="120px,36px">Export report</x-import>
+        <sc-if value="{{ canSwap }}" hint-placeholder-val="{{ false }}">
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ startSwap }}" hint-size="150px,36px">Run the swap test</x-import>
+        </sc-if>
+        <sc-if value="{{ cannotSwap }}" hint-placeholder-val="{{ false }}">
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ begin }}" hint-size="110px,36px">Test again</x-import>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- SWAP · INSTRUCT -->
+    <sc-if value="{{ isSwap }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:20px;padding:20px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Swap test // {{ swapA }} with {{ swapB }}</div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:16px;font-weight:600;line-height:1.25">Move the {{ swapA }} switch into the {{ swapB }} socket, and the {{ swapB }} switch into the {{ swapA }} socket.</div>
+            <div style="font-size:13px;color:var(--text-secondary)">{{ swapB }} showed no finding, so it serves as the known-good switch. Both keys are tested again afterwards, 10 presses in each of 2 rounds.</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">01</span><span>Pull both keycaps.</span></div>
+              <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">02</span><span>Pull both switches straight up with the switch puller. Note which is which.</span></div>
+              <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">03</span><span>Seat each switch in the other socket. Check that both pins are straight before pressing down.</span></div>
+              <div style="font-size:13px;display:flex;gap:8px"><span style="font-family:var(--font-directive);font-weight:600;color:var(--text-meta)">04</span><span>Refit the keycaps and continue below.</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+              <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">What the result means</div>
+              <div style="font-size:13px;text-wrap:pretty">If the fault appears on {{ swapB }}, it moved with the switch, and the switch is the cause. If it stays on {{ swapA }}, the socket, the PCB or the matrix is the cause.</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0">
+          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
+            <sc-for list="{{ kb }}" as="k" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                  <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                  <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--directive-red)"></span>Suspect switch</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--ink);outline:1px solid var(--auburn);outline-offset:1px"></span>Known-good switch</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" onClick="{{ backToFindings }}" hint-size="120px,36px">Back to findings</x-import>
+        <div style="margin-left:auto"></div>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ beginSwapTest }}" hint-size="200px,36px">Switches swapped. Test both keys</x-import>
+      </div>
+    </sc-if>
+
+    <!-- SWAP · RESULT -->
+    <sc-if value="{{ isSwapResult }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:20px;padding:20px">
+        <div style="display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Swap test // Result</div>
+          <div style="border:1px solid var(--line);background:var(--surface-card);padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <div style="width:40px;height:40px;flex:none;border:1px solid {{ swapResColor }};border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:var(--font-directive);font-size:18px;font-weight:600;color:{{ swapResColor }}">{{ swapResKey }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:16px;font-weight:600;line-height:1.25">{{ swapResTitle }}</div>
+                <div style="margin-top:6px"><x-import component-from-global-scope="Directive01DesignSystem_03c333.Badge" tone="{{ swapResTone }}" dot="{{ false }}" hint-size="120px,20px">{{ swapResConf }}</x-import></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Evidence</div>
+              <sc-for list="{{ swapEvidence }}" as="ev" hint-placeholder-count="0"><div style="font-size:13px;display:flex;gap:8px"><span style="color:var(--text-meta)">—</span><span>{{ ev }}</span></div></sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">Updated diagnosis</div>
+              <div style="font-size:13px;text-wrap:pretty">{{ swapDiagnosis }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)">
+              <div style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-primary)">Next step</div>
+              <div style="font-size:13px;text-wrap:pretty">{{ swapNext }}</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;min-height:0;min-width:0">
+          <div style="display:flex;gap:28px;padding:12px 16px;border:1px solid var(--line);background:var(--surface-card);font-size:12px;flex-wrap:wrap">
+            <sc-for list="{{ summary }}" as="s" hint-placeholder-count="0"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">{{ s.k }}</span><span style="font-variant-numeric:tabular-nums">{{ s.v }}</span></div></sc-for>
+          </div>
+          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
+            <sc-for list="{{ kb }}" as="k" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box">
+                <div style="position:relative;width:100%;height:100%;box-sizing:border-box;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px">
+                  <span style="position:absolute;left:5px;top:4px;font-size:11px;font-weight:500;line-height:1;color:{{ k.color }}">{{ k.label }}</span>
+                  <span style="position:absolute;right:5px;bottom:4px;font-size:11px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text-primary)">{{ k.count }}</span>
+                  <span style="position:absolute;right:5px;top:4px;font-family:var(--font-directive);font-size:10px;font-weight:600;line-height:1;letter-spacing:0.06em;color:{{ k.tagColor }}">{{ k.tag }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:20px;font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--directive-red)"></span>Fault seen after the swap</span>
+            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--line-strong);background:var(--surface-inset)"></span>Tested, no finding</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-top:1px solid var(--line)">
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" onClick="{{ newTest }}" hint-size="90px,36px">New test</x-import>
+        <div style="margin-left:auto;font-size:12px;color:var(--text-meta);margin-right:8px">Reports hold per-key counts and timings only.</div>
+        <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ exportReport }}" hint-size="120px,36px">Export report</x-import>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- DEMO CONTROLS (outside the app window) -->
+  <div style="width:100%;max-width:1280px;box-sizing:border-box;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border:1px dashed var(--line-strong);font-size:12px;color:var(--text-secondary)">
+    <span style="font-family:var(--font-directive);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);margin-right:6px">Demo controls</span>
+    <span>Typist speed</span>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ sp1 }}" size="sm" onClick="{{ setSpeed1 }}" hint-size="44px,28px">×1</x-import>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ sp2 }}" size="sm" onClick="{{ setSpeed2 }}" hint-size="44px,28px">×2</x-import>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ sp4 }}" size="sm" onClick="{{ setSpeed4 }}" hint-size="44px,28px">×4</x-import>
+    <span style="width:1px;height:20px;background:var(--line-strong);margin:0 6px"></span>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" size="sm" onClick="{{ loseFocus }}" hint-size="100px,28px">Lose focus</x-import>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" size="sm" onClick="{{ inject }}" hint-size="130px,28px">Inject two events</x-import>
+    <span style="width:1px;height:20px;background:var(--line-strong);margin:0 6px"></span>
+    <span>Swap outcome</span>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ swF }}" size="sm" onClick="{{ setFollows }}" hint-size="130px,28px">Follows the switch</x-import>
+    <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="{{ swS }}" size="sm" onClick="{{ setStays }}" hint-size="120px,28px">Stays on the key</x-import>
+    <span style="margin-left:auto">Scripted faults: E chatter, K dropped presses, H dead, D sticks once. Clicking outside the window also pauses the test.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen: 'start', theme: 'light', device: 0, std: 'ANSI', size: '75%', board: 'hotswap', speed: 1, swapOutcome: 'follows', tick: 0 };
+  timers = [];
+  t = null;
+  findings = null;
+  swap = null;
+
+  componentDidMount() {
+    this.onBlur = () => this.pause('focus');
+    this.onFocus = () => this.resume('focus');
+    window.addEventListener('blur', this.onBlur);
+    window.addEventListener('focus', this.onFocus);
+    this.clock = setInterval(() => { if (this.t && this.t.running && !this.t.paused) this.forceUpdate(); }, 1000);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('blur', this.onBlur); window.removeEventListener('focus', this.onFocus);
+    clearInterval(this.clock); this.clearTimers();
+  }
+  later(ms, fn, raw) {
+    const id = setTimeout(() => { this.timers = this.timers.filter(x => x !== id); fn(); }, raw ? ms : ms / this.state.speed);
+    this.timers.push(id); return id;
+  }
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
+
+  layout(size, std) {
+    const keys = []; const add = (id, label, x, y, w = 1, h = 1) => keys.push({ id, label, x, y, w, h });
+    const tkl = size === 'Tenkeyless' || size === 'Full size', compact = size === '75%' || size === '65%';
+    const y0 = size === '75%' ? 1.25 : tkl ? 1.5 : 0;
+    if (size === '75%') ['Esc','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','PrtSc','Del'].forEach((l, i) => add(l, l, i, 0));
+    if (tkl) { add('Esc','Esc',0,0); for (let i = 0; i < 4; i++) { add('F'+(i+1),'F'+(i+1),2+i,0); add('F'+(i+5),'F'+(i+5),6.5+i,0); add('F'+(i+9),'F'+(i+9),11+i,0); } add('PrtSc','PrtSc',15.25,0); add('ScrLk','ScrLk',16.25,0); add('Pause','Pause',17.25,0); }
+    ['`','1','2','3','4','5','6','7','8','9','0','-','='].forEach((l, i) => add(l, l, i, y0)); add('Backspace','Backspace',13,y0,2);
+    add('Tab','Tab',0,y0+1,1.5); ['Q','W','E','R','T','Y','U','I','O','P','[',']'].forEach((l, i) => add(l, l, 1.5+i, y0+1));
+    if (std === 'ANSI') add('\\','\\',13.5,y0+1,1.5); else add('Enter','Enter',13.75,y0+1,1.25,2);
+    add('Caps','Caps',0,y0+2,1.75); ['A','S','D','F','G','H','J','K','L',';',"'"].forEach((l, i) => add(l, l, 1.75+i, y0+2));
+    if (std === 'ANSI') add('Enter','Enter',12.75,y0+2,2.25); else add('#','#',12.75,y0+2);
+    if (std === 'ANSI') add('LShift','Shift',0,y0+3,2.25); else { add('LShift','Shift',0,y0+3,1.25); add('\\','\\',1.25,y0+3); }
+    ['Z','X','C','V','B','N','M',',','.','/'].forEach((l, i) => add(l, l, 2.25+i, y0+3));
+    add('RShift','Shift',12.25,y0+3, compact ? 1.75 : 2.75);
+    add('LCtrl','Ctrl',0,y0+4,1.25); add('Win','Win',1.25,y0+4,1.25); add('LAlt','Alt',2.5,y0+4,1.25); add('Space','',3.75,y0+4,6.25);
+    let W = 15;
+    if (compact) {
+      add('RAlt','Alt',10,y0+4); add('Fn','Fn',11,y0+4); add('RCtrl','Ctrl',12,y0+4); add('Left','←',13,y0+4); add('Down','↓',14,y0+4); add('Right','→',15,y0+4); add('Up','↑',14,y0+3);
+      add(size === '75%' ? 'Home' : 'Del', size === '75%' ? 'Home' : 'Del', 15, y0); add('PgUp','PgUp',15,y0+1); add('PgDn','PgDn',15,y0+2); add('End','End',15,y0+3); W = 16;
+    } else {
+      add('RAlt','Alt',10,y0+4,1.25); add('Fn','Fn',11.25,y0+4,1.25); add('Menu','Menu',12.5,y0+4,1.25); add('RCtrl','Ctrl',13.75,y0+4,1.25);
+    }
+    if (tkl) {
+      add('Ins','Ins',15.25,y0); add('Home','Home',16.25,y0); add('PgUp','PgUp',17.25,y0); add('Del','Del',15.25,y0+1); add('End','End',16.25,y0+1); add('PgDn','PgDn',17.25,y0+1);
+      add('Up','↑',16.25,y0+3); add('Left','←',15.25,y0+4); add('Down','↓',16.25,y0+4); add('Right','→',17.25,y0+4); W = 18.25;
+    }
+    if (size === 'Full size') {
+      const n = 18.5; add('NumLk','Num',n,y0); add('N/','/',n+1,y0); add('N*','*',n+2,y0); add('N-','-',n+3,y0);
+      add('N7','7',n,y0+1); add('N8','8',n+1,y0+1); add('N9','9',n+2,y0+1); add('N+','+',n+3,y0+1,1,2);
+      add('N4','4',n,y0+2); add('N5','5',n+1,y0+2); add('N6','6',n+2,y0+2);
+      add('N1','1',n,y0+3); add('N2','2',n+1,y0+3); add('N3','3',n+2,y0+3); add('NEnter','Enter',n+3,y0+3,1,2);
+      add('N0','0',n,y0+4,2); add('N.','.',n+2,y0+4); W = 22.5;
+    }
+    return { keys, W, H: y0 + 5 };
+  }
+
+  // ---- test engine ----
+  startTest(kind, keys, rounds, faults) {
+    this.clearTimers();
+    this.faults = faults;
+    this.t = { kind, keys, rounds, per: 10, round: 0, ki: 0, press: 0, running: true, paused: false, pauseReason: null, events: [], seq: 0, held: {}, interrupted: {}, injected: 0, vAnchor: 0, rAnchor: performance.now(), agg: {}, startedAt: new Date() };
+    keys.forEach(k => { this.t.agg[k] = { rounds: [], lastDown: null, lastUp: null }; });
+    this.setState({ screen: 'test' });
+    this.later(900, () => this.pressNext());
+  }
+  // One virtual clock for every timestamp: anchor + real elapsed × speed, frozen while paused.
+  now() { const t = this.t; if (!t) return 0; return t.paused ? t.vAnchor : t.vAnchor + (performance.now() - t.rAnchor) * this.state.speed; }
+  reanchor() { const t = this.t; if (!t) return; t.vAnchor = this.now(); t.rAnchor = performance.now(); }
+  setSpeed(n) { this.reanchor(); this.setState({ speed: n }, () => this.reanchor()); }
+  roundAgg(key, round) { const a = this.t.agg[key]; return a.rounds[round] || (a.rounds[round] = { prompted: 0, downs: 0, extras: [], late: [] }); }
+  emit(key, edge, inj, at) {
+    const t = this.t; if (!t) return;
+    const ms = at != null ? at : this.now();
+    t.events.unshift({ n: t.seq++, label: key === 'Space' ? 'Space' : key, edge, t: this.fmtMs(ms), src: inj ? 'injected' : this.devId, inj });
+    if (t.events.length > 60) t.events.length = 60;
+    if (!inj && t.running && !t.paused && t.agg[key]) {
+      const a = t.agg[key], r = this.roundAgg(key, t.round);
+      if (edge === 'down') { if (a.lastUp != null && ms - a.lastUp < 20) r.extras.push(Math.round((ms - a.lastUp) * 10) / 10); else r.downs++; a.lastDown = ms; t.held[key] = true; }
+      else { if (a.lastDown != null && ms - a.lastDown > 250) r.late.push(Math.round(ms - a.lastDown)); a.lastUp = ms; delete t.held[key]; }
+    }
+    this.forceUpdate();
+  }
+  pressNext() {
+    const t = this.t; if (!t || !t.running || t.paused) return;
+    if (t.press >= t.per) { t.press = 0; t.ki++; if (t.ki >= t.keys.length) { t.ki = 0; t.round++; if (t.round >= t.rounds) return this.finish(); } }
+    const key = t.keys[t.ki], fault = this.faults[key], p = t.press, round = t.round;
+    t.press++;
+    // Virtual schedule: every event is stamped with its intended time, so timer jitter never fabricates an interval.
+    if (t.v == null || t.v < this.now()) t.v = this.now();
+    const v = t.v, gap = 300 + Math.random() * 120, hold = 55 + Math.random() * 30;
+    let extra = 0;
+    const skip = fault === 'dead' || (fault === 'dropped' && round === 1 && [2, 5, 8].includes(p));
+    if (skip) { this.roundAgg(key, round).prompted++; }
+    else {
+      this.emit(key, 'down', false, v);
+      let holdMs = hold; if (fault === 'stuck' && round === 0 && p === 6) { holdMs = 1480; extra = 1200; }
+      this.later(holdMs, () => {
+        this.emit(key, 'up', false, v + holdMs);
+        if (t.round === round) this.roundAgg(key, round).prompted++;
+        if (fault === 'chatter' && Math.random() < 0.45) { const d = 4 + Math.random() * 5; this.later(d, () => { this.emit(key, 'down', false, v + holdMs + d); this.later(22, () => this.emit(key, 'up', false, v + holdMs + d + 22), true); }, true); }
+      });
+    }
+    t.v = v + gap + extra;
+    this.later(gap + extra, () => this.pressNext());
+    this.forceUpdate();
+  }
+  pause(reason) {
+    const t = this.t; if (!t || !t.running || t.paused || this.state.screen !== 'test') return;
+    this.clearTimers(); t.vAnchor = this.now(); t.paused = true; t.pauseReason = reason; t.pausedAt = performance.now();
+    t.interrupted = {}; Object.keys(t.held).forEach(k => { t.interrupted[k] = true; t.agg[k].lastDown = null; });
+    t.held = {};
+    if (reason === 'focus') t.events.unshift({ n: t.seq++, label: '—', edge: 'focus lost', t: this.fmtClock(new Date()), src: 'window', sys: true });
+    this.forceUpdate();
+  }
+  resume(reason) {
+    const t = this.t; if (!t || !t.paused) return;
+    if (reason === 'focus' && t.pauseReason !== 'focus') return;
+    t.paused = false; t.pauseReason = null; t.rAnchor = performance.now();
+    const key = t.keys[t.ki]; if (t.agg[key]) t.agg[key].rounds[t.round] = { prompted: 0, downs: 0, extras: [], late: [] };
+    t.press = 0; t.interrupted = {}; t.v = null;
+    this.later(500, () => this.pressNext()); this.forceUpdate();
+  }
+  skipKey() { const t = this.t; if (!t || !t.running) return; this.clearTimers(); t.held = {}; t.press = t.per; t.v = null; if (t.paused) { t.paused = false; t.pauseReason = null; t.rAnchor = performance.now(); } this.later(300, () => this.pressNext()); this.forceUpdate(); }
+  inject() { const t = this.t; if (!t || !t.running || this.state.screen !== 'test') return; const key = t.keys[t.ki], at = this.now(); this.emit(key, 'down', true, at); this.later(50, () => this.emit(key, 'up', true, at + 50), true); t.injected += 2; }
+  finish() {
+    const t = this.t; if (!t) return; this.clearTimers(); t.vEnd = this.now(); t.running = false; t.paused = false; t.held = {}; t.endedAt = new Date();
+    const list = this.computeFindings(t);
+    if (t.kind === 'swap') { this.swapResult = this.judgeSwap(list); this.setState({ screen: 'swapresult' }); }
+    else { this.findings = list; this.mainTest = t; this.setState({ screen: 'findings' }); }
+  }
+
+  // ---- diagnosis ----
+  conf(frac) { return frac >= 0.3 ? 'Very high' : frac >= 0.1 ? 'High' : frac >= 0.03 ? 'Medium' : 'Low'; }
+  computeFindings(t) {
+    const out = [], rank = { 'Very high': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
+    const cleanKey = t.keys.find(k => { const rs = t.agg[k].rounds; return rs.length && rs.every(r => r.downs === r.prompted && !r.extras.length && !r.late.length); });
+    t.keys.forEach(key => {
+      const rs = t.agg[key].rounds.filter(Boolean); if (!rs.length) return;
+      const prompted = rs.reduce((s, r) => s + r.prompted, 0), downs = rs.reduce((s, r) => s + r.downs, 0);
+      const extras = rs.flatMap(r => r.extras), late = rs.flatMap(r => r.late), missing = Math.max(0, prompted - downs);
+      const roundsHit = (f) => rs.filter(f).length, nR = rs.length;
+      const perRound = (title, f) => ({ histTitle: title, bars: this.bars(rs.map((r, i) => ({ l: 'R' + (i + 1), n: f(r) }))) });
+      if (extras.length) {
+        const lo = Math.floor(Math.min(...extras)), hi = Math.ceil(Math.max(...extras));
+        const buckets = [[0,2],[2,4],[4,6],[6,8],[8,10],[10,20]].map(([a, b]) => ({ l: b === 20 ? '10+' : a + '–' + b, n: extras.filter(x => x >= a && x < b).length }));
+        out.push({ key, kind: 'chatter', title: 'Possible chatter', conf: this.conf(extras.length / prompted),
+          evidence: [extras.length + ' of ' + prompted + ' presses sent an extra key-down ' + lo + ' to ' + hi + ' ms after release', 'Reproduced in ' + roundsHit(r => r.extras.length) + ' of ' + nR + ' rounds', 'No neighbouring key affected'],
+          histTitle: 'Interval to the extra key-down, ms', bars: this.bars(buckets),
+          causes: ['Switch contacts', 'Hot-swap socket or solder joint', 'Firmware debounce'], next: this.nextTest('chatter', key, cleanKey) });
+      }
+      if (downs === 0 && prompted > 0) {
+        out.push({ key, kind: 'dead', title: 'Possible dead key', conf: nR >= 2 ? 'Very high' : 'High',
+          evidence: ['0 of ' + prompted + ' prompted presses produced an event', 'Seen in ' + nR + ' of ' + nR + ' rounds', 'Other keys on the same row registered normally'],
+          ...perRound('Registered presses per round', r => r.downs), causes: ['Switch contacts or a broken stem', 'Socket contact or a cracked solder joint', 'A cut in the matrix trace'], next: this.nextTest('dead', key, cleanKey) });
+      } else if (missing > 0) {
+        out.push({ key, kind: 'dropped', title: 'Possible dropped presses', conf: this.conf(missing / prompted),
+          evidence: [missing + ' of ' + prompted + ' prompted presses produced no event', 'Seen in ' + roundsHit(r => r.downs < r.prompted) + ' of ' + nR + ' rounds', 'Every registered press had a normal duration'],
+          ...perRound('Registered presses per round', r => r.downs), causes: ['Switch actuation', 'Socket contact', 'Presses that did not reach the actuation point'], next: this.nextTest('dropped', key, cleanKey) });
+      }
+      if (late.length) {
+        out.push({ key, kind: 'stuck', title: 'Possible sticking key', conf: late.length >= 5 ? 'High' : late.length >= 2 ? 'Medium' : 'Low',
+          evidence: [late.length + ' of ' + prompted + ' presses released ' + this.fmtInt(Math.min(...late)) + (late.length > 1 ? ' to ' + this.fmtInt(Math.max(...late)) : '') + ' ms after key-down', 'Seen in ' + roundsHit(r => r.late.length) + ' of ' + nR + ' rounds', 'The release did arrive, so the key did not stay down'],
+          ...perRound('Late releases per round', r => r.late.length), causes: ['A slow-returning switch or a bent spring', 'A keycap catching on the case or a neighbour', 'Debris under the switch'], next: this.nextTest('stuck', key, cleanKey) });
+      }
+    });
+    out.sort((a, b) => rank[b.conf] - rank[a.conf]);
+    return out.map((f, i) => ({ ...f, num: (i < 9 ? '0' : '') + (i + 1), label: f.key, tone: rank[f.conf] >= 3 ? 'ink' : 'neutral', causes: f.causes.map((text, j) => ({ n: '0' + (j + 1), text })) }));
+  }
+  bars(list) { const m = Math.max(...list.map(b => b.n), 0); return list.map(b => ({ ...b, pct: m ? Math.round(b.n / m * 100) : 0 })); }
+  nextTest(kind, key, good) {
+    const b = this.state.board, g = good || 'a known-good key';
+    if (b === 'hotswap') {
+      if (kind === 'stuck') return 'Pull the ' + key + ' keycap and press the switch stem directly for 30 presses. If the release is on time, the keycap was catching. If it is still late, swap the ' + key + ' switch with ' + g + ' and test both.';
+      return 'Swap the ' + key + ' switch with the ' + g + ' switch and test both keys again. If the fault moves to ' + g + ', the switch is the cause. If it stays on ' + key + ', look at the socket or the PCB.';
+    }
+    if (b === 'soldered') return 'Pull the ' + key + ' keycap and press the switch stem directly for 30 presses. If the fault persists, inspect the solder joints under ' + key + ' for a hairline crack and reflow them. Replacing the switch requires desoldering.';
+    return 'Remove the ' + key + ' keycap and press the scissor mechanism directly for 30 presses. If the fault persists, the membrane or the keyboard assembly is the likely cause. On most laptops that is a whole-assembly replacement.';
+  }
+  judgeSwap(list) {
+    const { a, b, kind } = this.swap;
+    const onA = list.find(f => f.key === a && f.kind === kind), onB = list.find(f => f.key === b && f.kind === kind);
+    const ev = (k) => { const f = list.find(x => x.key === k && x.kind === kind); return f ? k + ': ' + f.evidence[0].charAt(0).toLowerCase() + f.evidence[0].slice(1) : k + ': every prompted press registered once, with no extra transition'; };
+    const base = { evidence: [ev(a), ev(b)], flagged: onB && !onA ? b : onA ? a : null };
+    if (onB && !onA) return { ...base, outcome: 'follows', title: 'The fault moved with the switch.', conf: 'High confidence', tone: 'ink', key: b, color: 'var(--directive-red)',
+      diagnosis: 'The ' + a + ' switch now sits in the ' + b + ' socket, and the fault appeared there. The switch is the most likely cause. The ' + a + ' socket and the PCB behaved normally with a known-good switch.',
+      next: 'Replace the switch that came from ' + a + '. Any switch with the same pin count and mount fits this socket. Compatible switches with prices are planned for v0.2.' };
+    if (onA) return { ...base, outcome: 'stays', title: 'The fault stayed on ' + a + '.', conf: 'High confidence', tone: 'ink', key: a, color: 'var(--directive-red)',
+      diagnosis: 'A known-good switch in the ' + a + ' socket shows the same fault. The socket, the solder joints under it, or the matrix trace is the most likely cause. The original switch is probably fine.',
+      next: 'Inspect the ' + a + ' socket for a loose pin and the joints under it for a crack. Reflowing the socket pins is a small job. If the board is under warranty, this result is what the vendor needs.' };
+    return { ...base, outcome: 'gone', title: 'Neither key showed the fault.', conf: 'Low confidence', tone: 'neutral', key: '—', color: 'var(--authorized)',
+      diagnosis: 'Both keys registered normally after the swap. Reseating the switches may have cleared a poor contact, or the fault is intermittent.',
+      next: 'Use the keyboard for a day. If the fault returns on ' + a + ', repeat this swap test. If it returns on ' + b + ', the switch is the cause.' };
+  }
+
+  // ---- export ----
+  exportReport() {
+    const t = this.mainTest || this.t; if (!t) return;
+    const keys = {};
+    t.keys.forEach(k => { const rs = t.agg[k].rounds.filter(Boolean); const extras = rs.flatMap(r => r.extras);
+      keys[k] = { prompted: rs.reduce((s, r) => s + r.prompted, 0), registered: rs.reduce((s, r) => s + r.downs, 0), extraTransitions: extras.length,
+        extraIntervalHistogramMs: { '0-2': extras.filter(x => x < 2).length, '2-4': extras.filter(x => x >= 2 && x < 4).length, '4-6': extras.filter(x => x >= 4 && x < 6).length, '6-8': extras.filter(x => x >= 6 && x < 8).length, '8-10': extras.filter(x => x >= 8 && x < 10).length, '10+': extras.filter(x => x >= 10).length },
+        lateReleasesMs: rs.flatMap(r => r.late), perRound: rs.map(r => ({ prompted: r.prompted, registered: r.downs, extraTransitions: r.extras.length })) }; });
+    const report = { app: 'keytriage', schema: 1, note: 'Per-key aggregates only. No ordered key events are stored.', date: this.fmtDate(t.startedAt) + ' ' + this.fmtClock(t.startedAt),
+      keyboard: { name: this.devices[this.state.device].name, id: this.devId }, layout: this.state.size + ' ' + this.state.std, board: this.state.board, rounds: t.rounds, pressesPerRound: t.per, keys,
+      findings: (this.findings || []).map(f => ({ key: f.key, finding: f.title, confidence: f.conf, evidence: f.evidence, otherCauses: f.causes.map(c => c.text), nextTest: f.next })),
+      swapTest: this.swapResult ? { suspect: this.swap.a, knownGood: this.swap.b, outcome: this.swapResult.outcome, diagnosis: this.swapResult.diagnosis } : null };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'keytriage-' + this.fmtDate(t.startedAt) + '-' + this.fmtClock(t.startedAt).replace(':', '') + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  // ---- formatting ----
+  fmtMs(ms) { const i = Math.floor(ms), d = Math.round((ms - i) * 10) % 10; return i.toLocaleString('en-US').replace(/,/g, ' ') + '.' + d; }
+  fmtInt(n) { return Math.round(n).toLocaleString('en-US').replace(/,/g, ' '); }
+  fmtClock(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  fmtDate(d) { return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'); }
+  mmss(s) { s = Math.max(0, Math.floor(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
+
+  devices = [
+    { name: 'Keychron K2', id: '3434:0220', meta: 'USB · 3 entries, one device', pad: 14 },
+    { name: 'Keychron K2, consumer control', id: '3434:0220', meta: 'Same device, media keys', pad: 28 },
+    { name: 'Keychron K2, system control', id: '3434:0220', meta: 'Same device, power keys', pad: 28 },
+    { name: 'HID Keyboard Device', id: '046D:C52B', meta: 'USB receiver · 2 entries', pad: 14 },
+    { name: 'Standard PS/2 Keyboard', id: '—', meta: 'Built in', pad: 14 },
+  ];
+  get devId() { return this.devices[this.state.device].id; }
+
+  keyStyle(state, tag) {
+    const RED = 'var(--directive-red)', AMBER = 'var(--amber)';
+    const s = { border: '1px solid var(--line-strong)', bg: 'var(--surface-raised)', color: 'var(--text-secondary)', outline: 'none', tag: '', tagColor: 'transparent' };
+    if (state === 'counted') s.bg = 'var(--surface-inset)';
+    if (state === 'held') Object.assign(s, { border: '1px solid var(--ink)', bg: 'var(--bureau)', color: 'var(--text-primary)' });
+    if (state === 'prompted') Object.assign(s, { border: '1px solid var(--ink)', outline: '1px solid var(--auburn)', color: 'var(--text-primary)', bg: 'var(--surface-card)', tag: tag || '', tagColor: 'var(--text-meta)' });
+    if (state === 'interrupted') Object.assign(s, { border: '1px dashed ' + AMBER, tag: '○', tagColor: AMBER, color: AMBER });
+    if (state === 'flagged') Object.assign(s, { border: '1px solid ' + RED, color: RED, tag: tag || '', tagColor: RED, bg: 'var(--surface-card)' });
+    return s;
+  }
+
+  renderVals() {
+    const S = this.state, t = this.t, screen = S.screen;
+    const lay = this.layout(S.size, S.std);
+    const geo = (k) => ({ id: k.id, label: k.label, l: k.x / lay.W * 100, t: k.y / lay.H * 100, w: k.w / lay.W * 100, h: k.h / lay.H * 100 });
+    const kbPreview = lay.keys.map(geo);
+    const flagged = {};
+    if (screen === 'findings' && this.findings) this.findings.forEach(f => { if (!flagged[f.key]) flagged[f.key] = f.num; });
+    if (screen === 'swap' && this.swap) { flagged[this.swap.a] = 'A'; }
+    if (screen === 'swapresult' && this.swapResult && this.swapResult.flagged) flagged[this.swapResult.flagged] = '01';
+    const kb = lay.keys.map(k => {
+      const g = geo(k); let state = 'idle', count = '';
+      if (t && t.agg[k.id]) {
+        const rs = t.agg[k.id].rounds.filter(Boolean); const n = rs.reduce((s, r) => s + r.downs + r.extras.length, 0);
+        if (n) { state = 'counted'; count = String(n); }
+        if (screen === 'test') {
+          if (t.running && t.keys[t.ki] === k.id) state = 'prompted';
+          if (t.held[k.id]) state = 'held';
+          if (t.interrupted[k.id]) state = 'interrupted';
+        }
+      }
+      if (screen === 'swap' && this.swap && k.id === this.swap.b) return { ...g, count: '', ...this.keyStyle('prompted', 'B') };
+      if (flagged[k.id]) state = 'flagged';
+      return { ...g, count, ...this.keyStyle(state, flagged[k.id]) };
+    });
+
+    const sel = (on) => ({ rule: on ? 'var(--auburn)' : 'transparent', bg: on ? 'var(--surface-inset)' : 'transparent' });
+    const devices = this.devices.map((d, i) => ({ ...d, ...sel(S.device === i), color: d.pad > 14 ? 'var(--text-secondary)' : 'var(--text-primary)', pick: () => this.setState({ device: i }) }));
+    const sizes = [['Full size', 104], ['Tenkeyless', 87], ['75%', 84], ['65%', 68], ['60%', 61]].map(([name, keys]) => ({ name, keys: S.std === 'ISO' ? keys + 1 : keys, ...sel(S.size === name), pick: () => this.setState({ size: name }) }));
+    const boards = [['hotswap', 'Hot-swap', 'Switches pull out. The swap test is available.'], ['soldered', 'Soldered', 'Switches are fixed to the PCB. Next steps skip the swap.'], ['laptop', 'Laptop or scissor-switch', 'Built in. Next steps cover the keycap, the scissor and the membrane.']].map(([id, name, desc]) => ({ id, name, desc, checked: S.board === id, ...sel(S.board === id) }));
+    const boardName = boards.find(b => b.checked).name;
+
+    const TEST_KEYS = ['E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'];
+    const running = !!(t && t.running), paused = !!(t && t.paused);
+    const promptKey = t ? t.keys[t.ki] : '';
+    const cur = t && t.agg[promptKey] && t.agg[promptKey].rounds[t.round];
+    const promptCount = cur ? cur.downs + cur.extras.length : 0;
+    const totalPresses = t ? t.keys.length * t.rounds * t.per : 0;
+    const done = t ? (t.round * t.keys.length + t.ki) * t.per + t.press : 0;
+    const elapsed = t ? (t.running ? this.now() : t.vEnd || 0) / 1000 : 0;
+    const events = t ? t.events.slice(0, 16).map(e => ({ ...e, srcColor: e.inj ? 'var(--amber)' : 'var(--text-meta)', edgeColor: e.sys ? 'var(--amber)' : 'var(--text-secondary)', rowColor: e.inj || e.sys ? 'var(--amber)' : 'inherit' })) : [];
+    const interruptedKeys = t ? Object.keys(t.interrupted) : [];
+    const pauseByFocus = paused && t.pauseReason === 'focus';
+
+    const findings = this.findings || [];
+    const mt = this.mainTest;
+    const summary = mt ? [{ k: 'Keyboard', v: this.devices[S.device].name + ' · ' + this.devId }, { k: 'Layout', v: S.size + ' ' + S.std }, { k: 'Board', v: boardName }, { k: 'Rounds', v: mt.rounds + ' × ' + mt.per + ' presses' }, { k: 'Started', v: this.fmtDate(mt.startedAt) + ' ' + this.fmtClock(mt.startedAt) }, { k: 'Duration', v: this.mmss((mt.vEnd || 0) / 1000) }] : [];
+    const totalPrompted = mt ? mt.keys.reduce((s, k) => s + mt.agg[k].rounds.filter(Boolean).reduce((x, r) => x + r.prompted, 0), 0) : 0;
+    const sr = this.swapResult || {};
+    const stepC = (n) => ({ start: 1, test: 2, findings: 3, swap: 3, swapresult: 3 }[screen] === n ? 'var(--text-primary)' : 'var(--text-meta)');
+
+    return {
+      theme: S.theme, isLight: S.theme !== 'dark', isDark: S.theme === 'dark', lockup: S.theme === 'dark' ? 'docs/brand/lockup-dark.svg' : 'docs/brand/lockup.svg', themeLabel: S.theme === 'dark' ? 'Light' : 'Dark',
+      toggleTheme: () => this.setState({ theme: S.theme === 'dark' ? 'light' : 'dark' }),
+      appClick: () => { if (pauseByFocus) this.resume('focus'); },
+      c1: stepC(1), c2: stepC(2), c3: stepC(3),
+      ctxText: screen === 'start' ? this.fmtDate(new Date()) + ' ' + this.fmtClock(new Date()) : this.devices[S.device].name + ' · ' + this.devId + '   ' + S.size + ' ' + S.std + '   ' + boardName,
+      captureText: screen !== 'test' ? 'Capture off' : paused ? '○ Paused' : '● Capturing', captureColor: screen === 'test' && !paused ? 'var(--text-primary)' : paused ? 'var(--amber)' : 'var(--text-meta)',
+      isStart: screen === 'start', isTest: screen === 'test', isFindings: screen === 'findings', isSwap: screen === 'swap', isSwapResult: screen === 'swapresult',
+      // start
+      devices, sizes, boards, kbPreview, kbAspect: lay.W + ' / ' + lay.H,
+      ansiVariant: S.std === 'ANSI' ? 'primary' : 'secondary', isoVariant: S.std === 'ISO' ? 'primary' : 'secondary',
+      setAnsi: () => this.setState({ std: 'ANSI' }), setIso: () => this.setState({ std: 'ISO' }), setBoard: (v) => this.setState({ board: v }),
+      begin: () => { this.findings = null; this.mainTest = null; this.swap = null; this.swapResult = null; this.startTest('main', TEST_KEYS, 3, { E: 'chatter', K: 'dropped', H: 'dead', D: 'stuck' }); },
+      // test
+      kb, paused, notPaused: !paused, promptKey, promptCount,
+      promptBorder: paused ? 'var(--line-strong)' : 'var(--ink)', promptOutline: paused ? 'none' : '1px solid var(--auburn)', promptColor: paused ? 'var(--text-secondary)' : 'var(--text-primary)',
+      promptSub: paused ? 'Waiting for focus. Presses are not read.' : 'Normal pace. Release fully between presses. Other keys are ignored.',
+      pauseLabel: pauseByFocus ? 'PAUSED · WINDOW LOST FOCUS ' + (t ? this.fmtClock(new Date(Date.now() - (performance.now() - t.pausedAt))) : '') : 'PAUSED',
+      pauseText: (pauseByFocus ? 'Click back into the window to continue. ' : 'Continue when ready. ') + (interruptedKeys.length ? interruptedKeys.join(' and ') + (interruptedKeys.length > 1 ? ' were' : ' was') + ' down at that moment and ' + (interruptedKeys.length > 1 ? 'are' : 'is') + ' marked interrupted, not stuck. ' : 'No key was down at that moment. ') + 'This round of ' + promptKey + ' will be repeated.',
+      showInjected: !!(t && t.injected) && !paused, injectedText: (t ? t.injected : 0) + ' events did not come from a physical keyboard. They stay in the event list, marked injected, and are left out of every count. Software such as macro tools or remote desktop can send them.',
+      roundText: t ? 'Round ' + (t.round + 1) + ' of ' + t.rounds : '', keyText: t ? 'Key ' + (t.ki + 1) + ' of ' + t.keys.length : '',
+      progressPct: totalPresses ? Math.round(done / totalPresses * 100) : 0, progressColor: paused ? 'var(--line-strong)' : 'var(--ink)',
+      elapsedText: 'Elapsed ' + this.mmss(elapsed) + (paused ? ', paused' : ''), pressesText: t && t.injected ? t.injected + ' injected, not counted' : done + ' of ' + totalPresses + ' presses',
+      events, footerNote: t && t.kind === 'swap' ? 'Swap test. Both keys, 2 rounds.' : 'Capture stops when the window loses focus.',
+      pauseUser: () => this.pause('user'), resumeUser: () => this.resume('user'), skipKey: () => this.skipKey(), endTest: () => this.finish(),
+      // findings
+      findings, findingCount: findings.length, isClean: screen === 'findings' && !findings.length, findingsSub: findings.length ? 'Ordered by confidence' : '',
+      cleanEvidence: mt ? [mt.keys.length + ' keys, ' + mt.per + ' presses in each of ' + mt.rounds + ' rounds', 'Every one of ' + totalPrompted + ' prompted presses produced one key-down and one key-up', 'No extra transition within 20 ms of a release', 'No release later than 250 ms after key-down'] : [],
+      summary, canSwap: S.board === 'hotswap' && findings.length > 0 && screen === 'findings', cannotSwap: screen === 'findings' && !(S.board === 'hotswap' && findings.length > 0),
+      newTest: () => { this.clearTimers(); this.t = null; this.findings = null; this.mainTest = null; this.swap = null; this.swapResult = null; this.setState({ screen: 'start' }); },
+      exportReport: () => this.exportReport(),
+      startSwap: () => { const f = findings[0]; const good = mt.keys.find(k => k !== f.key && !findings.some(x => x.key === k)) || 'G'; this.swap = { a: f.key, b: good, kind: f.kind }; this.swapResult = null; this.setState({ screen: 'swap' }); },
+      // swap
+      swapA: this.swap ? this.swap.a : '', swapB: this.swap ? this.swap.b : '',
+      backToFindings: () => this.setState({ screen: 'findings' }),
+      beginSwapTest: () => { const { a, b, kind } = this.swap; const faults = {}; faults[S.swapOutcome === 'follows' ? b : a] = kind; this.startTest('swap', [a, b], 2, faults); },
+      swapResKey: sr.key || '', swapResColor: sr.color || 'var(--text-primary)', swapResTitle: sr.title || '', swapResConf: sr.conf || '', swapResTone: sr.tone || 'neutral', swapEvidence: sr.evidence || [], swapDiagnosis: sr.diagnosis || '', swapNext: sr.next || '',
+      // demo bar
+      sp1: S.speed === 1 ? 'primary' : 'secondary', sp2: S.speed === 2 ? 'primary' : 'secondary', sp4: S.speed === 4 ? 'primary' : 'secondary',
+      setSpeed1: () => this.setSpeed(1), setSpeed2: () => this.setSpeed(2), setSpeed4: () => this.setSpeed(4),
+      loseFocus: () => this.pause('focus'), inject: () => this.inject(),
+      swF: S.swapOutcome === 'follows' ? 'primary' : 'secondary', swS: S.swapOutcome === 'stays' ? 'primary' : 'secondary',
+      setFollows: () => this.setState({ swapOutcome: 'follows' }), setStays: () => this.setState({ swapOutcome: 'stays' }),
+    };
+  }
+}
+</script>
+</body>
+</html>

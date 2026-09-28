@@ -1,0 +1,11 @@
+:root{
+  --border-paper:1px solid var(--line);
+  --border-record:1px solid var(--line-strong);
+  --border-authority:1px solid var(--ink);
+  --border-control:1px solid var(--directive-red);
+  --radius-strict:0;
+  --radius-standard:2px;
+  --radius-personal:6px;
+  --shadow-card:0 1px 2px rgba(27,24,18,0.06);
+  --shadow-overlay:0 8px 32px rgba(27,24,18,0.18);
+}

@@ -1,0 +1,7 @@
+body{margin:0;background:var(--surface-page);color:var(--text-primary);font-family:var(--font-official);font-size:var(--text-body);line-height:var(--leading-body)}
+a{color:var(--text-link);text-decoration:none;border-bottom:1px solid currentColor}
+a:hover{color:var(--wine)}
+:focus-visible{outline:2px solid var(--auburn);outline-offset:2px}
+::selection{background:var(--bureau)}
+.d01-label{font-family:var(--font-directive);font-size:var(--text-meta-size);font-weight:var(--weight-semibold);letter-spacing:var(--tracking-directive);text-transform:uppercase;color:var(--text-meta)}
+.d01-rule{border:0;border-top:var(--border-paper);margin:0}

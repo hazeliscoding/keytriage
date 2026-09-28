@@ -1,0 +1,23 @@
+:root{
+  --font-official:'Public Sans',system-ui,sans-serif;
+  --font-directive:'Barlow Semi Condensed','Public Sans',sans-serif;
+  --font-personal:'Source Serif 4',Georgia,serif;
+  --text-xs:11px; /* stamps, micro-metadata */
+  --text-meta-size:12px;
+  --text-secondary-size:13px;
+  --text-body:14px;
+  --text-primary-size:15px;
+  --text-lead:16px;
+  --text-heading:18px;
+  --text-title:22px;
+  --text-display:32px;
+  --text-exceptional:44px;
+  --leading-tight:1.25;
+  --leading-body:1.55;
+  --tracking-directive:0.08em;
+  --tracking-label:0.06em;
+  --weight-regular:400;
+  --weight-medium:500;
+  --weight-semibold:600;
+  --weight-bold:700;
+}
