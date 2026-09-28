@@ -1,0 +1,23 @@
+@for (key of caps(); track key.cap) {
+  @let mark = key.cap.scan === null ? undefined : marks().get(key.cap.scan);
+  <div
+    [class]="mark && mark.state !== 'waiting' ? 'cap cap--' + mark.state : 'cap'"
+    [attr.data-scan]="key.cap.scan"
+    [style.left.%]="key.left"
+    [style.top.%]="key.top"
+    [style.width.%]="key.width"
+    [style.height.%]="key.height"
+  >
+    <div class="cap__face">
+      @if (!bare()) {
+        <span class="cap__label">{{ key.cap.label }}</span>
+        @if (mark?.count !== undefined) {
+          <span class="cap__count">{{ mark?.count }}</span>
+        }
+        @if (mark?.tag) {
+          <span class="cap__tag">{{ mark?.tag }}</span>
+        }
+      }
+    </div>
+  </div>
+}

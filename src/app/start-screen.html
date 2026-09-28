@@ -1,0 +1,110 @@
+<div class="start">
+  <section class="start__column">
+    <div class="kicker">01 // Keyboard</div>
+    <h2 class="title">Pick the keyboard to test.</h2>
+    <div class="rows start__devices">
+      @for (row of rows(); track row.handle) {
+        <button
+          type="button"
+          class="row"
+          [class.row--child]="row.child"
+          [class.row--selected]="row.handle === run.picked()"
+          [attr.aria-pressed]="row.handle === run.picked()"
+          (click)="run.picked.set(row.handle)"
+        >
+          <span class="row__name">{{ row.name }}</span>
+          <span class="meta tabular row__id">{{ row.id }}</span>
+          <span class="meta row__meta">{{ row.meta }}</span>
+        </button>
+      } @empty {
+        @if (run.groups()) {
+          <div class="meta rows__empty">No keyboard found.</div>
+        }
+      }
+    </div>
+    <div class="meta">
+      One keyboard can appear as several entries. Any of them will do. Events are attributed by
+      device.
+    </div>
+  </section>
+
+  <section class="start__column">
+    <div class="kicker">02 // Layout</div>
+    <h2 class="title">Pick the layout that matches it.</h2>
+    <div class="start__stds">
+      @for (std of stds; track std) {
+        <button
+          type="button"
+          class="btn btn--sm"
+          [class.btn--primary]="std === run.std()"
+          [class.btn--secondary]="std !== run.std()"
+          [attr.aria-pressed]="std === run.std()"
+          (click)="run.std.set(std)"
+        >
+          {{ std }}
+        </button>
+      }
+    </div>
+    <div class="rows">
+      @for (row of sizes(); track row.size) {
+        <button
+          type="button"
+          class="row row--size"
+          [class.row--selected]="row.size === run.size()"
+          [attr.aria-pressed]="row.size === run.size()"
+          (click)="run.size.set(row.size)"
+        >
+          <span class="row__name">{{ row.size }}</span>
+          <span class="meta tabular row__keys">{{ row.keys }} keys</span>
+        </button>
+      }
+    </div>
+    <app-keyboard [layout]="run.layout()" [bare]="true" />
+    <div class="meta">
+      Keys are tested by physical position. The layout only decides what is drawn.
+    </div>
+  </section>
+
+  <section class="start__column">
+    <div class="kicker">03 // Board</div>
+    <h2 class="title">Say what kind of board it is.</h2>
+    <div class="rows" role="radiogroup" aria-label="Board">
+      @for (board of boards; track board.id) {
+        <div class="row row--board" [class.row--selected]="board.id === run.board()">
+          <label class="radio">
+            <input
+              type="radio"
+              name="board"
+              [value]="board.id"
+              [checked]="board.id === run.board()"
+              (change)="run.board.set(board.id)"
+            />
+            <span class="radio__ring" aria-hidden="true"></span>{{ board.name }}
+          </label>
+          <div class="meta row__about">{{ board.about }}</div>
+        </div>
+      }
+    </div>
+    <div class="meta">This decides which next test the findings recommend.</div>
+  </section>
+</div>
+
+<footer class="footer footer--start">
+  <div class="meta footer__lead">
+    Keys are read only while a test runs and this window is focused. Nothing is written to disk
+    until you export a report.
+  </div>
+  @if (run.note()) {
+    <div class="meta footer__note" role="status">{{ run.note() }}</div>
+  }
+  <div class="footer__end">
+    <button
+      type="button"
+      class="btn btn--primary"
+      [disabled]="!run.group() || run.screen() === 'starting'"
+      (click)="run.begin()"
+    >
+      Begin test
+    </button>
+  </div>
+</footer>

@@ -1,0 +1,190 @@
+/* The app frame and each screen's layout, from docs/design. Where the mockups and the demo differ,
+   the demo wins. Global for the same budget reason as ui.css. */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Header */
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 28px;
+  height: 48px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.header__lockup {
+  display: block;
+  height: 22px;
+}
+
+.steps {
+  display: flex;
+  gap: 14px;
+  font-family: var(--font-directive);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-meta);
+}
+
+.steps__now {
+  color: var(--text-primary);
+}
+
+.header__end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-meta);
+}
+
+/* The device name gives way first when the header runs out of room. */
+.header__context {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header__capture--on {
+  color: var(--text-primary);
+}
+
+/* Footer */
+
+.footer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 20px;
+  border-top: 1px solid var(--line);
+}
+
+.footer--start {
+  gap: 16px;
+}
+
+.footer__note {
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.footer__end {
+  flex: none;
+  margin-left: auto;
+}
+
+.footer__note + .footer__end {
+  margin-left: 0;
+}
+
+/* Start */
+
+.start {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  /* One row as tall as the screen, so a long device list scrolls inside its box. */
+  grid-template-rows: minmax(0, 1fr);
+  gap: 20px;
+  min-height: 0;
+  padding: 20px;
+}
+
+.start__column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.start__devices {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.start__stds {
+  display: flex;
+  gap: 8px;
+}
+
+/* An outside ring would be clipped by the scrolling list. */
+.row:focus-visible {
+  outline-offset: -2px;
+}
+
+.row__name {
+  font-weight: 500;
+}
+
+.row__id {
+  text-align: right;
+}
+
+.row__meta {
+  grid-column: 1 / -1;
+}
+
+.row--child {
+  padding-left: 28px;
+}
+
+.row--child .row__name {
+  color: var(--text-secondary);
+}
+
+.row--size {
+  padding: 8px 14px;
+}
+
+.row__keys {
+  white-space: nowrap;
+}
+
+.row--board {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  cursor: default;
+}
+
+.row--board:not(.row--selected):hover {
+  background: none;
+}
+
+.row__about {
+  padding-left: 25px;
+}
+
+/* Lines up with the rows' text, past their 3 px rule. */
+.rows__empty {
+  padding: 10px 14px 10px 17px;
+}

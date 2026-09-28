@@ -1,29 +1,29 @@
-<h1>keytriage</h1>
-<p>This is a sample finding. keytriage has not tested a keyboard yet.</p>
-
-<h2>{{ sample.key }}: {{ sample.finding }}, {{ sample.confidence }} confidence</h2>
-
-<section>
-  <h3>Evidence</h3>
-  <ul>
-    @for (line of sample.evidence; track line) {
-      <li>{{ line }}</li>
+<header class="header">
+  <img class="header__lockup" [src]="lockup()" alt="keytriage" />
+  <div class="steps">
+    <span [class.steps__now]="step() === 1">01 Keyboard</span>
+    <span>//</span>
+    <span [class.steps__now]="step() === 2">02 Test</span>
+    <span>//</span>
+    <span [class.steps__now]="step() === 3">03 Findings</span>
+  </div>
+  <div class="header__end">
+    @if (step() === 1) {
+      <span class="header__context">{{ now() }}</span>
+    } @else {
+      <span class="header__context">{{ run.group()?.name }} · {{ run.group()?.id ?? '—' }}</span>
+      <span>{{ run.size() }} {{ run.std() }}</span>
+      <span>{{ run.boardName() }}</span>
     }
-  </ul>
-</section>
+    <span class="header__capture" [class.header__capture--on]="run.screen() === 'test'">{{
+      capture()
+    }}</span>
+    <button type="button" class="btn btn--ghost btn--sm" (click)="toggleTheme()">
+      {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+    </button>
+  </div>
+</header>
 
-<section>
-  <h3>Likely causes</h3>
-  <ol>
-    @for (cause of sample.causes; track cause) {
-      <li>{{ cause }}</li>
-    }
-  </ol>
-</section>
-
-<section>
-  <h3>Next test</h3>
-  @for (line of sample.nextTest; track line) {
-    <p>{{ line }}</p>
-  }
-</section>
+@if (run.screen() === 'start' || run.screen() === 'starting') {
+  <app-start-screen />
+}
