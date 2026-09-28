@@ -719,14 +719,23 @@ impl SwapResult {
         let next = match (self.outcome, swap.kind) {
             (Outcome::Follows, kind) => {
                 // Only the same model is sure to fit the socket. M6 gives other switches' reasons.
-                let mut next = vec![format!(
+                let replace = format!(
                     "Replace the switch that came from {a}, now in the {b} socket, with a switch \
                      of the same model. Then test {b} again."
-                )];
-                if kind == Kind::Chatter {
-                    next.push(step(NextTest::CleanContacts { key: swap.partner }));
+                );
+                // Cleaning costs less than a new switch, so it comes first. NextTest's step would
+                // call it the {b} switch, the known-good one now in the {a} socket.
+                match kind {
+                    Kind::Chatter => vec![
+                        format!(
+                            "Blow out the switch that came from {a}, now in the {b} socket, with \
+                             {b} held down, or work contact cleaner into it while pressing {b} \
+                             many times. Then test {b} again."
+                        ),
+                        replace,
+                    ],
+                    Kind::Dead | Kind::Stuck => vec![replace],
                 }
-                next
             }
             (Outcome::Stays, Kind::Chatter) => vec![socket],
             (Outcome::Stays, Kind::Dead) => {

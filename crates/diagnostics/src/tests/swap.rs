@@ -429,15 +429,20 @@ fn m4_done_fault_follows_the_switch() {
                         normally with a known-good switch."
                 .into(),
             next: vec![
+                "Blow out the switch that came from E, now in the G socket, with G held down, or \
+                 work contact cleaner into it while pressing G many times. Then test G again."
+                    .into(),
                 "Replace the switch that came from E, now in the G socket, with a switch of the \
                  same model. Then test G again."
-                    .into(),
-                "Blow out the G switch with the key held down, or work contact cleaner into it \
-                 while pressing it many times. Then test G again."
                     .into(),
             ],
         }
     );
+    // "The G switch" is the known-good one, now in the E socket. Control: the main test's
+    // cleaning step, from before the swap, names G's switch that way.
+    let moved = |text: &str| !text.contains("the G switch");
+    assert!(r.lines(&label).next.iter().all(|s| moved(s)));
+    assert!(!moved(&NextTest::CleanContacts { key: G }.words(&label)));
     // Control: the fault left on E doesn't read as moved.
     assert_ne!(offer.judge(&stays_stream()).outcome, Outcome::Follows);
 }

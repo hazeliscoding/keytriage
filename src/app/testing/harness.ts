@@ -198,10 +198,10 @@ export const FOLLOWS: TestResult = {
       'The E switch now sits in the G socket, and the fault appeared there. The switch is the ' +
       'most likely cause. The E socket and the PCB behaved normally with a known-good switch.',
     next: [
+      'Blow out the switch that came from E, now in the G socket, with G held down, or work ' +
+        'contact cleaner into it while pressing G many times. Then test G again.',
       'Replace the switch that came from E, now in the G socket, with a switch of the same ' +
         'model. Then test G again.',
-      'Blow out the G switch with the key held down, or work contact cleaner into it while ' +
-        'pressing it many times. Then test G again.',
     ],
   },
 };
