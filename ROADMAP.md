@@ -134,7 +134,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [x] Pick a keyboard and a generic layout: ANSI or ISO, in full size, TKL, 75%, 65% or 60%. The Start screen lists keyboards by device, and any entry picks all of that device's entries.
 - [x] Live event view on screen, drawn from the `test:event` events. The test screen lists the 60 newest events in memory and shows 16, draws the keys held on the tested keyboard, and marks focus losses, interrupted keys and injected input.
 - [x] Guided key test: press a key N times over several rounds, with live counts. The page shows Rust's prompt, count and progress as sent, draws each key's tally, and offers Pause, Continue, Skip this key and End test.
-- [ ] Findings list, with the flagged keys shown on the keyboard.
+- [x] Findings list, with the flagged keys shown on the keyboard. The plan's last view or End test calls `end_test`, and the findings screen numbers Rust's findings, tags each flagged key with its number and offers New test and Test again.
 - [ ] Export a report. A test fails if a report contains an ordered event sequence.
 
 **Done when:** a synthetic chatter stream shown through the UI produces the expected finding on the right key, and its exported report passes the no-sequence test.
