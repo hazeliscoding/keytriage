@@ -14,8 +14,8 @@ use windows::Win32::UI::Shell::{
     DefSubclassProc, GetWindowSubclass, RemoveWindowSubclass, SetWindowSubclass,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1, RIM_INPUT, WM_ACTIVATEAPP, WM_INPUT,
-    WM_NCDESTROY,
+    GetForegroundWindow, RI_KEY_BREAK, RI_KEY_E0, RI_KEY_E1, RIM_INPUT, WM_ACTIVATE,
+    WM_ACTIVATEAPP, WM_INPUT, WM_NCACTIVATE, WM_NCDESTROY,
 };
 
 use crate::{Input, KeyEvent};
@@ -150,7 +150,7 @@ unsafe extern "system" fn subclass_proc(
     _id: usize,
     state: usize,
 ) -> LRESULT {
-    if matches!(msg, WM_INPUT | WM_ACTIVATEAPP) {
+    if matches!(msg, WM_INPUT | WM_ACTIVATE | WM_ACTIVATEAPP | WM_NCACTIVATE) {
         let at = Instant::now();
         // The handler may drop the Capture, so this call holds its own reference until the
         // handler returns.
@@ -159,8 +159,17 @@ unsafe extern "system" fn subclass_proc(
             Rc::from_raw(state as *const State)
         };
         match msg {
-            WM_ACTIVATEAPP if wparam.0 != 0 => state.open(at),
-            WM_ACTIVATEAPP => state.close(at),
+            // A window that Windows activated at launch without giving it the foreground gets only
+            // WM_NCACTIVATE when the foreground arrives later. So every activation message counts,
+            // and capture opens only while the app really holds the foreground.
+            WM_ACTIVATE | WM_ACTIVATEAPP | WM_NCACTIVATE if wparam.0 & 0xffff == 0 => {
+                state.close(at)
+            }
+            WM_ACTIVATE | WM_ACTIVATEAPP | WM_NCACTIVATE => {
+                if unsafe { GetForegroundWindow() } == hwnd {
+                    state.open(at);
+                }
+            }
             // Nothing registers a sink, so only RIM_INPUT can arrive: input made while this process
             // was in the foreground. Any other code is never read.
             _ if state.open.get() && wparam.0 & 0xff == RIM_INPUT as usize => {
