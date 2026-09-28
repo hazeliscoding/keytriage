@@ -27,7 +27,7 @@ function Enter-Foreground([IntPtr]$hwnd, [string]$name) {
 
 function Assert-Foreground([IntPtr]$hwnd, [string]$phase) {
     $fg = $W::GetForegroundWindow()
-    if ($fg -ne $hwnd) { Stop-Inconclusive "the foreground changed during $phase (now class $($W::Class($fg)))" }
+    if ($fg -ne $hwnd) { Stop-Inconclusive "the foreground changed during $phase (now $($W::Describe($fg)))" }
 }
 
 function Find-AppWindow([int]$timeoutMs) {

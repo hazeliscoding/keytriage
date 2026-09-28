@@ -50,7 +50,7 @@ try {
             if ($W::GetForegroundWindow() -ne $hwnd) { Enter-App $hwnd }
             $result = & $probe
             $fg = $W::GetForegroundWindow()
-            if ($fg -ne $hwnd) { Write-Host "the foreground moved to class $($W::Class($fg)) during $name, trying again"; continue }
+            if ($fg -ne $hwnd) { Write-Host "the foreground moved to $($W::Describe($fg)) during $name, trying again"; continue }
             if ($result -is [string]) { Stop-Inconclusive "$name never reached the app (UIPI or a secure desktop)" }
             return [bool]$result
         }

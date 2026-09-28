@@ -74,6 +74,14 @@ namespace AppHarness
         static int InputSize { get { return Marshal.SizeOf(typeof(INPUT)); } }
 
         public static string Class(IntPtr h) { var sb = new StringBuilder(256); GetClassName(h, sb, sb.Capacity); return sb.ToString(); }
+
+        // A window's class and the process that owns it, for messages about who took the foreground.
+        public static string Describe(IntPtr h)
+        {
+            string proc;
+            try { proc = Process.GetProcessById((int)Pid(h)).ProcessName; } catch { proc = "?"; }
+            return "class " + Class(h) + " of " + proc + " (pid " + Pid(h) + ")";
+        }
         static string Text(IntPtr h) { var sb = new StringBuilder(256); GetWindowText(h, sb, sb.Capacity); return sb.ToString(); }
         static uint Pid(IntPtr h) { uint pid; GetWindowThreadProcessId(h, out pid); return pid; }
 
