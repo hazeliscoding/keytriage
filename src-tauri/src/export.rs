@@ -403,10 +403,63 @@ mod tests {
             .push(json!(0));
         let mut named = parsed(&text);
         named["keys"]["0012"]["name"] = json!("E");
+        // A key's position is the one name the file doesn't fix, so a joined or typed one must fail.
+        let renamed = |code: &str| {
+            let mut file = parsed(&text);
+            let keys = file["keys"].as_object_mut().unwrap();
+            let key = keys.remove("0012").unwrap();
+            keys.insert(code.to_string(), key);
+            file
+        };
+        let with = |pointer: &str, value: Value| {
+            let mut file = parsed(&text);
+            *file.pointer_mut(pointer).unwrap() = value;
+            file
+        };
         for (planted, why) in [
             (spliced, "file.events is not a saved field"),
             (longer, "keys.0012.hold is not 14 bins"),
             (named, "keys.0012.name is not a saved field"),
+            (renamed("0012,0022"), "keys.0012,0022 is not a key position"),
+            (renamed("E"), "keys.E is not a key position"),
+            (renamed("00e0"), "keys.00e0 is not a key position"),
+            (
+                with("/note", json!("E G J E")),
+                "note is not one of its fixed words",
+            ),
+            (
+                with("/app", json!("E G J E")),
+                "app is not one of its fixed words",
+            ),
+            (
+                with("/limits/poll", json!("E")),
+                "limits.poll is not one of its fixed words",
+            ),
+            (
+                with("/limits/pauses", json!("E")),
+                "limits.pauses is not a count",
+            ),
+            (
+                with("/keys/0012/downs", json!("E")),
+                "keys.0012.downs is not a count",
+            ),
+            (
+                with("/keys/0012/downs", json!(-1)),
+                "keys.0012.downs is not a count",
+            ),
+            (
+                with("/keys/0012/hold/3", json!("E")),
+                "keys.0012.hold is not a count",
+            ),
+            (
+                with("/keys/0012/prompted/presses", json!("E")),
+                "keys.0012.prompted.presses is not a count",
+            ),
+            (with("/rules", json!("E")), "rules is not a count"),
+            (
+                with("/binEdgesMs/3", json!(21)),
+                "binEdgesMs is not the engine's bin edges",
+            ),
         ] {
             assert_eq!(
                 no_sequence(&serde_json::to_string_pretty(&planted).unwrap()),
