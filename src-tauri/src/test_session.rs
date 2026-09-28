@@ -14,7 +14,7 @@ use webview2_com::Microsoft::Web::WebView2::Win32::{
 use webview2_com::ProcessFailedEventHandler;
 
 use crate::session_core::{Core, Entry};
-use crate::view::{self, GuideView, KeyboardGroup, PlanArgs, groups};
+use crate::view::{self, GuideView, KeyName, KeyboardGroup, PlanArgs, TestResult, groups};
 
 // The capture callback and the commands share Core on this one thread. None of them holds a borrow
 // of it, or of SESSION, across Capture::start, a Capture drop or an emit.
@@ -36,6 +36,7 @@ thread_local! {
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
 const NO_TEST: &str = "No test is running.";
+const NO_PLAN: &str = "This test has no plan to diagnose.";
 
 pub fn running() -> bool {
     RUNNING.load(Ordering::SeqCst)
@@ -201,6 +202,30 @@ pub fn skip_key() -> Result<(), String> {
         continue_test()?;
     }
     Ok(())
+}
+
+// End test diagnoses what the test saw. The names only word the findings for the page. A refusal
+// leaves the test running.
+#[tauri::command]
+pub fn end_test(labels: Vec<KeyName>) -> Result<TestResult, String> {
+    let names = view::names(labels)?;
+    let session = SESSION.with_borrow_mut(|session| match session {
+        Some(s) if !s.core.borrow().guided() => Err(NO_PLAN),
+        _ => session.take().ok_or(NO_TEST),
+    })?;
+    RUNNING.store(false, Ordering::SeqCst);
+    let Session {
+        capture,
+        core,
+        page,
+        ..
+    } = session;
+    // Once capture is gone no input can reach Core, so the diagnosis sees the whole test.
+    drop(capture);
+    let report = core.borrow_mut().finish(Instant::now()).ok_or(NO_PLAN)?;
+    let result = view::result(&report, &names);
+    let _ = page.emit("test:stopped", ());
+    Ok(result)
 }
 
 #[tauri::command]

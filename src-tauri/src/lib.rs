@@ -32,6 +32,7 @@ pub fn run() {
         test_session::pause_test,
         test_session::continue_test,
         test_session::skip_key,
+        test_session::end_test,
         test_session::stop_test
     ]);
     #[cfg(all(debug_assertions, windows))]

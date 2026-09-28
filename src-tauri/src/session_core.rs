@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::time::Instant;
 
-use keytriage_diagnostics::{self as diagnostics, BoardKind, Guide};
+use keytriage_diagnostics::{self as diagnostics, BoardKind, Guide, Report};
 use keytriage_input::Input;
 use serde::{Deserialize, Serialize};
 
@@ -156,6 +156,27 @@ impl Core {
     pub fn view(&self) -> Option<GuideView> {
         self.test.as_ref().map(|(guide, ..)| guide_view(guide))
     }
+
+    pub fn guided(&self) -> bool {
+        self.test.is_some()
+    }
+
+    // The ordered events and the Guide's rounds leave Core here and are dropped once the engine has
+    // read them, so only the report outlives the test. A test without a plan has nothing to
+    // diagnose, and keeps its events.
+    pub fn finish(&mut self, at: Instant) -> Option<Report> {
+        let (mut guide, keyboard, board) = self.test.take()?;
+        let end_us = self.recorder.micros(at);
+        let rounds = guide.finish(end_us);
+        let entries = std::mem::take(&mut self.entries);
+        Some(diagnostics::diagnose(&diagnostics::Session {
+            entries: &entries,
+            end_us,
+            keyboard: &keyboard,
+            rounds: &rounds,
+            board,
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -163,10 +184,11 @@ mod tests {
     use std::time::Duration;
 
     use keytriage_diagnostics::fixture::guided_chatter;
-    use keytriage_diagnostics::{Plan, Round};
+    use keytriage_diagnostics::{Plan, RULES, Round};
     use keytriage_input::KeyEvent;
 
     use super::*;
+    use crate::view::{KeyName, names, result};
 
     fn key(recorder: &Recorder, scan: u16, up: bool, micros: u64) -> Input {
         Input::Key(KeyEvent {
@@ -535,6 +557,123 @@ mod tests {
         assert!(view.is_none());
         assert!(free.skip(at(start, 2_000_000)).is_none());
         assert!(free.test.is_none());
+        assert_eq!(free.entries.len(), 1);
+    }
+
+    fn named(keys: &[(u16, &str)]) -> Vec<KeyName> {
+        keys.iter()
+            .map(|&(scan, name)| KeyName {
+                scan,
+                name: name.to_string(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn res01_the_guided_chatter_run_ends_in_one_finding_on_e() {
+        let (plan, f) = guided_chatter();
+        let start = Instant::now();
+        let guide = Guide::new(plan, &f.keyboard).unwrap();
+        let mut core = Core::new(start, Some((guide, f.keyboard.clone(), f.board)));
+        for e in &f.entries {
+            core.input(input(start, e));
+        }
+        let report = core.finish(at(start, f.end_us)).unwrap();
+        // The events and the Guide are gone, and the engine saw what the fixture's own run saw.
+        assert!(core.entries.is_empty() && !core.guided());
+        assert_eq!(report, f.diagnose());
+
+        let labels = names(named(&[(G, "G"), (J, "J"), (E, "E")])).unwrap();
+        let r = result(&report, &labels);
+        assert_eq!(r.rules, RULES);
+        assert_eq!(r.findings.len(), 1);
+        let v = &r.findings[0];
+        assert_eq!(
+            (
+                v.key,
+                v.kind,
+                v.confidence,
+                v.title.as_str(),
+                v.level.as_str(),
+                v.strong
+            ),
+            (
+                E,
+                "chatter",
+                "very-high",
+                "Possible chatter",
+                "Very high",
+                true
+            )
+        );
+        assert!(
+            v.evidence[0].starts_with("6 of 30 presses sent an extra key-down"),
+            "{}",
+            v.evidence[0]
+        );
+        assert_eq!(
+            v.causes,
+            [
+                "Switch contacts",
+                "Hot-swap socket or solder joint",
+                "Firmware debounce"
+            ]
+        );
+        assert_eq!(
+            v.next[0],
+            "Say whether the keyboard is hot-swap, soldered or a laptop keyboard. The next steps \
+             differ."
+        );
+        assert!(
+            v.next[1].starts_with("Swap the E switch with the G switch"),
+            "{}",
+            v.next[1]
+        );
+        let gaps = v.gaps.as_ref().unwrap();
+        let bars: Vec<(&str, u32)> = gaps.iter().map(|b| (b.label, b.count)).collect();
+        let saved = report.saved();
+        assert_eq!(
+            bars.iter().map(|b| b.1).sum::<u32>(),
+            saved.keys[&E].release_gap.total()
+        );
+        // The six extra key-downs came 5 ms after a release.
+        assert_eq!(bars[..2], [("<4", 0), ("4–12", 6)]);
+
+        let keys: Vec<(u16, u32)> = r.keys.iter().map(|k| (k.scan, k.count)).collect();
+        assert_eq!(keys, [(E, 36), (G, 30), (J, 30)]);
+        assert_eq!(r.clean.len(), 2);
+        assert!(r.clean[0].starts_with("G: no extra key-downs in 30 presses"));
+        assert!(r.clean[1].starts_with("J: no extra key-downs in 30 presses"));
+        assert!(r.notes.is_empty());
+        assert_eq!(
+            r.resolution,
+            "Timing resolution for this keyboard is 4 ms or finer."
+        );
+
+        // The page reads these names. The result holds no times.
+        let json = serde_json::to_string(&r).unwrap();
+        for part in [
+            r#"{"rules":2,"findings":[{"key":18,"kind":"chatter","confidence":"very-high","title":"Possible chatter","level":"Very high","strong":true,"evidence":["6 of 30 presses"#,
+            r#"],"causes":["Switch contacts","#,
+            r#"],"next":["Say whether"#,
+            r#"],"gaps":[{"label":"<4","count":0},{"label":"4–12","count":6},{"label":"12–20","count":0},"#,
+            r#"{"label":"100+","count":29}]}],"notes":[],"clean":["G: no extra key-downs"#,
+            r#"],"keys":[{"scan":18,"count":36},{"scan":34,"count":30},{"scan":36,"count":30}],"resolution":"Timing"#,
+        ] {
+            assert!(json.contains(part), "{part}");
+        }
+        for time in [r#""micros""#, r#"_us""#, r#""start"#, r#""end"#] {
+            assert!(!json.contains(time), "{time}");
+        }
+    }
+
+    #[test]
+    fn res05_a_test_without_a_plan_has_nothing_to_diagnose() {
+        let start = Instant::now();
+        let mut free = Core::new(start, None);
+        free.input(press(start, E, false, 1_000));
+        assert!(!free.guided());
+        assert!(free.finish(at(start, 2_000_000)).is_none());
         assert_eq!(free.entries.len(), 1);
     }
 }

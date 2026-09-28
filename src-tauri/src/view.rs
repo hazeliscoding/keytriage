@@ -1,6 +1,12 @@
 // What the page is sent and what it may ask for. Only these shapes cross to the page, so a device
 // path or container ID never does.
-use keytriage_diagnostics::{BoardKind, Guide, MAX_PRESSES, MAX_ROUNDS, Plan, PlanError};
+use std::collections::BTreeMap;
+
+use keytriage_diagnostics::params::EDGES_MS;
+use keytriage_diagnostics::{
+    BoardKind, Confidence, Guide, Histogram, Kind, MAX_PRESSES, MAX_ROUNDS, Note, Plan, PlanError,
+    Report, code_label,
+};
 use keytriage_input::Keyboard;
 use serde::{Deserialize, Serialize};
 
@@ -164,8 +170,187 @@ pub fn guide_view(guide: &Guide) -> GuideView {
     }
 }
 
+// A drawn key's name, which only words the findings for the page. Names never reach a file.
+#[derive(Deserialize)]
+pub struct KeyName {
+    pub scan: u16,
+    pub name: String,
+}
+
+// A drawn keyboard names about a hundred keys in a word or two each, so more is a mistake.
+const MAX_NAMES: usize = 256;
+const MAX_NAME_CHARS: usize = 24;
+
+pub fn names(labels: Vec<KeyName>) -> Result<BTreeMap<u16, String>, String> {
+    if labels.len() > MAX_NAMES {
+        return Err(format!("A layout can't name more than {MAX_NAMES} keys."));
+    }
+    let mut names = BTreeMap::new();
+    for KeyName { scan, name } in labels {
+        if name.trim().is_empty() {
+            return Err("A key name can't be empty.".to_string());
+        }
+        if name.chars().count() > MAX_NAME_CHARS {
+            return Err(format!(
+                "A key name can't be longer than {MAX_NAME_CHARS} characters."
+            ));
+        }
+        if name.chars().any(char::is_control) {
+            return Err("A key name can't hold control characters.".to_string());
+        }
+        names.insert(scan, name);
+    }
+    Ok(names)
+}
+
+// The `end_test` result: the engine's findings and notes in words, with no times.
+#[derive(Serialize)]
+pub struct TestResult {
+    pub rules: u16,
+    pub findings: Vec<FindingView>,
+    pub notes: Vec<String>,
+    pub clean: Vec<String>,
+    pub keys: Vec<KeyCount>,
+    pub resolution: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FindingView {
+    pub key: u16,
+    pub kind: &'static str,
+    pub confidence: &'static str,
+    pub title: String,
+    pub level: String,
+    pub strong: bool,
+    pub evidence: Vec<String>,
+    pub causes: Vec<String>,
+    pub next: Vec<String>,
+    pub gaps: Option<Vec<Bar>>,
+}
+
+#[derive(Serialize)]
+pub struct Bar {
+    pub label: &'static str,
+    pub count: u32,
+}
+
+#[derive(Serialize)]
+pub struct KeyCount {
+    pub scan: u16,
+    pub count: u32,
+}
+
+// The chatter card's bars, each closed at one of the engine's bin edges, in ms, so a bar never
+// splits a bin.
+const GAP_BARS: [(&str, u64); 6] = [
+    ("<4", 4),
+    ("4–12", 12),
+    ("12–20", 20),
+    ("20–36", 36),
+    ("36–100", 100),
+    ("100+", u64::MAX),
+];
+
+fn gap_bars(gaps: &Histogram) -> Vec<Bar> {
+    let mut bars: Vec<Bar> = GAP_BARS
+        .iter()
+        .map(|&(label, _)| Bar { label, count: 0 })
+        .collect();
+    for (bin, &count) in gaps.0.iter().enumerate() {
+        let upper = EDGES_MS.get(bin).copied().unwrap_or(u64::MAX);
+        let bar = GAP_BARS
+            .iter()
+            .position(|&(_, edge)| upper <= edge)
+            .unwrap_or(GAP_BARS.len() - 1);
+        bars[bar].count += count;
+    }
+    bars
+}
+
+// The engine's words are lowercase so that they can sit inside a sentence. Here each one starts
+// its own line.
+fn sentence(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
+}
+
+// Keys the page didn't name read as their code, "key 0012".
+pub fn result(report: &Report, names: &BTreeMap<u16, String>) -> TestResult {
+    let label = |scan: u16| {
+        names
+            .get(&scan)
+            .cloned()
+            .unwrap_or_else(|| code_label(scan))
+    };
+    let saved = report.saved();
+    let findings = report
+        .findings
+        .iter()
+        .map(|f| {
+            let lines = f.lines(&label);
+            let all = |lines: &[String]| lines.iter().map(|l| sentence(l)).collect();
+            FindingView {
+                key: f.key,
+                kind: match f.kind() {
+                    Kind::Chatter => "chatter",
+                    Kind::Dead => "dead",
+                    Kind::Stuck => "stuck",
+                },
+                confidence: match f.confidence {
+                    Confidence::Low => "low",
+                    Confidence::Medium => "medium",
+                    Confidence::High => "high",
+                    Confidence::VeryHigh => "very-high",
+                },
+                title: sentence(f.kind().words()),
+                level: sentence(f.confidence.words()),
+                strong: f.confidence >= Confidence::High,
+                evidence: all(&lines.evidence),
+                causes: all(&lines.causes),
+                next: all(&lines.next),
+                gaps: match f.kind() {
+                    Kind::Chatter => saved.keys.get(&f.key).map(|a| gap_bars(&a.release_gap)),
+                    Kind::Dead | Kind::Stuck => None,
+                },
+            }
+        })
+        .collect();
+    let (clean, notes): (Vec<&Note>, Vec<&Note>) = report
+        .notes
+        .iter()
+        .partition(|n| matches!(n, Note::Clean { .. }));
+    let words = |notes: Vec<&Note>| notes.iter().map(|n| sentence(&n.words(&label))).collect();
+    TestResult {
+        rules: report.rules,
+        findings,
+        notes: words(notes),
+        clean: words(clean),
+        // Counts for the drawing: every key-down each prompted key sent in its own rounds.
+        keys: saved
+            .keys
+            .iter()
+            .filter_map(|(&scan, a)| {
+                a.prompted.map(|p| KeyCount {
+                    scan,
+                    count: p.presses + p.extra_downs,
+                })
+            })
+            .collect(),
+        resolution: report.aggregates.limits.poll.words().to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use keytriage_diagnostics::fixture::{
+        GAP, HOLD, Synth, guided, guided_chatter, interleaved, ms, normal,
+    };
+    use keytriage_diagnostics::hedged;
+    use keytriage_diagnostics::params::BINS;
+
     use super::*;
 
     fn keyboard(
@@ -431,5 +616,142 @@ mod tests {
                 assert!(!text.contains(time), "{time}");
             }
         }
+    }
+
+    fn name(scan: u16, name: &str) -> KeyName {
+        KeyName {
+            scan,
+            name: name.to_string(),
+        }
+    }
+
+    #[test]
+    fn res02_keys_without_a_name_read_as_their_code() {
+        let (_, f) = guided_chatter();
+        let r = result(&f.diagnose(), &BTreeMap::new());
+        let next = &r.findings[0].next;
+        assert!(
+            next.iter()
+                .any(|n| n.starts_with("Swap the key 0012 switch with the key 0022 switch")),
+            "{next:?}"
+        );
+        assert!(r.clean[0].starts_with("Key 0022: no extra key-downs"));
+        assert!(r.clean[1].starts_with("Key 0024: no extra key-downs"));
+    }
+
+    fn texts(r: &TestResult) -> Vec<String> {
+        let mut all = vec![r.resolution.clone()];
+        for f in &r.findings {
+            all.extend([f.title.clone(), f.level.clone()]);
+            all.extend(f.evidence.iter().chain(&f.causes).chain(&f.next).cloned());
+        }
+        all.extend(r.notes.iter().chain(&r.clean).cloned());
+        all
+    }
+
+    #[test]
+    fn res03_every_rendered_line_keeps_to_evidence_and_likelihood() {
+        const H: u16 = 0x23;
+        let dead = guided(
+            Plan {
+                keys: vec![G, H, J],
+                rounds: 3,
+                presses: 10,
+            },
+            |s, k, _| {
+                if k == H {
+                    (s.wait(ms(3_000)), true)
+                } else {
+                    (normal(s, k), false)
+                }
+            },
+        );
+        let mut stuck = Synth::new();
+        for _ in 0..2 {
+            stuck = stuck.round(E, 10, |s| s.hold(E, ms(6_000), ms(500), ms(33)));
+        }
+        let paused = Synth::new().round(E, 10, |s| {
+            s.taps(E, 4, HOLD, GAP)
+                .down(G)
+                .wait(ms(3_000))
+                .pause(&[G])
+                .wait(ms(20_000))
+                .resume()
+        });
+        let reports = [
+            guided_chatter().1.diagnose(),
+            dead.diagnose(),
+            stuck.build().diagnose(),
+            paused.build().diagnose(),
+            interleaved(7).diagnose(),
+        ];
+        let labels = names(vec![name(E, "E"), name(G, "G"), name(H, "H")]).unwrap();
+        let mut kinds = Vec::new();
+        let mut notes = 0;
+        for report in &reports {
+            for named in [&labels, &BTreeMap::new()] {
+                let r = result(report, named);
+                kinds.extend(r.findings.iter().map(|f| f.kind));
+                notes += r.notes.len();
+                for text in texts(&r) {
+                    assert!(hedged(&text), "{text}");
+                    assert!(!text.starts_with(char::is_lowercase), "{text}");
+                }
+            }
+        }
+        for kind in ["chatter", "dead", "stuck"] {
+            assert!(kinds.contains(&kind), "{kind}");
+        }
+        assert!(notes > 0);
+    }
+
+    fn refusal(labels: Vec<KeyName>) -> String {
+        match names(labels) {
+            Ok(_) => panic!("the names were accepted"),
+            Err(e) => e,
+        }
+    }
+
+    #[test]
+    fn res04_names_must_fit_a_drawn_key() {
+        let many: Vec<KeyName> = (0..257).map(|scan| name(scan, "Key")).collect();
+        assert_eq!(refusal(many), "A layout can't name more than 256 keys.");
+        let most: Vec<KeyName> = (0..256).map(|scan| name(scan, "Key")).collect();
+        assert_eq!(names(most).unwrap().len(), 256);
+        for (bad, why) in [
+            ("", "A key name can't be empty."),
+            ("  ", "A key name can't be empty."),
+            (
+                "Twenty-five characters...",
+                "A key name can't be longer than 24 characters.",
+            ),
+            ("E\n", "A key name can't hold control characters."),
+            ("E\u{7f}", "A key name can't hold control characters."),
+        ] {
+            assert_eq!(refusal(vec![name(G, "G"), name(E, bad)]), why);
+        }
+        // Characters are counted, not bytes.
+        let wide = "Ä".repeat(24);
+        assert_eq!(names(vec![name(E, &wide)]).unwrap()[&E], wide);
+    }
+
+    #[test]
+    fn bars01_each_bar_is_a_run_of_whole_bins() {
+        for &(_, edge) in &GAP_BARS[..GAP_BARS.len() - 1] {
+            assert!(EDGES_MS.contains(&edge), "{edge}");
+        }
+        let bars = gap_bars(&Histogram([1; BINS]));
+        let counts: Vec<(&str, u32)> = bars.iter().map(|b| (b.label, b.count)).collect();
+        assert_eq!(
+            counts,
+            [
+                ("<4", 2),
+                ("4–12", 1),
+                ("12–20", 1),
+                ("20–36", 2),
+                ("36–100", 2),
+                ("100+", 6)
+            ]
+        );
     }
 }
