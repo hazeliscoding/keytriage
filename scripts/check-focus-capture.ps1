@@ -25,58 +25,15 @@ $ErrorActionPreference = 'Stop'
 
 $F13 = 0x64; $F14 = 0x65; $F15 = 0x66
 
-function Stop-Inconclusive([string]$why) { Write-Host "INCONCLUSIVE: $why"; exit 2 }
-function Stop-Fail([string]$why) { Write-Host "FAIL: $why"; exit 1 }
-function Stop-Captured([string]$why) { Write-Host "FAIL: $why"; exit 3 }
-
-function Enter-Foreground([IntPtr]$hwnd, [string]$name) {
-    $how = $W::Activate($hwnd, 2000)
-    if (-not $how) { Stop-Inconclusive "could not bring $name to the foreground" }
-    Write-Host "$name is in the foreground ($how)"
-}
-
-function Assert-Foreground([IntPtr]$hwnd, [string]$phase) {
-    $fg = $W::GetForegroundWindow()
-    if ($fg -ne $hwnd) { Stop-Inconclusive "the foreground changed during $phase (now class $($W::Class($fg)))" }
-}
-
-function Test-Focus([IntPtr]$hwnd) {
-    $owner = $W::FocusProcess($hwnd)
-    if ($Hosting -eq 'windowed') { return $owner -ne 0 -and $owner -ne $app.Proc.Id }
-    return $owner -ne 0
-}
-
-# WebView2 moves focus into its content asynchronously, across processes.
-function Wait-Focus([IntPtr]$hwnd) {
-    $deadline = [DateTime]::UtcNow.AddMilliseconds(2000)
-    do {
-        if (Test-Focus $hwnd) { return $true }
-        Start-Sleep -Milliseconds 50
-    } while ([DateTime]::UtcNow -lt $deadline)
-    return $false
-}
+. (Join-Path $PSScriptRoot 'app-harness.ps1')
 
 $app = $null
 $probe = $null
 try {
-    Add-Type -Path (Join-Path $PSScriptRoot 'check-focus-capture.cs') -ReferencedAssemblies @(
-        'System.Windows.Forms', 'System.Windows.Forms.Primitives', 'System.ComponentModel.Primitives',
-        'System.Drawing.Primitives', 'System.Collections', 'System.Threading', 'System.Threading.Thread',
-        'System.Diagnostics.Process', 'System.Runtime.InteropServices', 'System.Text.RegularExpressions',
-        'System.ComponentModel'
-    )
-    $W = [FocusCheck.Win]
-
-    $app = [FocusCheck.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual')
+    $app = [AppHarness.AppUnderTest]::Start((Resolve-Path $Exe), $Hosting -eq 'visual')
     if (-not $app.WaitReady($StartTimeoutMs)) { Stop-Inconclusive 'the app did not print its ready line; is this a debug build?' }
 
-    $hwnd = [IntPtr]::Zero
-    $deadline = [DateTime]::UtcNow.AddMilliseconds($StartTimeoutMs)
-    while ($hwnd -eq [IntPtr]::Zero -and [DateTime]::UtcNow -lt $deadline) {
-        $hwnd = $W::FindTopLevel($app.Proc.Id, 'keytriage')
-        if ($hwnd -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 100 }
-    }
-    if ($hwnd -eq [IntPtr]::Zero) { Stop-Inconclusive 'no visible window titled keytriage in the app process' }
+    $hwnd = Find-AppWindow $StartTimeoutMs
 
     # Registration is per process and the last call wins, so the process must hold exactly one:
     # the keyboard, aimed at the app window, with no sink flag (RIDEV_INPUTSINK 0x100,
@@ -90,12 +47,7 @@ try {
     Write-Host ('registration: keyboard, flags 0x{0:x}, targets the app window' -f $reg.Flags)
 
     # Phase 1: the app is in the foreground with focus inside the WebView2 content. Events arrive.
-    Enter-Foreground $hwnd 'the app'
-    if (-not (Wait-Focus $hwnd)) {
-        if (-not $W::ClickClientCenter($hwnd)) { Stop-Inconclusive 'could not click into the app window' }
-        if (-not (Wait-Focus $hwnd)) { Stop-Inconclusive "focus is not where $Hosting hosting puts it ($($W::FocusInfo($hwnd)))" }
-    }
-    Write-Host "focus: $($W::FocusInfo($hwnd))"
+    Enter-App $hwnd
     Assert-Foreground $hwnd 'phase 1'
     if ($W::Tap($F13, $Taps) -ne 2 * $Taps) { Stop-Inconclusive 'SendInput was blocked (UIPI or a secure desktop)' }
     $got = $app.WaitDowns($F13, $Taps, $StepTimeoutMs)
@@ -110,7 +62,7 @@ try {
         Assert-Foreground $hwnd 'phase 2'
     }
     else {
-        $probe = [FocusCheck.ProbeForm]::Start('keytriage focus probe', $F14)
+        $probe = [AppHarness.ProbeForm]::Start('keytriage focus probe', $F14)
         Enter-Foreground $probe.Hwnd 'the probe window'
         [void]$W::Tap($F14, $Taps)
         if (-not $probe.WaitCount($Taps, $StepTimeoutMs)) { Stop-Inconclusive "the probe window received $($probe.Count) of $Taps key downs" }
@@ -126,7 +78,7 @@ try {
     Assert-Foreground $hwnd 'phase 3'
     if (-not $got) { Stop-Fail "events did not resume ($($app.Downs($F15)) of $Taps)" }
 
-    if ($app.Downs($F14) -ne 0) { Stop-Captured "the app received $($app.Downs($F14)) key downs while in the background" }
+    if ($app.Downs($F14) -ne 0) { Stop-Caught "the app received $($app.Downs($F14)) key downs while in the background" }
     if ($app.OtherDowns -ne 0) { Stop-Inconclusive "$($app.OtherDowns) key downs arrived that the harness did not send" }
 
     Write-Host "injected keys arrived with device handle $($app.MarkerDevices)"

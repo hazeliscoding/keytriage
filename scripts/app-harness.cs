@@ -1,4 +1,4 @@
-// Win32 helpers for check-focus-capture.ps1, loaded with Add-Type.
+// Win32 helpers for the app checks in scripts/, loaded by app-harness.ps1.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,13 +8,17 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace FocusCheck
+namespace AppHarness
 {
     public static class Win
     {
         const uint INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
         const uint KEYEVENTF_KEYUP = 0x0002, KEYEVENTF_SCANCODE = 0x0008;
         const uint MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004;
+        const uint MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_RIGHTUP = 0x0010;
+        const uint TH32CS_SNAPPROCESS = 0x2, PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+        const int SM_SWAPBUTTON = 23;
+        const uint MAPVK_VK_TO_VSC = 0;
         const int SW_RESTORE = 9;
         const uint WM_NULL = 0x0000, SMTO_ABORTIFHUNG = 0x0002;
         static readonly IntPtr DPI_PER_MONITOR_AWARE_V2 = new IntPtr(-4);
@@ -31,6 +35,8 @@ namespace FocusCheck
         struct RECT { public int Left, Top, Right, Bottom; }
         [StructLayout(LayoutKind.Sequential)]
         struct POINT { public int X, Y; }
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct PROCESSENTRY32 { public int dwSize; public uint cntUsage; public uint th32ProcessID; public IntPtr th32DefaultHeapID; public uint th32ModuleID; public uint cntThreads; public uint th32ParentProcessID; public int pcPriClassBase; public uint dwFlags; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string szExeFile; }
         [StructLayout(LayoutKind.Sequential)]
         struct GUITHREADINFO { public int cbSize; public uint flags; public IntPtr hwndActive, hwndFocus, hwndCapture, hwndMenuOwner, hwndMoveSize, hwndCaret; public RECT rcCaret; }
 
@@ -55,6 +61,15 @@ namespace FocusCheck
         [DllImport("user32.dll", SetLastError = true)] static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeoutMs, out IntPtr result);
         [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr ctx);
         [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
+        [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint pid);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32FirstW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool Process32NextW(IntPtr snapshot, ref PROCESSENTRY32 entry);
+        [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+        [DllImport("kernel32.dll")] static extern bool GetProcessTimes(IntPtr process, out long created, out long exited, out long kernel, out long user);
+        [DllImport("user32.dll")] static extern int GetSystemMetrics(int index);
+        [DllImport("user32.dll")] static extern IntPtr GetKeyboardLayout(uint threadId);
+        [DllImport("user32.dll")] static extern uint MapVirtualKeyEx(uint code, uint mapType, IntPtr hkl);
 
         static int InputSize { get { return Marshal.SizeOf(typeof(INPUT)); } }
 
@@ -112,7 +127,9 @@ namespace FocusCheck
             return null;
         }
 
-        public static bool ClickClientCenter(IntPtr hwnd)
+        public static bool ClickClientCenter(IntPtr hwnd) { return ClickClientCenter(hwnd, false); }
+
+        public static bool ClickClientCenter(IntPtr hwnd, bool right)
         {
             SetThreadDpiAwarenessContext(DPI_PER_MONITOR_AWARE_V2);
             RECT rc;
@@ -124,9 +141,11 @@ namespace FocusCheck
             POINT saved;
             GetCursorPos(out saved);
             SetCursorPos(p.X, p.Y);
+            // SendInput names physical buttons, and the left-handed setting swaps them afterwards.
+            if (GetSystemMetrics(SM_SWAPBUTTON) != 0) right = !right;
             var click = new INPUT[2];
-            click[0].type = INPUT_MOUSE; click[0].u.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-            click[1].type = INPUT_MOUSE; click[1].u.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+            click[0].type = INPUT_MOUSE; click[0].u.mi.dwFlags = right ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_LEFTDOWN;
+            click[1].type = INPUT_MOUSE; click[1].u.mi.dwFlags = right ? MOUSEEVENTF_RIGHTUP : MOUSEEVENTF_LEFTUP;
             uint sent = SendInput(2, click, InputSize);
             Thread.Sleep(50);
             SetCursorPos(saved.X, saved.Y);
@@ -156,6 +175,18 @@ namespace FocusCheck
             return Pid(g.hwndFocus);
         }
 
+        // The scan code of a virtual key in the layout of the thread that holds focus inside `top`,
+        // which translates the scan codes injected there. R is not at the same place on every layout.
+        public static ushort ScanFor(ushort vk, IntPtr top)
+        {
+            var g = new GUITHREADINFO();
+            g.cbSize = Marshal.SizeOf(typeof(GUITHREADINFO));
+            IntPtr focus = GetGUIThreadInfo(0, ref g) && IsChild(top, g.hwndFocus) ? g.hwndFocus : top;
+            uint pid;
+            uint thread = GetWindowThreadProcessId(focus, out pid);
+            return (ushort)MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, GetKeyboardLayout(thread));
+        }
+
         // Taps a key by scan code. The layout picks the virtual key, and Raw Input reports the
         // scan code as MakeCode.
         public static uint Tap(ushort scan, int count)
@@ -167,6 +198,71 @@ namespace FocusCheck
                 list.Add(Key(scan, true));
             }
             return SendInput((uint)list.Count, list.ToArray(), InputSize);
+        }
+
+        // Holds `modifier` while tapping `key`, both by scan code.
+        public static uint Chord(ushort modifier, ushort key)
+        {
+            var list = new[] { Key(modifier, false), Key(key, false), Key(key, true), Key(modifier, true) };
+            return SendInput((uint)list.Length, list, InputSize);
+        }
+
+        // The app and every process it started, such as WebView2's browser and renderers. A parent id
+        // outlives its process and can be reused, so a child counts only if it started after its
+        // parent.
+        public static HashSet<uint> ProcessTree(uint root)
+        {
+            var parents = new Dictionary<uint, uint>();
+            IntPtr snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+            if (snapshot == new IntPtr(-1)) return new HashSet<uint> { root };
+            try
+            {
+                var e = new PROCESSENTRY32 { dwSize = Marshal.SizeOf(typeof(PROCESSENTRY32)) };
+                for (bool ok = Process32FirstW(snapshot, ref e); ok; ok = Process32NextW(snapshot, ref e))
+                    parents[e.th32ProcessID] = e.th32ParentProcessID;
+            }
+            finally { CloseHandle(snapshot); }
+            var tree = new HashSet<uint> { root };
+            var started = new Dictionary<uint, long>();
+            if (!Started(root, started)) return tree;
+            for (bool grew = true; grew;)
+            {
+                grew = false;
+                foreach (var kv in parents)
+                {
+                    if (tree.Contains(kv.Key) || !tree.Contains(kv.Value)) continue;
+                    if (Started(kv.Key, started) && started[kv.Key] >= started[kv.Value]) grew |= tree.Add(kv.Key);
+                }
+            }
+            return tree;
+        }
+
+        static bool Started(uint pid, Dictionary<uint, long> started)
+        {
+            if (started.ContainsKey(pid)) return true;
+            IntPtr process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+            if (process == IntPtr.Zero) return false;
+            try
+            {
+                long created, exited, kernel, user;
+                if (!GetProcessTimes(process, out created, out exited, out kernel, out user)) return false;
+                started[pid] = created;
+                return true;
+            }
+            finally { CloseHandle(process); }
+        }
+
+        // Visible top-level windows of the given processes, other than `except`. A WebView2 context
+        // menu is one of these, owned by its browser process.
+        public static List<IntPtr> VisibleTopLevel(HashSet<uint> pids, IntPtr except)
+        {
+            var found = new List<IntPtr>();
+            EnumWindows((h, l) =>
+            {
+                if (h != except && IsWindowVisible(h) && pids.Contains(Pid(h))) found.Add(h);
+                return true;
+            }, IntPtr.Zero);
+            return found;
         }
 
         static INPUT Key(ushort scan, bool up)
@@ -253,8 +349,12 @@ namespace FocusCheck
         readonly HashSet<long> devices = new HashSet<long>();
         readonly List<Registration> registrations = new List<Registration>();
         bool ready;
+        int pageLoads;
+        string settings;
 
-        public static AppUnderTest Start(string exe, bool visualHosting)
+        public static AppUnderTest Start(string exe, bool visualHosting) { return Start(exe, visualHosting, false); }
+
+        public static AppUnderTest Start(string exe, bool visualHosting, bool keepBrowserKeys)
         {
             var psi = new ProcessStartInfo(exe);
             psi.UseShellExecute = false;
@@ -268,6 +368,8 @@ namespace FocusCheck
             const string hosting = "COREWEBVIEW2_FORCED_HOSTING_MODE";
             if (visualHosting) psi.Environment[hosting] = "COREWEBVIEW2_HOSTING_MODE_WINDOW_TO_VISUAL";
             else psi.Environment.Remove(hosting);
+            if (keepBrowserKeys) psi.Environment["KEYTRIAGE_BROWSER_KEYS"] = "1";
+            else psi.Environment.Remove("KEYTRIAGE_BROWSER_KEYS");
             var app = new AppUnderTest();
             app.Proc = new Process();
             app.Proc.StartInfo = psi;
@@ -284,6 +386,12 @@ namespace FocusCheck
             lock (gate)
             {
                 if (line == "kt-input: ready") { ready = true; return; }
+                if (line == "kt-shell: page-load") { pageLoads++; return; }
+                if (line.StartsWith("kt-shell: browser-keys=") || line.StartsWith("kt-shell: settings unreadable"))
+                {
+                    settings = line.Substring("kt-shell: ".Length);
+                    return;
+                }
                 var r = RegisteredLine.Match(line);
                 if (r.Success)
                 {
@@ -307,6 +415,16 @@ namespace FocusCheck
         public Registration[] Registrations { get { lock (gate) return registrations.ToArray(); } }
         public int Downs(int key) { lock (gate) { int n; return downs.TryGetValue(key, out n) ? n : 0; } }
         public int OtherDowns { get { return Downs(Other); } }
+        public int PageLoads { get { lock (gate) return pageLoads; } }
+        // "browser-keys=0 context-menus=0", "settings unreadable: ...", or null before the app reports.
+        public string Settings { get { lock (gate) return settings; } }
+
+        public bool WaitFor(Func<bool> done, int timeoutMs)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < timeoutMs) { if (done()) return true; Thread.Sleep(20); }
+            return done();
+        }
 
         // The device handles the injected marker keys arrived with.
         public string MarkerDevices
