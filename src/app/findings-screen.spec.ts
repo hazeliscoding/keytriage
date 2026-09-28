@@ -22,6 +22,7 @@ import {
   inApp,
   key,
   leaveApp,
+  nthClick,
   send,
   sent,
   settle,
@@ -464,6 +465,35 @@ describe('Findings screen', () => {
       expect(again).toEqual(first);
       expect(again.keys).toEqual([G, 0x24, E]);
       expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+    });
+
+    it('drops the second click of a double click on End test, which lands on Test again', async () => {
+      inApp((cmd) => (cmd === 'end_test' ? FOUND : null));
+      const fixture = await testing([GOLDEN_PLAN]);
+      await nthClick(fixture, button(fixture, 'End test'), 1);
+      await nthClick(fixture, button(fixture, 'Test again'), 2);
+      expect(started()).toHaveLength(1);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
+      expect(all(fixture, '.finding')).toHaveLength(2);
+      // Control: a click of its own tests again.
+      await nthClick(fixture, button(fixture, 'Test again'), 1);
+      expect(started()).toHaveLength(2);
+    });
+
+    it('drops the second click of a double click on End test, which lands on Run the swap test', async () => {
+      inApp((cmd) => (cmd === 'end_test' ? { ...FOUND, swap: GOLDEN.result.swap } : null));
+      const fixture = await testing([GOLDEN_PLAN]);
+      await nthClick(fixture, button(fixture, 'End test'), 1);
+      await nthClick(fixture, button(fixture, 'Run the swap test'), 2);
+      expect(all(fixture, '.footer button').map(text)).toEqual([
+        'New test',
+        'Export report',
+        'Run the swap test',
+      ]);
+      expect(all(fixture, '.finding')).toHaveLength(2);
+      // Control: a click of its own shows the swap instructions.
+      await nthClick(fixture, button(fixture, 'Run the swap test'), 1);
+      expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
     });
 
     it('keeps the findings when a new test cannot start', async () => {

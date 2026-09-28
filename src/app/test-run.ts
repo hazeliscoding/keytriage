@@ -180,10 +180,12 @@ export class TestRun {
     }
   }
 
-  async begin(): Promise<void> {
+  // Rust ends a test well within a double click, so the second click on End test lands on the
+  // findings' Test again and is dropped here: it would start a test and replace them.
+  async begin(clicks = 1): Promise<void> {
     const group = this.group();
     const screen = this.screen();
-    if (!group || screen === 'starting' || screen === 'test') return;
+    if (!group || clicks > 1 || screen === 'starting' || screen === 'test') return;
     const plan: PlanArgs = {
       keyboard: group.entries.map((e) => e.handle),
       keys: this.plan.keys(this.layout()),
@@ -304,8 +306,11 @@ export class TestRun {
     this.leave('start');
   }
 
-  startSwap(): void {
-    if (this.screen() === 'findings' && this.findings()?.result.swap) this.leave('swap');
+  // The second click of a double click on End test lands here too, so it is dropped rather than
+  // passing over the findings.
+  startSwap(clicks = 1): void {
+    if (clicks > 1 || this.screen() !== 'findings' || !this.findings()?.result.swap) return;
+    this.leave('swap');
   }
 
   backToFindings(): void {

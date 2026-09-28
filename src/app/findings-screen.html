@@ -183,7 +183,7 @@
       Export report
     </button>
     @if (record.result.swap) {
-      <button type="button" class="btn btn--primary" (click)="run.startSwap()">
+      <button type="button" class="btn btn--primary" (click)="run.startSwap($event.detail)">
         Run the swap test
       </button>
     } @else {
@@ -191,7 +191,7 @@
         type="button"
         class="btn btn--primary"
         [disabled]="run.screen() === 'starting'"
-        (click)="run.begin()"
+        (click)="run.begin($event.detail)"
       >
         Test again
       </button>
