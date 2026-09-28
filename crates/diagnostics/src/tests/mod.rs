@@ -1,6 +1,7 @@
 mod aggregates;
 mod chatter;
 mod dead;
+mod guide;
 mod normalize;
 mod stats;
 mod stuck;

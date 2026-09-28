@@ -1,6 +1,7 @@
 // Synthetic event streams for fixtures. Every value comes from numbers here, never from typing.
 use std::collections::BTreeMap;
 
+use crate::guide::{Guide, Plan};
 use crate::input::{BoardKind, Device, Entry, HeldKey, Round, Session};
 use crate::report::Report;
 
@@ -87,6 +88,10 @@ impl Synth {
 
     pub fn now(&self) -> u64 {
         self.now
+    }
+
+    pub fn entries(&self) -> &[Entry] {
+        &self.entries
     }
 
     pub fn wait(mut self, us: u64) -> Self {
@@ -359,6 +364,66 @@ pub fn interleaved(seed: u64) -> Fixture {
         keyboard: vec![1],
         board: BoardKind::Unknown,
     }
+}
+
+// A guided test on keyboard [1]. `typist` answers the prompted key once per call, told which
+// answer to that prompt this is (from 1), and returns true to skip the key. A real Guide reads the
+// events as the capture callback would, so the rounds are the ones the app would stamp.
+pub fn guided(plan: Plan, mut typist: impl FnMut(Synth, u16, u32) -> (Synth, bool)) -> Fixture {
+    let mut s = Synth::new();
+    let mut guide = Guide::new(plan, &s.keyboard).expect("a valid plan");
+    let mut fed = 0;
+    while let Some(prompt) = guide.prompt() {
+        let step = (prompt.round, prompt.index);
+        // Time to read the prompt.
+        s = s.wait(ms(600));
+        for n in 1.. {
+            assert!(n <= 1_000, "the prompt for {:04X} never moved", prompt.key);
+            let skip;
+            (s, skip) = typist(s, prompt.key, n);
+            for e in &s.entries[fed..] {
+                guide.entry(e);
+            }
+            fed = s.entries.len();
+            if skip {
+                guide.skip(s.now);
+            }
+            if guide.prompt().is_none_or(|p| (p.round, p.index) != step) {
+                break;
+            }
+        }
+    }
+    let end_us = s.entries.last().map_or(s.now, Entry::micros) + ms(200);
+    let rounds = guide.finish(end_us);
+    Fixture {
+        entries: s.entries,
+        rounds,
+        end_us,
+        keyboard: s.keyboard,
+        board: s.board,
+    }
+}
+
+// The Done-when run: G, J and E, 3 rounds of 10. E's 5th and 10th answers in every round split
+// into a 5 ms press and a 100 ms one, 5 ms apart.
+pub fn guided_chatter() -> (Plan, Fixture) {
+    const E: u16 = 0x12;
+    const G: u16 = 0x22;
+    const J: u16 = 0x24;
+    let plan = Plan {
+        keys: vec![G, J, E],
+        rounds: 3,
+        presses: 10,
+    };
+    let fixture = guided(plan.clone(), |s, key, n| {
+        let s = if key == E && matches!(n, 5 | 10) {
+            s.fragments(E, &[ms(5), ms(5), ms(100)]).wait(ms(200))
+        } else {
+            normal(s, key)
+        };
+        (s, false)
+    });
+    (plan, fixture)
 }
 
 // Drawn-keyboard names for the positions the fixtures use.

@@ -2,6 +2,7 @@ mod aggregate;
 mod chatter;
 mod dead;
 mod fold;
+mod guide;
 mod input;
 pub mod keys;
 mod normalize;
@@ -21,6 +22,7 @@ use std::cmp::Reverse;
 
 pub use aggregate::{Aggregates, Histogram, KeyAggregate, PromptTally};
 pub use chatter::chatter_confidence;
+pub use guide::{Guide, MAX_PRESSES, MAX_ROUNDS, Plan, PlanError, Prompt};
 pub use input::{BoardKind, Device, Entry, HeldKey, Round, Session};
 
 pub use report::*;
@@ -28,7 +30,7 @@ pub use stats::{rule_of_three_permille, wilson_at_least, wilson_floor_permille};
 pub use words::{Label, Lines, code_label, criteria, hedged};
 
 // Bumped whenever a threshold, bin edge or rule changes, so M4 only compares like with like.
-pub const RULES: u16 = 1;
+pub const RULES: u16 = 2;
 
 pub fn diagnose(session: &Session<'_>) -> Report {
     // A round with no length can't be answered, and would read as silent.

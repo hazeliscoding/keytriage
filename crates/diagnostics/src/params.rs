@@ -18,6 +18,10 @@ pub const BORDERLINE_US: u64 = 36_000;
 // Release chatter lands 22 to 90 ms after the release, so a short press counts only when another
 // press of the same key is this close.
 pub const REACH_US: u64 = 100_000;
+// Release chatter lands up to 90 ms after a release, so a key-down this soon after the same key's
+// release may be chatter. It shows on the drawing but never moves a guided prompt on. A fast
+// deliberate double press then needs one more press, which never mislabels a fault.
+pub const PROMPT_MERGE_US: u64 = REACH_US;
 // Windows' shortest repeat delay, 250 ms, less 20% tolerance. A second key-down closer than this
 // is a duplicate, not a repeat.
 pub const REPEAT_MIN_DELAY_US: u64 = 200_000;
