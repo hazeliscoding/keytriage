@@ -208,6 +208,21 @@ namespace AppHarness
             return SendInput((uint)list.Count, list.ToArray(), InputSize);
         }
 
+        // Taps a key by virtual-key code, for keys such as Browser Refresh that keyboards send from
+        // their consumer controls rather than as a plain scan code.
+        public static uint TapVirtualKey(ushort vk)
+        {
+            const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+            var list = new INPUT[2];
+            for (int i = 0; i < 2; i++)
+            {
+                list[i].type = INPUT_KEYBOARD;
+                list[i].u.ki.wVk = vk;
+                list[i].u.ki.dwFlags = KEYEVENTF_EXTENDEDKEY | (i == 1 ? KEYEVENTF_KEYUP : 0);
+            }
+            return SendInput(2, list, InputSize);
+        }
+
         // Holds `modifier` while tapping `key`, both by scan code.
         public static uint Chord(ushort modifier, ushort key)
         {
