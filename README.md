@@ -11,27 +11,36 @@ A key that double-types, drops presses or sticks could be the switch, the socket
 
 > **Status:** planning. There is nothing to install yet. Windows comes first. See [ROADMAP.md](ROADMAP.md).
 
-## What a finding will look like
+## What a finding looks like
 
-The report below is planned. It is not real output yet.
+This is the finding the app shows for a synthetic chatter stream on a hot-swap board.
 
 ```text
-E   possible chatter, high confidence
+E   Possible chatter, very high confidence
 
 Evidence
-  14 of 100 presses sent an extra key-down 4 to 9 ms later
-  reproduced in 3 of 3 rounds
-  no neighbouring keys affected
+  6 of 30 presses sent an extra key-down (a rate of at least 9.5%)
+  The extra key-downs came 5 ms after a release
+  The extra presses lasted 5 ms
+  Reproduced in 3 of 3 rounds
+  None of the 2 other tested keys showed it
+  The keyboard's own debounce hides contact bounce shorter than its setting, often 5 ms
 
-Likely causes
-  1. switch contacts
-  2. hot-swap socket or solder joint
-  3. firmware debounce
+Other possible causes
+  1. Switch contacts
+  2. Hot-swap socket
+  3. Firmware debounce
 
 Next test
   Swap the E switch with the G switch and test both keys again.
   If the fault moves to G, the switch is the cause.
   If it stays on E, look at the socket or the PCB.
+
+  Blow out the E switch with the key held down, or work contact cleaner
+  into it while pressing it many times. Then test E again.
+
+  If the keyboard's firmware lets you, raise its debounce time to 10 ms,
+  then 15 ms, and test again.
 ```
 
 ## What it does
