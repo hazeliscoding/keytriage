@@ -126,6 +126,17 @@ export async function click(fixture: ComponentFixture<App>, target: HTMLElement)
   await settle(fixture);
 }
 
+// The `n`th click of a run on one spot. A double click sends its second click with 2, after the
+// first click's screen is drawn.
+export async function nthClick(
+  fixture: ComponentFixture<App>,
+  target: HTMLElement,
+  n: number,
+): Promise<void> {
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: n }));
+  await settle(fixture);
+}
+
 export function started(): PlanArgs[] {
   return sent('start_test').map((args) => (args as { plan: PlanArgs }).plan);
 }

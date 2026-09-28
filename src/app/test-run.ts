@@ -214,10 +214,12 @@ export class TestRun {
   }
 
   // Rust retests the pair it offered with the main test's findings. A refused start keeps the
-  // findings, the offer and the instructions, with the reason in the footer.
-  async beginSwap(): Promise<void> {
+  // findings, the offer and the instructions, with the reason in the footer. The second click of a
+  // double click on Run the swap test lands here once the instructions are drawn, so it is dropped:
+  // it would start the retest before a switch was moved.
+  async beginSwap(clicks = 1): Promise<void> {
     const group = this.group();
-    if (!group || this.screen() !== 'swap' || !this.findings()?.result.swap) return;
+    if (!group || clicks > 1 || this.screen() !== 'swap' || !this.findings()?.result.swap) return;
     const keyboard = group.entries.map((e) => e.handle);
     this.swapping.set(true);
     const started = await this.launch('swap', keyboard, () => this.bridge.startSwapTest());

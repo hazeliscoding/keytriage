@@ -11,6 +11,7 @@ import {
   el,
   key,
   leaveApp,
+  nthClick,
   offered,
   send,
   sent,
@@ -140,6 +141,18 @@ describe('Swap screen', () => {
       await settle(fixture);
       expect(sent('start_swap_test')).toHaveLength(1);
       expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+    });
+
+    it('drops the second click of a double click on Run the swap test, which lands on the retest', async () => {
+      const fixture = await offered();
+      await nthClick(fixture, button(fixture, 'Run the swap test'), 1);
+      await nthClick(fixture, button(fixture, 'Switches swapped. Test both keys'), 2);
+      expect(sent('start_swap_test')).toEqual([]);
+      expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
+      expect(textOf(fixture, '.header__capture')).toBe('Capture off');
+      // Control: a click of its own starts the retest.
+      await nthClick(fixture, button(fixture, 'Switches swapped. Test both keys'), 1);
+      expect(sent('start_swap_test')).toEqual([{}]);
     });
   });
 
