@@ -96,5 +96,7 @@
   } @else {
     <div class="meta footer__note">Capture stops when the window loses focus.</div>
   }
-  <button type="button" class="btn btn--secondary" (click)="run.end()">End test</button>
+  <button type="button" class="btn btn--secondary" [disabled]="run.ending()" (click)="run.end()">
+    End test
+  </button>
 </footer>

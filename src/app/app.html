@@ -32,8 +32,14 @@
   </div>
 </header>
 
-@if (run.screen() === 'start' || run.screen() === 'starting') {
-  <app-start-screen />
-} @else if (run.screen() === 'test') {
-  <app-test-screen />
+@switch (run.shown()) {
+  @case ('test') {
+    <app-test-screen />
+  }
+  @case ('findings') {
+    <app-findings-screen />
+  }
+  @default {
+    <app-start-screen />
+  }
 }

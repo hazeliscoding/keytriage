@@ -1,4 +1,4 @@
-const pad2 = (n: number) => String(n).padStart(2, '0');
+export const pad2 = (n: number) => String(n).padStart(2, '0');
 
 const WORDS = [
   'one',

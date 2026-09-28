@@ -4,7 +4,7 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { emit } from '@tauri-apps/api/event';
 import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
 import { App } from '../app';
-import type { Events, KeyboardGroup, PlanArgs, TestEvent } from '../ipc';
+import type { Events, KeyboardGroup, PlanArgs, TestEvent, TestResult } from '../ipc';
 
 export type Call = [string, unknown];
 
@@ -33,6 +33,16 @@ export const GROUPS: KeyboardGroup[] = [
   },
 ];
 
+// What end_test returns for a test with nothing to report.
+export const EMPTY: TestResult = {
+  rules: 2,
+  findings: [],
+  notes: [],
+  clean: [],
+  keys: [],
+  resolution: '',
+};
+
 let log: Call[] = [];
 
 // Every command the page sent since the mock was installed, with its arguments.
@@ -45,7 +55,9 @@ export function sent(cmd: string): unknown[] {
 }
 
 // Every command succeeds unless `answer` throws for it.
-export function inApp(answer: (cmd: string, args: unknown) => unknown = () => null): void {
+export function inApp(
+  answer: (cmd: string, args: unknown) => unknown = (cmd) => (cmd === 'end_test' ? EMPTY : null),
+): void {
   log = [];
   mockIPC(
     (cmd, args) => {

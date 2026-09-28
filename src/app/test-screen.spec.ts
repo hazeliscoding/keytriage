@@ -123,9 +123,10 @@ describe('Test screen', () => {
       await click(fixture, button(fixture, 'Begin test'));
       expect(all(fixture, '.live__row')).toHaveLength(0);
       await click(fixture, button(fixture, 'End test'));
-      expect(sent('stop_test')).toHaveLength(1);
-      expect(textOf(fixture, '.steps__now')).toBe('01 Keyboard');
+      expect(sent('end_test')).toHaveLength(1);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
       await send(fixture, 'test:event', key(E, false, OWN, 2_000));
+      await click(fixture, button(fixture, 'New test'));
       await click(fixture, button(fixture, 'Begin test'));
       expect(all(fixture, '.live__row')).toHaveLength(0);
     });

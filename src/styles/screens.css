@@ -399,3 +399,172 @@
 .live__row--window .live__edge {
   color: var(--amber);
 }
+
+/* Findings */
+
+.findings {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 20px;
+  min-height: 0;
+  padding: 20px;
+  /* The header, footer, padding, summary, legend and limits around the drawing. */
+  --kb-reserve: 380px;
+}
+
+.findings__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.findings__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.findings__side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.finding {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-card);
+}
+
+.finding__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.finding__tile {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid var(--directive-red);
+  border-radius: 2px;
+  font-family: var(--font-directive);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--directive-red);
+}
+
+.finding__tile--clean {
+  border-color: var(--authorized);
+  color: var(--authorized);
+}
+
+/* A long label such as Backspace widens the tile rather than spilling out of it. */
+.finding__key {
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.finding__num {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+.finding__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.finding__title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.finding__badge {
+  margin-top: 6px;
+}
+
+.finding__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finding__line {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.finding__dash {
+  color: var(--text-meta);
+}
+
+.finding__index {
+  font-family: var(--font-directive);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+}
+
+.finding__next {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.finding__next .kicker {
+  color: var(--text-primary);
+}
+
+.finding__para {
+  margin: 0;
+  font-size: 13px;
+  text-wrap: pretty;
+}
+
+.summary {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-card);
+  font-size: 12px;
+}
+
+.summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The engine's notes follow the design's sentences, so a long list scrolls inside the panel. */
+.limits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}

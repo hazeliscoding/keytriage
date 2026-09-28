@@ -1,9 +1,17 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { Bridge, reasonOf } from './bridge';
 import { clock, fmtMicros } from './format';
-import type { Board, Events, GuideView, KeyboardGroup, PlanArgs, TestEvent } from './ipc';
+import type {
+  Board,
+  Events,
+  GuideView,
+  KeyboardGroup,
+  PlanArgs,
+  TestEvent,
+  TestResult,
+} from './ipc';
 import { cancelKeys, dropFocus } from './keys';
-import { capLabel, layout, type Size, type Std } from './layout';
+import { capLabel, labelsFor, layout, type Layout, type Size, type Std } from './layout';
 import { PLAN } from './plan';
 
 export type Screen = 'start' | 'starting' | 'test' | 'findings';
@@ -41,6 +49,21 @@ export interface LiveRow {
 export interface Pause {
   reason: 'user' | 'focus';
   at: string;
+}
+
+// A finished test as the findings screen shows it. It holds Rust's words and per-key counts, never
+// an event or a time within the test.
+export interface Findings {
+  result: TestResult;
+  keyboard: string;
+  layout: Layout;
+  board: string;
+  keys: number;
+  rounds: number;
+  presses: number;
+  started: Date;
+  // Whole seconds, pauses left out.
+  duration: number;
 }
 
 const KEPT_ROWS = 60;
@@ -81,6 +104,14 @@ export class TestRun {
   // Rust's view of the prompt, kept as sent: the page never counts presses itself.
   readonly guide = signal<GuideView | null>(null);
   readonly startedAt = signal<Date | null>(null);
+  // True while end_test runs, so the last view and a click on End test end the test once.
+  readonly ending = signal(false);
+  readonly findings = signal<Findings | null>(null);
+
+  // A test started from the findings keeps them on screen until it runs, or until it fails and
+  // they come back.
+  private readonly origin = signal<Screen>('start');
+  readonly shown = computed(() => (this.screen() === 'starting' ? this.origin() : this.screen()));
 
   // The page's own clock, with pauses left out: `spent` ms before the stretch that began `since`.
   private readonly timer = signal<{ spent: number; since: number | null }>({
@@ -95,6 +126,7 @@ export class TestRun {
   });
 
   private handles: ReadonlySet<number> = new Set();
+  private asked: PlanArgs | null = null;
   private seq = 0;
   private ticking: ReturnType<typeof setInterval> | undefined;
   private uncancel: (() => void) | null = null;
@@ -103,7 +135,11 @@ export class TestRun {
 
   constructor() {
     this.listen('test:event', (event) => this.fold(event));
-    this.listen('test:guide', (view) => this.guide.set(view));
+    this.listen('test:guide', (view) => {
+      this.guide.set(view);
+      // Rust sends no key once the plan is done.
+      if (view.key === null) void this.end();
+    });
     inject(DestroyRef).onDestroy(() => this.halt());
   }
 
@@ -137,27 +173,63 @@ export class TestRun {
     this.note.set('');
     this.clear();
     this.handles = new Set(plan.keyboard);
+    this.asked = plan;
     this.startedAt.set(new Date());
+    this.origin.set(screen);
     this.run();
     this.screen.set('starting');
     try {
       await this.bridge.startTest(plan);
-      if (this.screen() === 'starting') this.screen.set('test');
     } catch (error) {
       if (this.screen() !== 'starting') return;
       this.leave(screen);
       this.note.set(reasonOf(error));
+      return;
     }
+    if (this.screen() !== 'starting') return;
+    this.findings.set(null);
+    this.screen.set('test');
+    // The plan's last view may have come before start_test returned.
+    if (this.guide()?.key === null) void this.end();
   }
 
+  // A failure leaves the test running, with the reason in the footer.
   async end(): Promise<void> {
-    if (this.screen() !== 'test') return;
+    if (this.screen() !== 'test' || this.ending()) return;
+    this.ending.set(true);
+    this.note.set('');
+    const duration = Math.floor(this.spent() / 1000);
+    const drawn = this.layout();
+    let result: TestResult;
     try {
-      await this.bridge.stopTest();
+      result = await this.bridge.endTest(labelsFor(drawn));
     } catch (error) {
       this.note.set(reasonOf(error));
       return;
+    } finally {
+      this.ending.set(false);
     }
+    if (this.screen() !== 'test') return;
+    const group = this.group();
+    const plan = this.asked;
+    this.findings.set({
+      result,
+      keyboard: `${group?.name ?? '—'} · ${group?.id ?? '—'}`,
+      layout: drawn,
+      board: this.boardName(),
+      keys: plan?.keys.length ?? 0,
+      rounds: plan?.rounds ?? 0,
+      presses: plan?.presses ?? 0,
+      started: this.startedAt() ?? new Date(),
+      duration,
+    });
+    this.leave('findings');
+  }
+
+  // Back to Start, which lists the keyboards again.
+  newTest(): void {
+    if (this.screen() !== 'findings') return;
+    this.findings.set(null);
     this.leave('start');
   }
 
@@ -297,6 +369,12 @@ export class TestRun {
     if (device === 0) return 'injected';
     const group = this.groups()?.find((g) => g.entries.some((e) => e.handle === device));
     return group?.id ?? '—';
+  }
+
+  // The clock to the millisecond. `elapsed` moves only on the interval's tick.
+  private spent(): number {
+    const { spent, since } = this.timer();
+    return spent + (since === null ? 0 : Math.max(0, Date.now() - since));
   }
 
   private pauseClock(): void {

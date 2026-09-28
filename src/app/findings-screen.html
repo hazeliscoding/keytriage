@@ -1,0 +1,162 @@
+@if (run.findings(); as record) {
+  <div class="findings">
+    <div class="findings__list">
+      <div class="findings__head">
+        <span class="kicker">Findings · {{ cards().length }}</span>
+        @if (cards().length) {
+          <span class="meta">Ordered by confidence</span>
+        }
+      </div>
+
+      @for (card of cards(); track card.num) {
+        <article class="finding">
+          <div class="finding__head">
+            <div class="finding__tile">
+              <span class="finding__num">{{ card.num }}</span
+              ><span class="finding__key">{{ card.label }}</span>
+            </div>
+            <div class="finding__heading">
+              <div class="finding__title">{{ card.title }}</div>
+              <div class="finding__badge">
+                <span class="badge" [class.badge--ink]="card.strong">{{ card.level }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="finding__section">
+            <div class="kicker kicker--sm">Evidence</div>
+            @for (line of card.evidence; track $index) {
+              <div class="finding__line">
+                <span class="finding__dash">—</span><span>{{ line }}</span>
+              </div>
+            }
+          </div>
+          @if (card.bars) {
+            <div class="hist">
+              <div class="kicker kicker--sm">Release to the next key-down, ms</div>
+              <div class="hist__bars">
+                @for (bar of card.bars; track $index) {
+                  <div class="hist__bar" [style.height.%]="bar.height"></div>
+                }
+              </div>
+              <div class="hist__labels">
+                @for (bar of card.bars; track $index) {
+                  <div class="hist__label">
+                    <span>{{ bar.label }}</span
+                    ><span>{{ bar.count }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          <div class="finding__section">
+            <div class="kicker kicker--sm">Other possible causes</div>
+            @for (cause of card.causes; track cause.num) {
+              <div class="finding__line">
+                <span class="finding__index">{{ cause.num }}</span
+                ><span>{{ cause.text }}</span>
+              </div>
+            }
+          </div>
+          <div class="finding__section finding__next">
+            <div class="kicker kicker--sm">Next test</div>
+            @for (step of card.next; track $index) {
+              <p class="finding__para">{{ step }}</p>
+            }
+          </div>
+        </article>
+      } @empty {
+        <article class="finding">
+          <div class="finding__head">
+            <div class="finding__tile finding__tile--clean">
+              <span class="finding__key">—</span>
+            </div>
+            <div class="finding__heading">
+              <div class="finding__title">No faults found in this test.</div>
+              <div class="finding__badge"><span class="badge badge--clean">Clean</span></div>
+            </div>
+          </div>
+          <div class="finding__section">
+            <div class="kicker kicker--sm">Evidence</div>
+            @for (line of cleanEvidence(); track $index) {
+              <div class="finding__line">
+                <span class="finding__dash">—</span><span>{{ line }}</span>
+              </div>
+            }
+          </div>
+          <div class="finding__section">
+            <div class="kicker kicker--sm">What this does not rule out</div>
+            <div class="finding__line">
+              <span class="finding__index">01</span
+              ><span>Faults that appear only after warm-up or under sustained use</span>
+            </div>
+            <div class="finding__line">
+              <span class="finding__index">02</span
+              ><span>Chatter shorter than the firmware's own debounce window</span>
+            </div>
+            <div class="finding__line">
+              <span class="finding__index">03</span><span>Keys outside this test's set</span>
+            </div>
+          </div>
+          <div class="finding__section finding__next">
+            <div class="kicker kicker--sm">Next test</div>
+            <p class="finding__para">
+              If the fault is intermittent, run the test again while it is happening. Type for ten
+              minutes first, then test again.
+            </p>
+          </div>
+        </article>
+      }
+    </div>
+
+    <div class="findings__side">
+      <div class="summary">
+        @for (item of summary(); track item.label) {
+          <div class="summary__item">
+            <span class="kicker kicker--sm">{{ item.label }}</span>
+            <span class="tabular">{{ item.value }}</span>
+          </div>
+        }
+      </div>
+
+      <app-keyboard [layout]="record.layout" [marks]="marks()" />
+
+      <div class="legend">
+        @if (cards().length) {
+          <span class="legend__item"
+            ><span class="swatch swatch--flagged"></span>Flagged, numbered by finding</span
+          >
+        }
+        <span class="legend__item"
+          ><span class="swatch swatch--counted"></span>Tested, no finding</span
+        >
+        <span class="legend__note">Counts are key-downs registered over all rounds.</span>
+      </div>
+
+      <section class="panel limits">
+        <div class="kicker kicker--sm">Limits</div>
+        <div>{{ limits() }}</div>
+        @for (note of record.result.notes; track $index) {
+          <div>{{ note }}</div>
+        }
+      </section>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <button type="button" class="btn btn--ghost" (click)="run.newTest()">New test</button>
+    @if (run.note()) {
+      <div class="meta footer__note" role="status">{{ run.note() }}</div>
+    } @else {
+      <div class="meta footer__note">Reports hold per-key counts and timings only.</div>
+    }
+    <button type="button" class="btn btn--secondary">Export report</button>
+    <button
+      type="button"
+      class="btn btn--primary"
+      [disabled]="run.screen() === 'starting'"
+      (click)="run.begin()"
+    >
+      Test again
+    </button>
+  </footer>
+}
