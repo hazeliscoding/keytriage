@@ -74,11 +74,13 @@ pub fn start_test(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), S
 fn start(window: WebviewWindow, plan: Option<PlanArgs>) -> Result<(), String> {
     let test = plan.map(view::plan).transpose()?;
     stop_test();
-    set_report(None);
     let start = Instant::now();
     let core = Rc::new(RefCell::new(Core::new(start, test)));
     let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
     let capture = capture(hwnd, &core, &window)?;
+    // A failed Test again leaves the last findings on the page, so their report stays exportable
+    // until a new test has actually started.
+    set_report(None);
     let open = capture.is_open();
     SESSION.with_borrow_mut(|session| {
         *session = Some(Session {
