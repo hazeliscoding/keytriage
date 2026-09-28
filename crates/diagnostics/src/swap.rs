@@ -75,12 +75,21 @@ impl Swap {
         if board != BoardKind::HotSwap {
             return None;
         }
+        // The stuck detector reads every key, and the retest prompts the suspect. A key the main
+        // test never prompted may act on the OS or the page, or sit on a stabilizer.
+        let prompted = |key: u16| {
+            report
+                .aggregates
+                .keys
+                .get(&key)
+                .is_some_and(|a| a.prompted.is_some())
+        };
         report.findings.iter().find_map(|f| {
             f.next_tests.iter().find_map(|t| match *t {
                 NextTest::SwapSwitch {
                     suspect,
                     partner: Some(partner),
-                } if suspect == f.key => Some(Swap {
+                } if suspect == f.key && prompted(suspect) => Some(Swap {
                     suspect,
                     partner,
                     kind: f.kind(),

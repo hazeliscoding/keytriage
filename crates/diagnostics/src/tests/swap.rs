@@ -946,3 +946,70 @@ fn sw19_every_other_gap_leaves_its_side_uncleared() {
          tell from fast presses"
     );
 }
+
+// A key goes down just before J's first answer and its release is lost, so it is still down at the
+// end. Only G, J and E are prompted.
+fn left_down(key: u16) -> Report {
+    let mut first = true;
+    hot_swap(guided(plan(&[G, J, E], 3, 10), move |s, k, _| {
+        let s = if k == J && first {
+            first = false;
+            s.down(key).wait(ms(200))
+        } else {
+            s
+        };
+        (normal(s, k), false)
+    }))
+    .diagnose()
+}
+
+#[test]
+fn sw20_a_key_the_main_test_never_prompted_gets_no_offer() {
+    const ESC: u16 = 0x01;
+    const F1: u16 = 0x3B;
+    const LWIN: u16 = 0xE05B;
+    for key in [SPACE, ESC, F1, LWIN, LSHIFT] {
+        let r = left_down(key);
+        let f = only(&r, Kind::Stuck, key);
+        assert!(f.confidence >= Confidence::Medium, "{key:04X} {f:#?}");
+        // The card keeps its swap step. Only the guided retest, which would prompt the key, is
+        // held back.
+        assert_eq!(partner(&f), Some(E), "{key:04X}");
+        assert_eq!(r.aggregates.keys[&key].prompted, None, "{key:04X}");
+        assert!(Guide::new(plan(&[key], 1, 1), &[1]).is_ok(), "{key:04X}");
+        assert_eq!(Swap::offer(&r, BoardKind::HotSwap), None, "{key:04X}");
+    }
+
+    // Positive control: stuck_run's E was prompted, and gets its offer.
+    let r = hot_swap(stuck_run()).diagnose();
+    assert!(r.aggregates.keys[&E].prompted.is_some());
+    assert_eq!(
+        Swap::offer(&r, BoardKind::HotSwap).map(|s| (s.suspect, s.kind)),
+        Some((E, Kind::Stuck))
+    );
+
+    // An unprompted finding ranked first doesn't hide a prompted one after it.
+    let mut first = true;
+    let mut held = true;
+    let r = hot_swap(guided(plan(&[G, J, E], 3, 10), move |s, k, _| {
+        let s = if k == J && held {
+            held = false;
+            s.down(SPACE).wait(ms(200))
+        } else {
+            s
+        };
+        if k == E && first {
+            first = false;
+            (s.hold(E, ms(3_000), ms(500), ms(33)).wait(ms(200)), false)
+        } else {
+            (normal(s, k), false)
+        }
+    }))
+    .diagnose();
+    let order: Vec<(u16, Kind)> = r.findings.iter().map(|f| (f.key, f.kind())).collect();
+    assert_eq!(order, [(SPACE, Kind::Stuck), (E, Kind::Stuck)]);
+    assert_eq!(
+        Swap::offer(&r, BoardKind::HotSwap).map(|s| (s.suspect, s.partner)),
+        Some((E, G))
+    );
+}
