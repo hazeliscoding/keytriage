@@ -319,10 +319,12 @@ export class TestRun {
 
   // Rust writes the file from its own copy of the last ended test's saved report, which is the one
   // on screen. The page sends only a name, which Rust checks, and a cancelled dialog changes nothing.
-  async exportReport(): Promise<void> {
+  // The second click of a double click on End test can land on Export report once the result is
+  // drawn, and it would open the Save dialog unasked.
+  async exportReport(clicks = 1): Promise<void> {
     const screen = this.shown();
     const record = this.record(screen);
-    if (!record || this.exporting()) return;
+    if (clicks > 1 || !record || this.exporting()) return;
     // The reply can come after the page moved on, and then it has nothing to say.
     const shown = () => this.screen() === screen && this.record(screen) === record;
     this.exporting.set(true);
@@ -336,14 +338,16 @@ export class TestRun {
     }
   }
 
-  async pauseTest(): Promise<void> {
-    if (this.screen() !== 'test' || this.pause()) return;
+  // Pause and Continue share one place, so the second click of a double click on either would undo
+  // the first.
+  async pauseTest(clicks = 1): Promise<void> {
+    if (clicks > 1 || this.screen() !== 'test' || this.pause()) return;
     this.pauseAsked = true;
     if (!(await this.attempt(this.bridge.pauseTest()))) this.pauseAsked = false;
   }
 
-  async continueTest(): Promise<void> {
-    if (this.screen() === 'test') await this.attempt(this.bridge.continueTest());
+  async continueTest(clicks = 1): Promise<void> {
+    if (clicks <= 1 && this.screen() === 'test') await this.attempt(this.bridge.continueTest());
   }
 
   // Rust skips only the step named, so a click sent as that round closed skips nothing. The second

@@ -92,7 +92,7 @@
       type="button"
       class="btn btn--primary"
       [disabled]="run.ending()"
-      (click)="run.continueTest()"
+      (click)="run.continueTest($event.detail)"
     >
       Continue
     </button>
@@ -101,7 +101,7 @@
       type="button"
       class="btn btn--secondary"
       [disabled]="run.ending()"
-      (click)="run.pauseTest()"
+      (click)="run.pauseTest($event.detail)"
     >
       Pause
     </button>

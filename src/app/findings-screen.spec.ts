@@ -496,6 +496,17 @@ describe('Findings screen', () => {
       expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
     });
 
+    it('drops the second click of a double click that lands on Export report', async () => {
+      inApp((cmd) => (cmd === 'end_test' ? FOUND : null));
+      const fixture = await testing([GOLDEN_PLAN]);
+      await nthClick(fixture, button(fixture, 'End test'), 1);
+      await nthClick(fixture, button(fixture, 'Export report'), 2);
+      expect(sent('export_report')).toEqual([]);
+      // Control: a click of its own exports.
+      await nthClick(fixture, button(fixture, 'Export report'), 1);
+      expect(sent('export_report')).toHaveLength(1);
+    });
+
     it('keeps the findings when a new test cannot start', async () => {
       const fixture = await finished(FOUND);
       inApp((cmd) => {

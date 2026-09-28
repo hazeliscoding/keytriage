@@ -178,7 +178,7 @@
       type="button"
       class="btn btn--secondary"
       [disabled]="run.exporting()"
-      (click)="run.exportReport()"
+      (click)="run.exportReport($event.detail)"
     >
       Export report
     </button>

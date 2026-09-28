@@ -373,6 +373,21 @@ describe('Test screen', () => {
       expect(el(fixture).querySelector('.prompt')?.classList).not.toContain('prompt--paused');
     });
 
+    it('drops the second click of a double click on Pause, which lands on Continue', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await nthClick(fixture, button(fixture, 'Pause'), 1);
+      await send(fixture, 'test:event', PAUSED);
+      await nthClick(fixture, button(fixture, 'Continue'), 2);
+      expect(sent('continue_test')).toEqual([]);
+      // Control: a click of its own continues, and a double click there doesn't pause again.
+      await nthClick(fixture, button(fixture, 'Continue'), 1);
+      expect(sent('continue_test')).toEqual([{}]);
+      await send(fixture, 'test:event', RESUMED);
+      await nthClick(fixture, button(fixture, 'Pause'), 2);
+      expect(sent('pause_test')).toEqual([{}]);
+    });
+
     it('reads a later pause without a click as a focus loss', async () => {
       const fixture = await testing();
       await send(fixture, 'test:guide', VIEW);
