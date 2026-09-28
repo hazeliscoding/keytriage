@@ -86,11 +86,30 @@
 
 <footer class="footer">
   @if (run.pause()) {
-    <button type="button" class="btn btn--primary" (click)="run.continueTest()">Continue</button>
+    <button
+      type="button"
+      class="btn btn--primary"
+      [disabled]="run.ending()"
+      (click)="run.continueTest()"
+    >
+      Continue
+    </button>
   } @else {
-    <button type="button" class="btn btn--secondary" (click)="run.pauseTest()">Pause</button>
+    <button
+      type="button"
+      class="btn btn--secondary"
+      [disabled]="run.ending()"
+      (click)="run.pauseTest()"
+    >
+      Pause
+    </button>
   }
-  <button type="button" class="btn btn--ghost" (click)="run.skipKey($event.detail)">
+  <button
+    type="button"
+    class="btn btn--ghost"
+    [disabled]="run.ending()"
+    (click)="run.skipKey($event.detail)"
+  >
     Skip this key
   </button>
   @if (run.note()) {

@@ -1,7 +1,8 @@
 import { type ComponentFixture } from '@angular/core/testing';
 import { App } from './app';
-import type { GuideView, TestEvent } from './ipc';
+import type { GuideView, TestEvent, TestResult } from './ipc';
 import {
+  EMPTY,
   all,
   button,
   cap,
@@ -374,6 +375,65 @@ describe('Test screen', () => {
       await click(fixture, button(fixture, 'Pause'));
       await send(fixture, 'test:event', PAUSED);
       expect(textOf(fixture, '.notice__label')).toMatch(/^PAUSED · WINDOW LOST FOCUS/);
+    });
+  });
+
+  describe('while the test ends', () => {
+    // end_test and skip_key each wait until the test answers them.
+    function held(): { end: (result: TestResult) => void; skip: (why: string) => void } {
+      const answer = { end: (_: TestResult) => {}, skip: (_: string) => {} };
+      inApp((cmd) => {
+        if (cmd === 'end_test') return new Promise<TestResult>((done) => (answer.end = done));
+        if (cmd === 'skip_key') return new Promise<void>((_, fail) => (answer.skip = fail));
+        return null;
+      });
+      return { end: (result) => answer.end(result), skip: (why) => answer.skip(why) };
+    }
+
+    it('offers no Pause, Continue or Skip this key until the findings arrive', async () => {
+      const answer = held();
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await click(fixture, button(fixture, 'End test'));
+      expect(
+        ['Pause', 'Skip this key', 'End test'].map((b) => button(fixture, b).disabled),
+      ).toEqual([true, true, true]);
+      await send(fixture, 'test:event', PAUSED);
+      expect(button(fixture, 'Continue').disabled).toBe(true);
+      answer.end(EMPTY);
+      await settle(fixture);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
+    });
+
+    it("keeps a command's failure that arrives after the test ended off the findings", async () => {
+      const answer = held();
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await click(fixture, button(fixture, 'Skip this key'));
+      await click(fixture, button(fixture, 'End test'));
+      answer.end(EMPTY);
+      await settle(fixture);
+      answer.skip('No test is running.');
+      await settle(fixture);
+      expect(textOf(fixture, '.steps__now')).toBe('03 Findings');
+      expect(textOf(fixture, '.footer__note')).toBe(
+        'Reports hold per-key counts and timings only.',
+      );
+    });
+
+    it("keeps a command's failure off the next test", async () => {
+      const answer = held();
+      const fixture = await testing();
+      await send(fixture, 'test:guide', VIEW);
+      await click(fixture, button(fixture, 'Skip this key'));
+      await click(fixture, button(fixture, 'End test'));
+      answer.end(EMPTY);
+      await settle(fixture);
+      await click(fixture, button(fixture, 'Test again'));
+      answer.skip('No test is running.');
+      await settle(fixture);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      expect(textOf(fixture, '.footer__note')).toBe('Capture stops when the window loses focus.');
     });
   });
 

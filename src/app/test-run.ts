@@ -78,6 +78,8 @@ export class TestRun {
   private readonly bridge = inject(Bridge);
   private readonly plan = inject(PLAN);
   private listing = 0;
+  // Bumped by each test, so a command's reply can tell whether its test is still the one running.
+  private test = 0;
 
   readonly screen = signal<Screen>('start');
   // Null until the first list arrives, so the picker doesn't claim there is no keyboard too early.
@@ -175,6 +177,7 @@ export class TestRun {
       presses: this.plan.presses,
       board: this.board(),
     };
+    this.test++;
     this.note.set('');
     this.clear();
     this.handles = new Set(plan.keyboard);
@@ -282,14 +285,17 @@ export class TestRun {
     this.closing = setTimeout(() => void this.end(), ms);
   }
 
-  // Runs a command during the test. A failure leaves the test as it was and shows its reason.
+  // Runs a command during the test. A failure leaves the test as it was and shows its reason. Rust
+  // answers in order, so a command sent just before End test fails once the test has ended, and
+  // its reason would then stand in the findings' footer.
   private async attempt(command: Promise<void>): Promise<boolean> {
+    const test = this.test;
     this.note.set('');
     try {
       await command;
       return true;
     } catch (error) {
-      this.note.set(reasonOf(error));
+      if (this.screen() === 'test' && this.test === test) this.note.set(reasonOf(error));
       return false;
     }
   }
