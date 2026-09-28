@@ -1,0 +1,456 @@
+/* Shared pieces of the design, kept global because each screen's own styles have a 4 kB budget.
+   Values follow the directive//01 components in docs/design/_ds and the mockups. */
+
+.kicker {
+  font-family: var(--font-directive);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.kicker--sm {
+  font-size: 11px;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-meta);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  background: var(--surface-card);
+}
+
+/* Button */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 9px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-standard);
+  font-family: var(--font-directive);
+  font-size: 13px;
+  font-weight: 600;
+  /* Browsers give buttons a normal line height, which the design's button heights assume. */
+  line-height: normal;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--motion-standard),
+    color var(--motion-standard),
+    border-color var(--motion-standard);
+}
+
+.btn--sm {
+  min-height: 28px;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.btn--primary {
+  background: var(--surface-authority);
+  border-color: var(--surface-authority);
+  color: var(--text-inverse);
+}
+
+.btn--secondary {
+  background: transparent;
+  border-color: var(--ink);
+  color: var(--text-primary);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--ink-soft);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background: var(--surface-inset);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Badge */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-standard);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-directive);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge--ink {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--text-inverse);
+}
+
+.badge--clean {
+  border-color: var(--authorized);
+  color: var(--authorized);
+}
+
+.badge--clean::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--authorized);
+}
+
+/* Notice */
+
+.notice {
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-standard);
+  background: var(--surface-card);
+}
+
+.notice__label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-directive);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-meta);
+}
+
+.notice__label::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 14px;
+  border-top: 2px solid var(--line-strong);
+}
+
+.notice--attention .notice__label::before {
+  border-top-color: var(--attention);
+}
+
+.notice__body {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* Selectable rows in a list box */
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  background: var(--surface-card);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.row:hover,
+.row--selected {
+  background: var(--surface-inset);
+}
+
+.row--selected {
+  border-left-color: var(--auburn);
+}
+
+/* Radio */
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.radio input {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  opacity: 0;
+}
+
+.radio__ring {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  transition: border-color var(--motion-standard);
+}
+
+.radio__ring::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background var(--motion-standard);
+}
+
+.radio input:checked + .radio__ring {
+  border-color: var(--ink);
+}
+
+.radio input:checked + .radio__ring::after {
+  background: var(--ink);
+}
+
+/* The input is invisible, so its ring shows the focus instead. */
+.radio input:focus-visible + .radio__ring {
+  outline: 2px solid var(--auburn);
+  outline-offset: 2px;
+}
+
+/* Keyboard drawing. Caps are drawings, not controls. */
+
+.keyboard {
+  position: relative;
+  width: 100%;
+  flex: none;
+}
+
+.cap {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 2px;
+}
+
+.cap__face {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  outline-offset: 2px;
+  background: var(--surface-raised);
+}
+
+.cap__label,
+.cap__count,
+.cap__tag {
+  position: absolute;
+  line-height: 1;
+}
+
+.cap__label {
+  left: 5px;
+  top: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.cap__count {
+  right: 5px;
+  bottom: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.cap__tag {
+  right: 5px;
+  top: 4px;
+  font-family: var(--font-directive);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-meta);
+}
+
+.cap--counted .cap__face {
+  background: var(--surface-inset);
+}
+
+.cap--prompted .cap__face {
+  border-color: var(--ink);
+  outline: 1px solid var(--auburn);
+  background: var(--surface-card);
+}
+
+.cap--down .cap__face {
+  border-color: var(--ink);
+  background: var(--bureau);
+}
+
+.cap--prompted .cap__label,
+.cap--down .cap__label {
+  color: var(--text-primary);
+}
+
+.cap--interrupted .cap__face {
+  border: 1px dashed var(--amber);
+}
+
+.cap--interrupted .cap__label,
+.cap--interrupted .cap__tag {
+  color: var(--amber);
+}
+
+.cap--flagged .cap__face {
+  border-color: var(--directive-red);
+  background: var(--surface-card);
+}
+
+.cap--flagged .cap__label,
+.cap--flagged .cap__tag {
+  color: var(--directive-red);
+}
+
+.keyboard--bare .cap {
+  padding: 1px;
+}
+
+.keyboard--bare .cap__face {
+  border-radius: 1px;
+}
+
+/* Legend under the drawing */
+
+.legend {
+  display: flex;
+  gap: 20px;
+  font-family: var(--font-directive);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend__note {
+  margin-left: auto;
+  font-family: var(--font-official);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--line-strong);
+}
+
+.swatch--prompted {
+  border-color: var(--ink);
+  outline: 1px solid var(--auburn);
+  outline-offset: 1px;
+}
+
+.swatch--down {
+  border-color: var(--ink);
+  background: var(--bureau);
+}
+
+.swatch--counted {
+  background: var(--surface-inset);
+}
+
+.swatch--waiting {
+  background: var(--surface-raised);
+}
+
+.swatch--interrupted {
+  border: 1px dashed var(--amber);
+}
+
+.swatch--flagged {
+  border-color: var(--directive-red);
+}
+
+/* Histogram */
+
+.hist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hist__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.hist__bar {
+  flex: 1;
+  min-height: 1px;
+  background: var(--graphite);
+}
+
+.hist__labels {
+  display: flex;
+  gap: 4px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+}
+
+.hist__label {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+}

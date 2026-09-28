@@ -1,0 +1,91 @@
+/* The design's colour table (docs/design/keytriage.dc.html, 01 // Color tokens) under the
+   directive//01 names its markup uses. */
+:root {
+  color-scheme: light;
+
+  --paper: #f2ede2;
+  --ivory: #f8f5ec;
+  --bone: #ece5d5;
+  --bureau: #e0d8c6;
+  --line: #d3cab6;
+  --line-strong: #b3a88f;
+  --graphite: #57503f;
+  --ink: #1b1812;
+  --ink-soft: #3a352a;
+  --auburn: #7e4a33;
+  --amber: #a17b22;
+  --wine: #63242c;
+  --directive-red: #9e2b2b;
+  --authorized: #4d6b50;
+  --attention: #a17b22;
+  --neutral: #8a8271;
+
+  --surface-page: var(--paper);
+  --surface-card: var(--ivory);
+  --surface-raised: #fbf9f3;
+  --surface-inset: var(--bone);
+  --surface-authority: var(--ink);
+  --text-primary: var(--ink);
+  --text-secondary: var(--graphite);
+  --text-meta: #7d7460;
+  --text-inverse: #f0ebdd;
+
+  --font-official: 'Public Sans', system-ui, sans-serif;
+  --font-directive: 'Barlow Semi Condensed', 'Public Sans', sans-serif;
+
+  --radius-standard: 2px;
+
+  --space-01: 2px;
+  --space-02: 4px;
+  --space-03: 8px;
+  --space-04: 12px;
+  --space-05: 16px;
+  --space-06: 20px;
+  --space-07: 24px;
+  --space-08: 32px;
+  --space-09: 40px;
+
+  --motion-standard: 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-directive: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The aliases are declared again because a custom property resolves its var() where it is
+   declared, so a dark subtree would otherwise inherit the light values. */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #191712;
+  --ivory: #1f1c16;
+  --bone: #26221a;
+  --bureau: #2e2920;
+  --line: #3a352a;
+  --line-strong: #57503f;
+  --graphite: #a89d85;
+  --ink: #e8e1d2;
+  --ink-soft: #cfc6b0;
+  --auburn: #c98d63;
+  --amber: #c09a3e;
+  --wine: #7c3540;
+  --directive-red: #b5383a;
+  --authorized: #6f8a6f;
+  --neutral: #7d7460;
+
+  --surface-page: var(--paper);
+  --surface-card: var(--ivory);
+  --surface-raised: #26221a;
+  --surface-inset: #15130f;
+  /* The design system's dark #0f0e0b would carry the dark inverse text, so the primary
+     button stays ink as the colour table says. */
+  --surface-authority: var(--ink);
+  --text-primary: var(--ink);
+  --text-secondary: var(--graphite);
+  --text-meta: #8a8271;
+  --text-inverse: #1b1812;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-standard: 0ms;
+    --motion-directive: 0ms;
+  }
+}

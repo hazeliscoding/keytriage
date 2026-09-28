@@ -1,0 +1,38 @@
+html,
+body,
+app-root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-official);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+app-root {
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--auburn);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--bureau);
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+}
