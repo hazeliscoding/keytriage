@@ -1,6 +1,6 @@
 pub type Device = isize;
 
-// Mirrors src-tauri's test_session::Entry field for field. It derives Debug only in tests, because
+// Mirrors src-tauri's session_core::Entry field for field. It derives Debug only in tests, because
 // a formatted list of these is the typed text.
 #[cfg_attr(test, derive(Debug))]
 #[derive(Clone, PartialEq, Eq)]

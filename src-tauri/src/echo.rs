@@ -11,7 +11,7 @@ use keytriage_input::{keyboards, registrations};
 use tauri::webview::{PageLoadEvent, PageLoadPayload};
 use tauri::{Listener, Runtime, Webview, WebviewWindow};
 
-use crate::test_session::Entry;
+use crate::session_core::Entry;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2Controller, ICoreWebView2Settings3,
 };

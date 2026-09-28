@@ -8,6 +8,8 @@ mod crash_reports;
 #[cfg(all(debug_assertions, windows))]
 mod echo;
 #[cfg(windows)]
+mod session_core;
+#[cfg(windows)]
 mod test_session;
 
 pub fn run() {
