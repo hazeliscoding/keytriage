@@ -15,9 +15,17 @@
       <span>{{ run.size() }} {{ run.std() }}</span>
       <span>{{ run.boardName() }}</span>
     }
-    <span class="header__capture" [class.header__capture--on]="run.screen() === 'test'">{{
-      capture()
-    }}</span>
+    @switch (capture()) {
+      @case ('on') {
+        <span class="header__capture header__capture--on">● Capturing</span>
+      }
+      @case ('paused') {
+        <span class="header__capture header__capture--paused">○ Paused</span>
+      }
+      @default {
+        <span class="header__capture">Capture off</span>
+      }
+    }
     <button type="button" class="btn btn--ghost btn--sm" (click)="toggleTheme()">
       {{ theme() === 'dark' ? 'Light' : 'Dark' }}
     </button>
@@ -26,4 +34,6 @@
 
 @if (run.screen() === 'start' || run.screen() === 'starting') {
   <app-start-screen />
+} @else if (run.screen() === 'test') {
+  <app-test-screen />
 }

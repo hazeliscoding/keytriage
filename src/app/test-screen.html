@@ -1,0 +1,60 @@
+<div class="test">
+  <div class="test__main">
+    @if (run.pause()) {
+      <div class="notice notice--attention" role="status">
+        <div class="notice__label">{{ pauseLabel() }}</div>
+        <div class="notice__body">{{ pauseBody() }}</div>
+      </div>
+    } @else if (run.injected()) {
+      <div class="notice" role="status">
+        <div class="notice__label">INJECTED INPUT</div>
+        <div class="notice__body">{{ injectedBody() }}</div>
+      </div>
+    }
+
+    <app-keyboard [layout]="run.layout()" [marks]="marks()" />
+
+    <div class="legend">
+      <span class="legend__item"><span class="swatch swatch--prompted"></span>Prompted</span>
+      <span class="legend__item"><span class="swatch swatch--down"></span>Down</span>
+      <span class="legend__item"><span class="swatch swatch--counted"></span>Counted</span>
+      <span class="legend__item"><span class="swatch swatch--interrupted"></span>Interrupted</span>
+      <span class="legend__note">The key area holds no controls and binds no keys.</span>
+    </div>
+  </div>
+
+  <div class="test__side">
+    <section class="panel live">
+      <div class="live__title">
+        <span class="kicker">Live events</span>
+        <span class="live__memory">In memory only</span>
+      </div>
+      <div class="live__line live__head">
+        <span>Key</span><span>Edge</span><span class="live__t">T, ms</span><span>Device</span>
+      </div>
+      <div class="live__body">
+        @for (row of rows(); track row.seq) {
+          <div
+            class="live__line live__row"
+            [class.live__row--injected]="row.kind === 'injected'"
+            [class.live__row--window]="row.kind === 'window'"
+          >
+            <span class="live__key">{{ row.key }}</span>
+            <span class="live__edge">{{ row.edge }}</span>
+            <span class="live__t">{{ row.t }}</span>
+            <span class="live__device">{{ row.device }}</span>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
+</div>
+
+<footer class="footer">
+  @if (run.note()) {
+    <div class="meta footer__note" role="status">{{ run.note() }}</div>
+  } @else {
+    <div class="meta footer__note">Capture stops when the window loses focus.</div>
+  }
+  <button type="button" class="btn btn--secondary" (click)="run.end()">End test</button>
+</footer>

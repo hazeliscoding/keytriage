@@ -1,98 +1,7 @@
-import { type Provider } from '@angular/core';
-import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { clearMocks, mockIPC } from '@tauri-apps/api/mocks';
-import { App } from './app';
-import type { KeyboardGroup, PlanArgs } from './ipc';
+import { mockIPC } from '@tauri-apps/api/mocks';
 import { keyCount, layout, plainKeys } from './layout';
 import { PLAN } from './plan';
-
-type Call = [string, unknown];
-
-const GROUPS: KeyboardGroup[] = [
-  {
-    name: 'HID Keyboard Device',
-    id: '046D:C52B',
-    builtIn: false,
-    entries: [{ handle: 11, name: 'HID Keyboard Device', id: '046D:C52B' }],
-  },
-  {
-    name: 'Keychron K2',
-    id: '3434:0220',
-    builtIn: false,
-    entries: [
-      { handle: 21, name: 'Keychron K2', id: '3434:0220' },
-      { handle: 22, name: 'Keychron K2', id: '3434:0220' },
-      { handle: 23, name: 'Keychron K2', id: '3434:0220' },
-    ],
-  },
-  {
-    name: 'Standard PS/2 Keyboard',
-    id: null,
-    builtIn: true,
-    entries: [{ handle: 31, name: 'Standard PS/2 Keyboard', id: null }],
-  },
-];
-
-let calls: Call[];
-
-// Every command succeeds unless `answer` throws for it.
-function inApp(answer: (cmd: string) => unknown = () => null): void {
-  calls = [];
-  mockIPC(
-    (cmd, args) => {
-      calls.push([cmd, args]);
-      return cmd === 'list_keyboards' ? GROUPS : answer(cmd);
-    },
-    { shouldMockEvents: true },
-  );
-}
-
-function leaveApp(): void {
-  clearMocks();
-  // clearMocks keeps the object itself, which a real page outside the app never has.
-  delete (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
-
-async function settle(fixture: ComponentFixture<App>): Promise<void> {
-  await new Promise((done) => setTimeout(done));
-  await fixture.whenStable();
-}
-
-async function render(providers: Provider[] = []): Promise<ComponentFixture<App>> {
-  TestBed.configureTestingModule({ providers });
-  const fixture = TestBed.createComponent(App);
-  await settle(fixture);
-  return fixture;
-}
-
-function el(fixture: ComponentFixture<App>): HTMLElement {
-  return fixture.nativeElement as HTMLElement;
-}
-
-function all(fixture: ComponentFixture<App>, selector: string): HTMLElement[] {
-  return [...el(fixture).querySelectorAll<HTMLElement>(selector)];
-}
-
-function text(node: Element | null | undefined): string {
-  return node?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-}
-
-function button(fixture: ComponentFixture<App>, label: string): HTMLButtonElement {
-  const found = all(fixture, 'button').find((b) => text(b) === label);
-  if (!found) throw new Error(`no button "${label}"`);
-  return found as HTMLButtonElement;
-}
-
-function started(): PlanArgs[] {
-  return calls
-    .filter(([cmd]) => cmd === 'start_test')
-    .map(([, args]) => (args as { plan: PlanArgs }).plan);
-}
-
-async function click(fixture: ComponentFixture<App>, target: HTMLElement): Promise<void> {
-  target.click();
-  await settle(fixture);
-}
+import { all, button, click, el, inApp, leaveApp, render, started, text } from './testing/harness';
 
 describe('App', () => {
   beforeEach(() => inApp());
@@ -205,7 +114,6 @@ describe('App', () => {
     });
 
     it('gives the reason when the keyboards cannot be listed', async () => {
-      calls = [];
       mockIPC(() => {
         throw 'Windows did not list the keyboards.';
       });

@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { stamp } from './format';
 import { StartScreen } from './start-screen';
+import { TestScreen } from './test-screen';
 import { TestRun } from './test-run';
 
 type Theme = 'light' | 'dark';
@@ -14,7 +15,7 @@ function systemTheme(): Theme {
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
-  imports: [StartScreen],
+  imports: [StartScreen, TestScreen],
   host: { class: 'shell' },
 })
 export class App {
@@ -31,9 +32,10 @@ export class App {
   protected readonly lockup = computed(() =>
     this.theme() === 'dark' ? 'brand/lockup-dark.svg' : 'brand/lockup.svg',
   );
-  protected readonly capture = computed(() =>
-    this.run.screen() === 'test' ? '● Capturing' : 'Capture off',
-  );
+  protected readonly capture = computed(() => {
+    if (this.run.screen() !== 'test') return 'off';
+    return this.run.pause() ? 'paused' : 'on';
+  });
 
   constructor() {
     this.applyTheme(this.theme());
