@@ -19,7 +19,7 @@ import {
   started,
   text,
   textOf,
-  type Call,
+  timesSent,
   type Emitted,
 } from './testing/harness';
 
@@ -148,20 +148,6 @@ function caps(fixture: ComponentFixture<App>, state: string): [number, string, s
   ]);
 }
 
-// Every time from the event stream that reached a command's arguments.
-function timesSent(sentCalls: readonly Call[]): number[] {
-  const times = new Set(
-    GOLDEN.script.flatMap((step) => (step.event === 'test:event' ? [step.payload.micros] : [])),
-  );
-  const found: number[] = [];
-  const walk = (value: unknown): void => {
-    if (typeof value === 'number' && times.has(value)) found.push(value);
-    else if (value && typeof value === 'object') Object.values(value).forEach(walk);
-  };
-  for (const [, args] of sentCalls) walk(args);
-  return found;
-}
-
 describe('the synthetic chatter run', () => {
   afterEach(leaveApp);
 
@@ -286,7 +272,7 @@ describe('the synthetic chatter run', () => {
     ]);
     // Rust writes the file from its own Report::saved(). golden::m3_done_guided_chatter walks this
     // run's file with export::no_sequence, and export::ns01 shows it catching an event list.
-    expect(timesSent(calls())).toEqual([]);
+    expect(timesSent(calls(), [GOLDEN.script])).toEqual([]);
   });
 
   describe('positive controls', () => {
@@ -316,9 +302,9 @@ describe('the synthetic chatter run', () => {
 
     it('finds an event time in a command', () => {
       const [, first] = GOLDEN.script;
-      expect(timesSent([['export_report', { name: SAVED, events: [first.payload] }]])).toEqual([
-        600_000,
-      ]);
+      expect(
+        timesSent([['export_report', { name: SAVED, events: [first.payload] }]], [GOLDEN.script]),
+      ).toEqual([600_000]);
     });
   });
 });

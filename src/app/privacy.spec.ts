@@ -11,7 +11,10 @@ import {
   leaveApp,
   render,
   replay,
+  sent,
+  swapRun,
   text,
+  textOf,
   type Emitted,
 } from './testing/harness';
 
@@ -207,6 +210,20 @@ describe('privacy', () => {
 
     it('stores, logs and adds no history entries through a pause and foreign input', async () => {
       expect(await throughout(SCRIPT)).toEqual([]);
+    });
+
+    it('stores, logs and adds no history entries through the swap test to its export', async () => {
+      const stop = watchWrites();
+      let seen: string[];
+      try {
+        const fixture = await swapRun('follows');
+        expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // Result');
+        await click(fixture, button(fixture, 'Export report'));
+      } finally {
+        seen = stop();
+      }
+      expect(sent('export_report')).toHaveLength(1);
+      expect(seen).toEqual([]);
     });
 
     const forbidden: [string, () => unknown][] = [

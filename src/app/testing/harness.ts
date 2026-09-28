@@ -7,6 +7,7 @@ import { App } from '../app';
 import type { Events, KeyName, KeyboardGroup, PlanArgs, TestEvent, TestResult } from '../ipc';
 import { PLAN } from '../plan';
 import golden from './guided-chatter.json';
+import swap from './swap.json';
 
 export type Call = [string, unknown];
 
@@ -231,6 +232,86 @@ export async function replay(
 ): Promise<void> {
   for (const { event, payload } of script) await emit(event, payload);
   await fixture.whenStable();
+}
+
+// How long the page waits after a script's last view before it ends the test.
+export function waitOf(script: readonly Emitted[]): number | undefined {
+  return script.flatMap((step) => (step.event === 'test:guide' ? [step.payload] : [])).at(-1)
+    ?.waitMs;
+}
+
+export interface GoldenRun {
+  script: Emitted[];
+  result: TestResult;
+}
+
+export interface SwapGolden {
+  source: string;
+  handles: number[];
+  runs: { follows: GoldenRun; stays: GoldenRun };
+}
+
+export type SwapName = keyof SwapGolden['runs'];
+
+// The swap test Rust offers after the golden run, as it emits and judges it when the fault moved to
+// G and when it stayed on E. src-tauri/src/golden.rs writes the file and fails while it is out of
+// date.
+export const SWAP = swap as SwapGolden;
+
+export const SAVED = 'keytriage-2026.09.28-1412.json';
+
+// Replays the golden run and the swap test it offers, through Rust's own payloads, to the swap
+// result. end_test answers the golden result, then `result`. `look` reads the page on the swap
+// instructions and at the retest's first view.
+export async function swapRun(
+  name: SwapName,
+  {
+    result = SWAP.runs[name].result,
+    look = () => undefined,
+  }: {
+    result?: TestResult;
+    look?: (fixture: ComponentFixture<App>, screen: 'swap' | 'test') => void;
+  } = {},
+): Promise<ComponentFixture<App>> {
+  const results = [GOLDEN.result, result];
+  inApp((cmd) => {
+    if (cmd === 'end_test') return results.shift() ?? EMPTY;
+    if (cmd === 'start_swap_test') return SWAP.handles;
+    if (cmd === 'export_report') return SAVED;
+    return null;
+  }, GOLDEN.keyboards);
+  const fixture = await render([GOLDEN_PLAN]);
+  await click(fixture, button(fixture, 'Begin test'));
+  await replay(fixture, GOLDEN.script);
+  await after(fixture, waitOf(GOLDEN.script));
+  await click(fixture, button(fixture, 'Run the swap test'));
+  look(fixture, 'swap');
+  await click(fixture, button(fixture, 'Switches swapped. Test both keys'));
+  const [first, ...rest] = SWAP.runs[name].script;
+  await replay(fixture, [first]);
+  look(fixture, 'test');
+  await replay(fixture, rest);
+  await after(fixture, waitOf(rest));
+  return fixture;
+}
+
+// Every time from the scripts' events that reached a command's arguments.
+export function timesSent(
+  sentCalls: readonly Call[],
+  scripts: readonly (readonly Emitted[])[],
+): number[] {
+  const times = new Set(
+    scripts.flatMap((script) =>
+      script.flatMap((step) => (step.event === 'test:event' ? [step.payload.micros] : [])),
+    ),
+  );
+  const found: number[] = [];
+  const walk = (value: unknown): void => {
+    if (typeof value === 'number' && times.has(value)) found.push(value);
+    else if (value && typeof value === 'object') Object.values(value).forEach(walk);
+  };
+  for (const [, args] of sentCalls) walk(args);
+  return found;
 }
 
 export function key(scan: number, up: boolean, device: number, micros: number): TestEvent {
