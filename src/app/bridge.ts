@@ -34,6 +34,12 @@ export class Bridge {
     return call('start_test', { plan });
   }
 
+  // Rust retests the swap it offered, so the page names no keys. The reply is the handles the
+  // retest reads, which differ from the picked ones when the keyboard was replugged.
+  startSwapTest(): Promise<number[]> {
+    return call('start_swap_test');
+  }
+
   pauseTest(): Promise<void> {
     return call('pause_test');
   }

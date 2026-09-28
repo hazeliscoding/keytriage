@@ -20,6 +20,8 @@ const RESULT: TestResult = {
   clean: [],
   keys: [],
   resolution: '',
+  swap: null,
+  outcome: null,
 };
 const VIEW: GuideView = {
   key: 0x12,
@@ -57,6 +59,7 @@ describe('Bridge', () => {
 
     it('refuses every other command with a reason', async () => {
       await expect(bridge.startTest(PLAN)).rejects.toBe(OUTSIDE_APP);
+      await expect(bridge.startSwapTest()).rejects.toBe(OUTSIDE_APP);
       await expect(bridge.endTest([])).rejects.toBe(OUTSIDE_APP);
       await expect(bridge.exportReport('keytriage-2026.09.28-1402.json')).rejects.toBe(OUTSIDE_APP);
       expect(OUTSIDE_APP).toBe('Not running in the app.');
@@ -70,15 +73,18 @@ describe('Bridge', () => {
 
   describe('in the app', () => {
     let calls: Call[];
+    let swapReply: () => number[];
 
     beforeEach(() => {
       calls = [];
+      swapReply = () => [41, 42];
       mockIPC(
         (cmd, args) => {
           calls.push([cmd, args]);
           if (cmd === 'list_keyboards') return [];
           if (cmd === 'end_test') return RESULT;
           if (cmd === 'export_report') return 'keytriage-2026.09.28-1402.json';
+          if (cmd === 'start_swap_test') return swapReply();
           if (cmd === 'skip_key') throw 'No test is running.';
           return null;
         },
@@ -105,9 +111,18 @@ describe('Bridge', () => {
       ]);
     });
 
+    it('starts the swap test with no arguments and returns the handles Rust used', async () => {
+      await expect(bridge.startSwapTest()).resolves.toEqual([41, 42]);
+      expect(calls).toEqual([['start_swap_test', {}]]);
+    });
+
     it('passes on the reason Rust gives', async () => {
       const error = await bridge.skipKey(0, 0).catch((e: unknown) => e);
       expect(reasonOf(error)).toBe('No test is running.');
+      swapReply = () => {
+        throw 'There is no swap test to run.';
+      };
+      await expect(bridge.startSwapTest()).rejects.toBe('There is no swap test to run.');
       expect(reasonOf(new Error('Broken pipe'))).toBe('Broken pipe');
     });
 

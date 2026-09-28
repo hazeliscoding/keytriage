@@ -58,10 +58,14 @@ export interface Bar {
   count: number;
 }
 
+export type Kind = 'chatter' | 'dead' | 'stuck';
+export type Level = 'low' | 'medium' | 'high' | 'very-high';
+export type Outcome = 'follows' | 'stays' | 'both' | 'gone' | 'unclear';
+
 export interface FindingView {
   key: number;
-  kind: 'chatter' | 'dead' | 'stuck';
-  confidence: 'low' | 'medium' | 'high' | 'very-high';
+  kind: Kind;
+  confidence: Level;
   title: string;
   level: string;
   strong: boolean;
@@ -71,13 +75,42 @@ export interface FindingView {
   gaps: Bar[] | null;
 }
 
+export interface SwapView {
+  suspect: number;
+  partner: number;
+  title: string;
+  knownGood: string;
+  steps: string[];
+  means: string;
+  note: string;
+}
+
+export interface OutcomeView {
+  outcome: Outcome;
+  tile: number | null;
+  flagged: number[];
+  title: string;
+  // Null only for an unclear outcome, which the engine gives no confidence.
+  confidence: Level | null;
+  level: string | null;
+  strong: boolean;
+  evidence: string[];
+  diagnosis: string;
+  next: string[];
+}
+
 export interface TestResult {
   rules: number;
+  // Empty after a swap test, whose own swap steps would mislead.
   findings: FindingView[];
   notes: string[];
   clean: string[];
   keys: { scan: number; count: number }[];
   resolution: string;
+  // Rust offers a swap only on a hot-swap board, for a finding with a known-good partner.
+  swap: SwapView | null;
+  // Set only after a swap test.
+  outcome: OutcomeView | null;
 }
 
 export interface Events {

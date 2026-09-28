@@ -43,6 +43,8 @@ export const EMPTY: TestResult = {
   clean: [],
   keys: [],
   resolution: '',
+  swap: null,
+  outcome: null,
 };
 
 let log: Call[] = [];

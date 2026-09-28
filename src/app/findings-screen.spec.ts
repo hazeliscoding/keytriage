@@ -86,6 +86,8 @@ const FOUND: TestResult = {
     { scan: K, count: 0 },
   ],
   resolution: 'This keyboard showed no 8 or 16 ms reporting schedule in this test.',
+  swap: null,
+  outcome: null,
 };
 
 const CLEAN: TestResult = {

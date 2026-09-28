@@ -25,6 +25,8 @@ const RESULT: TestResult = {
   clean: [],
   keys: [],
   resolution: '',
+  swap: null,
+  outcome: null,
 };
 
 // The golden run holds only the tested keyboard's keys. This short test of G, 2 presses in 1 round,
