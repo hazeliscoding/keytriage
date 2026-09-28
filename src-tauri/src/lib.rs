@@ -97,6 +97,13 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 fn navigation_guard<R: Runtime>() -> TauriPlugin<R> {
     PluginBuilder::new("navigation-guard")
         .on_navigation(|webview, url| {
+            // A Browser Refresh or Back key, or a mouse's side button, reaches WebView2 as
+            // WM_APPCOMMAND, which the browser keys setting doesn't cover. A refused reload keeps the
+            // page and the test.
+            #[cfg(windows)]
+            if test_session::running() && !positive_control("KEYTRIAGE_BROWSER_KEYS") {
+                return false;
+            }
             let dev_url = if cfg!(dev) {
                 webview.config().build.dev_url.as_ref()
             } else {

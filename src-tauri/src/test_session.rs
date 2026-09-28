@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use keytriage_input::{Capture, Input};
@@ -86,6 +87,13 @@ thread_local! {
     static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
 }
 
+// The navigation guard runs on the same thread, but reads this without borrowing the session.
+static RUNNING: AtomicBool = AtomicBool::new(false);
+
+pub fn running() -> bool {
+    RUNNING.load(Ordering::SeqCst)
+}
+
 #[tauri::command]
 pub fn start_test(window: WebviewWindow) -> Result<(), String> {
     stop_test();
@@ -108,6 +116,7 @@ pub fn start_test(window: WebviewWindow) -> Result<(), String> {
             _entries: entries,
         })
     });
+    RUNNING.store(true, Ordering::SeqCst);
     let _ = window.emit("test:started", ());
     Ok(())
 }
@@ -115,6 +124,7 @@ pub fn start_test(window: WebviewWindow) -> Result<(), String> {
 #[tauri::command]
 pub fn stop_test() {
     SESSION.with_borrow_mut(|session| *session = None);
+    RUNNING.store(false, Ordering::SeqCst);
 }
 
 #[cfg(test)]

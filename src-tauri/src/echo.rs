@@ -84,12 +84,14 @@ fn print_registrations() {
 // The test starts the way the UI will start it: the page calls the command.
 static STARTED: AtomicBool = AtomicBool::new(false);
 
+// A refused navigation still finishes, so loads are counted as they start.
 pub fn page_load<R: Runtime>(webview: &Webview<R>, payload: &PageLoadPayload<'_>) {
-    if !enabled() || payload.event() != PageLoadEvent::Finished {
+    if !enabled() {
         return;
     }
-    print("kt-shell: page-load");
-    if !STARTED.swap(true, Ordering::SeqCst) {
+    if payload.event() == PageLoadEvent::Started {
+        print("kt-shell: page-load");
+    } else if !STARTED.swap(true, Ordering::SeqCst) {
         let _ = webview.eval("window.__TAURI_INTERNALS__.invoke('start_test')");
     }
 }
