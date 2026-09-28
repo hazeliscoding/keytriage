@@ -51,10 +51,6 @@ export class Bridge {
     return call('end_test', { labels });
   }
 
-  stopTest(): Promise<void> {
-    return call('stop_test');
-  }
-
   exportReport(name: string): Promise<string | null> {
     return call('export_report', { name });
   }

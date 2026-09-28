@@ -92,7 +92,6 @@ describe('Bridge', () => {
       await bridge.pauseTest();
       await bridge.continueTest();
       await expect(bridge.endTest([{ scan: 0x12, name: 'E' }])).resolves.toEqual(RESULT);
-      await bridge.stopTest();
       await expect(bridge.exportReport('keytriage-2026.09.28-1402.json')).resolves.toBe(
         'keytriage-2026.09.28-1402.json',
       );
@@ -102,7 +101,6 @@ describe('Bridge', () => {
         ['pause_test', {}],
         ['continue_test', {}],
         ['end_test', { labels: [{ scan: 0x12, name: 'E' }] }],
-        ['stop_test', {}],
         ['export_report', { name: 'keytriage-2026.09.28-1402.json' }],
       ]);
     });
