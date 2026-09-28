@@ -10,10 +10,17 @@ use tauri::{Runtime, Webview, WebviewWindow};
 use webview2_com::Microsoft::Web::WebView2::Win32::{
     ICoreWebView2Controller, ICoreWebView2Settings3,
 };
+use windows::Win32::System::Diagnostics::Debug::GetErrorMode;
 use windows_core::{BOOL, Interface};
 
 fn enabled() -> bool {
     std::env::var_os("KEYTRIAGE_ECHO").is_some()
+}
+
+pub fn note(line: &str) {
+    if enabled() {
+        print(line);
+    }
 }
 
 pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::error::Error>> {
@@ -27,6 +34,9 @@ pub fn start<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Box<dyn std::e
             r.usage_page, r.usage, r.flags, r.target
         ));
     }
+    print(&format!("kt-shell: error-mode=0x{:x}", unsafe {
+        GetErrorMode()
+    }));
     print("kt-input: ready");
     // with_webview calls run in order, so this reads the settings after browser_ui changed them.
     window.with_webview(|webview| print(&settings_line(&webview.controller())))?;

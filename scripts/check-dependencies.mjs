@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 
 export const ALLOWED = {
-  keytriage: ['tauri', 'tauri-build', 'webview2-com', 'windows-core'],
+  keytriage: ['tauri', 'tauri-build', 'webview2-com', 'windows', 'windows-core'],
   'keytriage-input': ['windows'],
   'keytriage-diagnostics': [],
 };

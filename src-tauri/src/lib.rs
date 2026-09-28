@@ -3,37 +3,85 @@ use tauri::{Manager, Runtime, Url};
 
 #[cfg(windows)]
 mod browser_ui;
+#[cfg(windows)]
+mod crash_reports;
 #[cfg(all(debug_assertions, windows))]
 mod echo;
 
 pub fn run() {
+    #[cfg(windows)]
+    if !positive_control("KEYTRIAGE_CRASH_REPORTS") {
+        crash_reports::keep_app_crashes_local();
+    }
     let builder = tauri::Builder::default()
         // tao registers Raw Input for every keyboard at startup unless this is Always, and Never
         // would add RIDEV_INPUTSINK. Capture belongs to crates/input, and only during a test.
         .device_event_filter(tauri::DeviceEventFilter::Always)
-        .plugin(navigation_guard());
-    #[cfg(windows)]
-    let builder = builder.setup(setup);
+        .plugin(navigation_guard())
+        .setup(setup);
     #[cfg(all(debug_assertions, windows))]
     let builder = builder.on_page_load(echo::page_load);
     builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            // A dump can come without a ProcessFailed event. WebView2 finishes shutting down after
+            // the app exits, so a dump from a crash then waits for the next start.
+            #[cfg(windows)]
+            if let tauri::RunEvent::Exit = _event
+                && let Some(reports) = _app.try_state::<ReportFolder>()
+            {
+                crash_reports::sweep(&reports.0);
+            }
+        });
 }
 
 #[cfg(windows)]
+struct ReportFolder(std::path::PathBuf);
+
+// The app checks' positive controls leave one protection off, in debug builds only.
+#[cfg(windows)]
+fn positive_control(name: &str) -> bool {
+    cfg!(debug_assertions) && std::env::var_os(name).is_some()
+}
+
+// The window is built here rather than from the config, so that on Windows it gets a WebView2
+// environment whose crash dumps stay on this machine.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let window = app
-        .get_webview_window("main")
-        .ok_or("the main window is missing")?;
-    // The browser keys check's positive control leaves them on, in debug builds only.
-    let keep_browser_keys =
-        cfg!(debug_assertions) && std::env::var_os("KEYTRIAGE_BROWSER_KEYS").is_some();
-    if !keep_browser_keys {
-        browser_ui::turn_off(&window)?;
+    let config = app
+        .config()
+        .app
+        .windows
+        .first()
+        .ok_or("tauri.conf.json defines no window")?
+        .clone();
+    let builder = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?;
+    #[cfg(windows)]
+    let (builder, reports) = if positive_control("KEYTRIAGE_CRASH_REPORTS") {
+        (builder, None)
+    } else {
+        let data_dir = app.path().app_local_data_dir()?;
+        std::fs::create_dir_all(&data_dir)?;
+        let environment = crash_reports::environment(&data_dir)?;
+        let reports = crash_reports::report_folder(&environment)?;
+        crash_reports::sweep(&reports);
+        app.manage(ReportFolder(reports.clone()));
+        (builder.with_environment(environment), Some(reports))
+    };
+    let window = builder.build()?;
+    #[cfg(windows)]
+    {
+        if let Some(reports) = reports {
+            crash_reports::sweep_on_failure(&window, reports)?;
+        }
+        if !positive_control("KEYTRIAGE_BROWSER_KEYS") {
+            browser_ui::turn_off(&window)?;
+        }
+        #[cfg(debug_assertions)]
+        echo::start(&window)?;
     }
-    #[cfg(debug_assertions)]
-    echo::start(&window)?;
+    #[cfg(not(windows))]
+    let _ = window;
     Ok(())
 }
 
