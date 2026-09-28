@@ -21,7 +21,7 @@ pub enum Kind {
 pub enum PollEstimate {
     #[default]
     Unknown,
-    AtMost4Ms,
+    No8Or16Ms,
     Ms8,
     Ms16OrSlower,
 }

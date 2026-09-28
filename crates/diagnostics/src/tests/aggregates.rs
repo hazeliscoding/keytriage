@@ -155,7 +155,7 @@ fn ag06_histograms_of_a_small_stream() {
 #[test]
 fn ag07_the_polling_estimate() {
     let taps = || Synth::new().taps(G, 60, (ms(40), ms(130)), (ms(60), ms(250)));
-    assert_eq!(run(taps()).aggregates.limits.poll, PollEstimate::AtMost4Ms);
+    assert_eq!(run(taps()).aggregates.limits.poll, PollEstimate::No8Or16Ms);
     assert_eq!(
         run(taps().polled(ms(8))).aggregates.limits.poll,
         PollEstimate::Ms8

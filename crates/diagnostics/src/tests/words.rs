@@ -365,7 +365,7 @@ fn w08_every_branch_is_hedged() {
 fn w09_the_timing_resolution_in_words() {
     let words = [
         PollEstimate::Unknown,
-        PollEstimate::AtMost4Ms,
+        PollEstimate::No8Or16Ms,
         PollEstimate::Ms8,
         PollEstimate::Ms16OrSlower,
     ]
@@ -389,7 +389,7 @@ fn w10_a_keyboard_on_neither_lattice_gets_no_resolution_it_lacks() {
     for poll in [7_500, 10_000, 11_250, 15_000] {
         let taps = Synth::new().taps(G, 60, (ms(40), ms(130)), (ms(60), ms(250)));
         let estimate = run(taps.polled(poll)).aggregates.limits.poll;
-        assert_eq!(estimate, PollEstimate::AtMost4Ms, "{poll}");
+        assert_eq!(estimate, PollEstimate::No8Or16Ms, "{poll}");
         assert_eq!(
             estimate.words(),
             "This keyboard showed no 8 or 16 ms reporting schedule in this test."

@@ -123,7 +123,7 @@ pub fn report_json(saved: &Aggregates) -> String {
 fn poll_name(poll: PollEstimate) -> &'static str {
     match poll {
         PollEstimate::Unknown => "unknown",
-        PollEstimate::AtMost4Ms => "at-most-4-ms",
+        PollEstimate::No8Or16Ms => "no-8-or-16-ms",
         PollEstimate::Ms8 => "8-ms",
         PollEstimate::Ms16OrSlower => "16-ms-or-slower",
     }
@@ -243,7 +243,7 @@ pub fn no_sequence(text: &str) -> Result<(), String> {
         "pauses",
         "timingUnknown",
     ];
-    const POLLS: [&str; 4] = ["unknown", "at-most-4-ms", "8-ms", "16-ms-or-slower"];
+    const POLLS: [&str; 4] = ["unknown", "no-8-or-16-ms", "8-ms", "16-ms-or-slower"];
     const KEY: [&str; 19] = [
         "downs",
         "ups",

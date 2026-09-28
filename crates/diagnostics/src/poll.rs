@@ -30,6 +30,6 @@ pub(crate) fn estimate(f: &Folded) -> PollEstimate {
     } else if share(8_000) >= POLL_FIT_PERCENT {
         PollEstimate::Ms8
     } else {
-        PollEstimate::AtMost4Ms
+        PollEstimate::No8Or16Ms
     }
 }

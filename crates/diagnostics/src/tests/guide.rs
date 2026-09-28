@@ -410,7 +410,7 @@ fn gc01_the_guided_chatter_run() {
             other_affected: 0,
             borderline: 0,
             timing_unknown: 0,
-            poll: PollEstimate::AtMost4Ms,
+            poll: PollEstimate::No8Or16Ms,
             cap: None,
         }
     );

@@ -44,7 +44,7 @@ impl PollEstimate {
                 "Timing resolution for this keyboard couldn't be measured in this test."
             }
             // The estimate only rules out the 8 and 16 ms lattices. A 10 ms keyboard lands here too.
-            PollEstimate::AtMost4Ms => {
+            PollEstimate::No8Or16Ms => {
                 "This keyboard showed no 8 or 16 ms reporting schedule in this test."
             }
             PollEstimate::Ms8 => {
@@ -228,7 +228,7 @@ fn chatter_lines(e: &ChatterEvidence) -> Vec<String> {
              missed, and confidence is capped at medium"
                 .to_string(),
         ),
-        PollEstimate::Unknown | PollEstimate::AtMost4Ms => {}
+        PollEstimate::Unknown | PollEstimate::No8Or16Ms => {}
     }
     if e.cap == Some(Cap::Systemic) {
         out.push(
