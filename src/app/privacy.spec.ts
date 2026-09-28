@@ -1,5 +1,8 @@
+import { type Provider } from '@angular/core';
 import type { GuideView, TestResult } from './ipc';
 import {
+  GOLDEN,
+  GOLDEN_PLAN,
   all,
   button,
   click,
@@ -24,10 +27,10 @@ const RESULT: TestResult = {
   resolution: '',
 };
 
-// A short synthetic test of G, 2 presses in 1 round, in the order Rust emits it: a press, injected
-// input, another keyboard, a focus loss that repeats the round, then the presses that finish it.
-// Rust's `done` includes the open round's count, and its tallies hold only keys that sent a
-// key-down.
+// The golden run holds only the tested keyboard's keys. This short test of G, 2 presses in 1 round,
+// adds what it lacks, in the order Rust emits it: a press, injected input, another keyboard, a
+// focus loss that repeats the round, then the presses that finish it. Rust's `done` includes the
+// open round's count, and its tallies hold only keys that sent a key-down.
 function view(count: number, done = count, next: number | null = G): GuideView {
   return {
     key: next,
@@ -173,20 +176,35 @@ describe('privacy', () => {
   });
 
   describe('writes', () => {
-    it('stores, logs and adds no history entries through a whole test', async () => {
+    // Every write from Begin through `script` and the findings to an export.
+    async function throughout(script: readonly Emitted[], providers: Provider[] = []) {
       const stop = watchWrites();
       let seen: string[];
       try {
-        const fixture = await render();
+        const fixture = await render(providers);
         await click(fixture, button(fixture, 'Begin test'));
-        await replay(fixture, SCRIPT);
+        await replay(fixture, script);
         // A finished plan may move on by itself, which leaves no End test to click.
         const end = all(fixture, 'button').find((b) => text(b) === 'End test');
         if (end) await click(fixture, end);
+        await click(fixture, button(fixture, 'Export report'));
       } finally {
         seen = stop();
       }
-      expect(seen).toEqual([]);
+      return seen;
+    }
+
+    it('stores, logs and adds no history entries through the golden run', async () => {
+      inApp((cmd) => {
+        if (cmd === 'end_test') return GOLDEN.result;
+        if (cmd === 'export_report') return 'keytriage-2026.09.28-1412.json';
+        return null;
+      }, GOLDEN.keyboards);
+      expect(await throughout(GOLDEN.script, [GOLDEN_PLAN])).toEqual([]);
+    });
+
+    it('stores, logs and adds no history entries through a pause and foreign input', async () => {
+      expect(await throughout(SCRIPT)).toEqual([]);
     });
 
     const forbidden: [string, () => unknown][] = [
