@@ -22,6 +22,10 @@ pub const REACH_US: u64 = 100_000;
 // release may be chatter. It shows on the drawing but never moves a guided prompt on. A fast
 // deliberate double press then needs one more press, which never mislabels a fault.
 pub const PROMPT_MERGE_US: u64 = REACH_US;
+// The plan's last round closes at a release, and that press's chatter can land up to 90 ms later,
+// so capture stays open this long after the plan's last view. The margin covers the view's trip to
+// the page and the input still queued behind it.
+pub const END_WAIT_US: u64 = REACH_US + 50_000;
 // Windows' shortest repeat delay, 250 ms, less 20% tolerance. A second key-down closer than this
 // is a duplicate, not a repeat.
 pub const REPEAT_MIN_DELAY_US: u64 = 200_000;

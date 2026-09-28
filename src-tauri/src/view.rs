@@ -2,7 +2,7 @@
 // path or container ID never does.
 use std::collections::BTreeMap;
 
-use keytriage_diagnostics::params::EDGES_MS;
+use keytriage_diagnostics::params::{EDGES_MS, END_WAIT_US};
 use keytriage_diagnostics::{
     BoardKind, Confidence, Guide, Histogram, Kind, MAX_PRESSES, MAX_ROUNDS, Note, Plan, PlanError,
     Report, code_label,
@@ -106,6 +106,9 @@ pub struct GuideView {
     pub done: u32,
     pub total: u32,
     pub tallies: Vec<(u16, u32)>,
+    // Only once the plan is done: how long the page waits before it ends the test.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wait_ms: Option<u32>,
 }
 
 // Past these a request is a mistake, not a keyboard: one keyboard shows up as a handful of HID
@@ -167,6 +170,7 @@ pub fn guide_view(guide: &Guide) -> GuideView {
         done: guide.done(),
         total: guide.total(),
         tallies: guide.tallies().iter().map(|(&k, &n)| (k, n)).collect(),
+        wait_ms: prompt.is_none().then_some((END_WAIT_US / 1000) as u32),
     }
 }
 
@@ -609,7 +613,7 @@ mod tests {
         let end = json(&guide);
         assert_eq!(
             end,
-            r#"{"key":null,"asked":10,"count":0,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[34,3]]}"#
+            r#"{"key":null,"asked":10,"count":0,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[34,3]],"waitMs":150}"#
         );
         for text in [mid, end] {
             for time in ["micros", "_us", "start", "end", "700", "1300"] {

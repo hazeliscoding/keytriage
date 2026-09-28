@@ -82,6 +82,12 @@ export async function settle(fixture: ComponentFixture<App>): Promise<void> {
   await fixture.whenStable();
 }
 
+// Lets `ms` of real time pass for the page's own timers, then lets the page render.
+export async function after(fixture: ComponentFixture<App>, ms = 0): Promise<void> {
+  await new Promise((done) => setTimeout(done, ms));
+  await settle(fixture);
+}
+
 export async function render(providers: Provider[] = []): Promise<ComponentFixture<App>> {
   TestBed.configureTestingModule({ providers });
   const fixture = TestBed.createComponent(App);

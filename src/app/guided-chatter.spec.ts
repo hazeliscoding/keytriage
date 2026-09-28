@@ -5,6 +5,7 @@ import type { KeyName, TestResult } from './ipc';
 import {
   GOLDEN,
   GOLDEN_PLAN,
+  after,
   all,
   button,
   calls,
@@ -37,6 +38,7 @@ const END = GOLDEN.script.findIndex(
   (step) => step.event === 'test:guide' && step.payload.key === null,
 );
 const LAST = GOLDEN.script[END];
+const WAIT = VIEWS.at(-1)?.waitMs;
 
 // What the test screen showed at one of Rust's views.
 interface Shown {
@@ -71,7 +73,8 @@ interface Run {
   fixture: ComponentFixture<App>;
   // The page at every view that prompts a key, in order, when the run was read.
   views: Shown[];
-  // The script step whose delivery sent end_test.
+  // The script step whose delivery sent end_test, or the script's length when it came after the
+  // whole script.
   endedAt: number;
 }
 
@@ -99,7 +102,9 @@ async function run(
       views.push(shown(fixture));
     }
   }
-  await settle(fixture);
+  // The page ends the test once the wait Rust sends with the last view is over.
+  await after(fixture, WAIT);
+  if (endedAt < 0 && sent('end_test').length) endedAt = script.length;
   return { fixture, views, endedAt };
 }
 
@@ -215,9 +220,12 @@ describe('the synthetic chatter run', () => {
     });
   });
 
-  it("ends on Rust's last view and shows the chatter on E in the engine's words", async () => {
+  it("ends after Rust's last view and wait, and shows the chatter on E in the engine's words", async () => {
     const { fixture, endedAt } = await run(GOLDEN.script);
-    expect(endedAt).toBe(END);
+    // E's last chatter fragment follows the last view, and the test still takes it.
+    expect(END).toBe(GOLDEN.script.length - 3);
+    expect(WAIT).toBe(150);
+    expect(endedAt).toBe(GOLDEN.script.length);
     const labels = (sent('end_test') as { labels: KeyName[] }[]).map((args) => args.labels);
     expect(labels).toHaveLength(1);
     expect(labels[0]).toEqual(expect.arrayContaining(GOLDEN.labels));

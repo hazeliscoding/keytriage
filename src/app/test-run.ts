@@ -129,6 +129,7 @@ export class TestRun {
   private asked: PlanArgs | null = null;
   private seq = 0;
   private ticking: ReturnType<typeof setInterval> | undefined;
+  private closing: ReturnType<typeof setTimeout> | undefined;
   private uncancel: (() => void) | null = null;
   // Set between a click on Pause and the pause it causes, which then reads as the user's own.
   private pauseAsked = false;
@@ -138,7 +139,7 @@ export class TestRun {
     this.listen('test:guide', (view) => {
       this.guide.set(view);
       // Rust sends no key once the plan is done.
-      if (view.key === null) void this.end();
+      if (view.key === null) this.endAfter(view.waitMs);
     });
     inject(DestroyRef).onDestroy(() => this.halt());
   }
@@ -190,7 +191,8 @@ export class TestRun {
     this.findings.set(null);
     this.screen.set('test');
     // The plan's last view may have come before start_test returned.
-    if (this.guide()?.key === null) void this.end();
+    const last = this.guide();
+    if (last?.key === null) this.endAfter(last.waitMs);
   }
 
   // A failure leaves the test running, with the reason in the footer.
@@ -251,6 +253,13 @@ export class TestRun {
     await this.attempt(this.bridge.skipKey(view.round, view.index));
   }
 
+  // The last press's chatter can still be on its way when the plan is done, so the test ends once
+  // Rust's wait is over. End test during the wait ends it at once.
+  private endAfter(ms = 0): void {
+    clearTimeout(this.closing);
+    this.closing = setTimeout(() => void this.end(), ms);
+  }
+
   // Runs a command during the test. A failure leaves the test as it was and shows its reason.
   private async attempt(command: Promise<void>): Promise<boolean> {
     this.note.set('');
@@ -290,6 +299,8 @@ export class TestRun {
     this.uncancel = null;
     clearInterval(this.ticking);
     this.ticking = undefined;
+    clearTimeout(this.closing);
+    this.closing = undefined;
     this.pauseClock();
   }
 

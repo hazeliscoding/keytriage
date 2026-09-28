@@ -27,6 +27,8 @@ export interface GuideView {
   done: number;
   total: number;
   tallies: [number, number][];
+  // Only once the plan is done: how long to wait before ending the test.
+  waitMs?: number;
 }
 
 export interface KeyboardEntry {

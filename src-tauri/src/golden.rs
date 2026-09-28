@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use keytriage_diagnostics::fixture::{Fixture, guided_chatter};
+use keytriage_diagnostics::params::END_WAIT_US;
 use keytriage_diagnostics::{BoardKind, Confidence, Evidence, NextTest, Report};
 use keytriage_input::Keyboard;
 use serde::Serialize;
@@ -174,8 +175,8 @@ fn m3_done_guided_chatter() {
     );
     assert!(card.next[0].starts_with("Swap the E switch with the G switch"));
 
-    // The last view says the plan is done, and the page ends the test on it. The E round's last
-    // chatter fragment still follows it as events.
+    // The last view says the plan is done, and the page ends the test END_WAIT_US after it. The E
+    // round's last chatter fragment follows it as events, within that wait.
     let script: Vec<Value> = run.script.iter().map(|s| parsed(s)).collect();
     let views: Vec<&Value> = script
         .iter()
@@ -185,8 +186,22 @@ fn m3_done_guided_chatter() {
     let last = views.last().unwrap();
     assert!(last["key"].is_null());
     assert_eq!((&last["done"], &last["total"]), (&json!(90), &json!(90)));
-    assert!(views[..views.len() - 1].iter().all(|v| !v["key"].is_null()));
-    assert_eq!(script.last().unwrap()["event"], "test:event");
+    assert_eq!(last["waitMs"], json!(END_WAIT_US / 1000));
+    let prompts = &views[..views.len() - 1];
+    assert!(
+        prompts
+            .iter()
+            .all(|v| !v["key"].is_null() && v.get("waitMs").is_none())
+    );
+    let done = script
+        .iter()
+        .position(|s| s["event"] == "test:guide" && s["payload"]["key"].is_null())
+        .unwrap();
+    let micros = |s: &Value| s["payload"]["micros"].as_u64().unwrap();
+    let closed = micros(&script[done - 1]);
+    let trailing: Vec<u64> = script[done + 1..].iter().map(micros).collect();
+    assert_eq!(trailing.len(), 2);
+    assert!(trailing.iter().all(|&t| t - closed < END_WAIT_US));
 
     let export = report_json(&report.saved());
     assert_eq!(no_sequence(&export), Ok(()));

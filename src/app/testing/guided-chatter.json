@@ -311,7 +311,7 @@
     {"event":"test:event","payload":{"kind":"key","scan":18,"up":false,"device":1,"micros":32726952}},
     {"event":"test:guide","payload":{"key":18,"asked":10,"count":10,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[18,35],[34,30],[36,30]]}},
     {"event":"test:event","payload":{"kind":"key","scan":18,"up":true,"device":1,"micros":32731952}},
-    {"event":"test:guide","payload":{"key":null,"asked":10,"count":0,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[18,35],[34,30],[36,30]]}},
+    {"event":"test:guide","payload":{"key":null,"asked":10,"count":0,"round":2,"rounds":3,"index":2,"keys":3,"done":90,"total":90,"tallies":[[18,35],[34,30],[36,30]],"waitMs":150}},
     {"event":"test:event","payload":{"kind":"key","scan":18,"up":false,"device":1,"micros":32736952}},
     {"event":"test:event","payload":{"kind":"key","scan":18,"up":true,"device":1,"micros":32836952}}
   ],

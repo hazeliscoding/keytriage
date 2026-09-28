@@ -5,6 +5,7 @@ import { labelsFor, layout } from './layout';
 import { PLAN } from './plan';
 import {
   EMPTY,
+  after,
   all,
   button,
   cap,
@@ -111,6 +112,7 @@ const DONE: GuideView = {
     [G, 30],
     [0x24, 30],
   ],
+  waitMs: 150,
 };
 
 const GOLDEN_PLAN = {
@@ -288,12 +290,16 @@ describe('Findings screen', () => {
   });
 
   describe('ending', () => {
-    it("ends by itself once Rust sends the plan's last view, naming the drawn keys", async () => {
+    it("ends by itself after the wait Rust sends with the plan's last view, naming the drawn keys", async () => {
       inApp((cmd) => (cmd === 'end_test' ? FOUND : null));
       const fixture = await testing([GOLDEN_PLAN]);
       await send(fixture, 'test:event', key(E, false, OWN, 1_000), key(E, true, OWN, 61_000));
       await send(fixture, 'test:guide', DONE);
       await settle(fixture);
+      // The last press's chatter may still be on its way, so capture stays on for the wait.
+      expect(sent('end_test')).toHaveLength(0);
+      expect(textOf(fixture, '.steps__now')).toBe('02 Test');
+      await after(fixture, DONE.waitMs);
       const labels = (sent('end_test') as { labels: KeyName[] }[]).map((args) => args.labels);
       expect(labels).toEqual([labelsFor(layout('75%', 'ANSI'))]);
       expect(labels[0]).toContainEqual({ scan: 18, name: 'E' });
@@ -303,15 +309,32 @@ describe('Findings screen', () => {
       expect(all(fixture, '.live__row')).toHaveLength(0);
     });
 
-    it('ends once when the last view and End test cross', async () => {
+    it('ends once when the wait runs out and End test cross', async () => {
       let answer: (result: TestResult) => void = () => undefined;
       inApp((cmd) =>
         cmd === 'end_test' ? new Promise<TestResult>((done) => (answer = done)) : null,
       );
       const fixture = await testing([GOLDEN_PLAN]);
       await send(fixture, 'test:guide', DONE);
+      await after(fixture, DONE.waitMs);
       expect(button(fixture, 'End test').disabled).toBe(true);
       await click(fixture, button(fixture, 'End test'));
+      answer(FOUND);
+      await settle(fixture);
+      expect(sent('end_test')).toHaveLength(1);
+      expect(all(fixture, '.finding')).toHaveLength(2);
+    });
+
+    it('ends at once when End test is clicked during the wait, and only once', async () => {
+      let answer: (result: TestResult) => void = () => undefined;
+      inApp((cmd) =>
+        cmd === 'end_test' ? new Promise<TestResult>((done) => (answer = done)) : null,
+      );
+      const fixture = await testing([GOLDEN_PLAN]);
+      await send(fixture, 'test:guide', DONE);
+      await click(fixture, button(fixture, 'End test'));
+      expect(sent('end_test')).toHaveLength(1);
+      await after(fixture, DONE.waitMs);
       answer(FOUND);
       await settle(fixture);
       expect(sent('end_test')).toHaveLength(1);
