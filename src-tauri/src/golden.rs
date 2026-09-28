@@ -563,3 +563,28 @@ fn golden_is_current() {
 fn swap_golden_is_current() {
     current(SWAP_FILE, &swap_file());
 }
+
+// README.md says its sample is the finding the app shows for this run, so each of the finding's
+// lines must appear in it. The sample wraps long lines, so a line break reads as a space.
+#[test]
+fn readme_quotes_the_golden_finding() {
+    let mut run = run();
+    let Ended { result, .. } = finish(&mut run);
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../README.md");
+    let readme = std::fs::read_to_string(path).unwrap();
+    let sample = readme.split("```text").nth(1).unwrap();
+    let words = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let sample = words(sample.split("```").next().unwrap());
+    let finding = &result.findings[0];
+    let lines = [&finding.title]
+        .into_iter()
+        .chain(&finding.evidence)
+        .chain(&finding.causes)
+        .chain(&finding.next);
+    for line in lines {
+        assert!(
+            sample.contains(&words(line)),
+            "README.md's sample lacks: {line}"
+        );
+    }
+}

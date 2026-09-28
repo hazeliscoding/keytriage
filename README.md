@@ -33,7 +33,7 @@ Other possible causes
 
 Next test
   Swap the E switch with the G switch and test both keys again.
-  If the fault moves to G, the switch is the cause.
+  If the fault moves to G, the switch is the likely cause.
   If it stays on E, look at the socket or the PCB.
 
   Blow out the E switch with the key held down, or work contact cleaner
