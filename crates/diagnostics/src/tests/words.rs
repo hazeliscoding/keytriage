@@ -360,3 +360,24 @@ fn w08_every_branch_is_hedged() {
         assert!(!hedged(&format!("the E switch {phrase}")), "{phrase}");
     }
 }
+
+#[test]
+fn w09_the_timing_resolution_in_words() {
+    let words = [
+        PollEstimate::Unknown,
+        PollEstimate::AtMost4Ms,
+        PollEstimate::Ms8,
+        PollEstimate::Ms16OrSlower,
+    ]
+    .map(PollEstimate::words);
+    assert_eq!(
+        words,
+        [
+            "Timing resolution for this keyboard couldn't be measured in this test.",
+            "Timing resolution for this keyboard is 4 ms or finer.",
+            "This keyboard reports about every 8 ms, so times are rounded to 8 ms.",
+            "This keyboard reports every 16 ms or slower, so short extra presses can be missed.",
+        ]
+    );
+    assert!(words.iter().all(|w| hedged(w)));
+}

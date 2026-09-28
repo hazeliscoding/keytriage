@@ -37,6 +37,23 @@ impl Kind {
     }
 }
 
+impl PollEstimate {
+    pub fn words(self) -> &'static str {
+        match self {
+            PollEstimate::Unknown => {
+                "Timing resolution for this keyboard couldn't be measured in this test."
+            }
+            PollEstimate::AtMost4Ms => "Timing resolution for this keyboard is 4 ms or finer.",
+            PollEstimate::Ms8 => {
+                "This keyboard reports about every 8 ms, so times are rounded to 8 ms."
+            }
+            PollEstimate::Ms16OrSlower => {
+                "This keyboard reports every 16 ms or slower, so short extra presses can be missed."
+            }
+        }
+    }
+}
+
 impl Cause {
     pub fn words(self) -> &'static str {
         match self {
