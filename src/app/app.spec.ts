@@ -1,20 +1,28 @@
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { mockIPC } from '@tauri-apps/api/mocks';
+import { App } from './app';
 import { RECONNECTED } from './ipc';
 import { keyCount, layout, plainKeys } from './layout';
 import { PLAN } from './plan';
+import { TestRun } from './test-run';
 import {
   FOLLOWS,
   all,
   button,
+  chooseKeys,
   click,
   el,
   inApp,
   leaveApp,
+  nthClick,
   offered,
+  pickKey,
   render,
   sent,
+  settle,
   started,
   text,
+  textOf,
 } from './testing/harness';
 
 describe('App', () => {
@@ -197,6 +205,184 @@ describe('App', () => {
       const [plan] = started();
       expect(plan.keys).toEqual(plainKeys(layout('Full size', 'ISO')));
       expect(plan.keys).toHaveLength(48);
+      expect([plan.rounds, plan.presses]).toEqual([3, 10]);
+    });
+  });
+
+  describe('scope', () => {
+    const E = 0x12;
+    const R = 0x13;
+    const T = 0x14;
+    const HOME = 0xe047;
+    const FOOTNOTE =
+      'Click keys on the drawing to add or remove them. Use this when you already know which ' +
+      "keys misbehave. Win, PrtSc, Shift, Fn and Pause can't be chosen: Win and PrtSc open " +
+      'Windows features, Shift opens Sticky Keys, and Fn and Pause send nothing the test can time.';
+    const NEIGHBOR =
+      'Choose a neighboring key too, so a dead key can be told from a silent keyboard.';
+    const summary = (fixture: ComponentFixture<App>) => textOf(fixture, '.choose__summary');
+    const hint = (fixture: ComponentFixture<App>) => textOf(fixture, '.choose__hint');
+    const shown = (fixture: ComponentFixture<App>, label: string) =>
+      all(fixture, 'button').some((b) => text(b) === label);
+
+    it('shows 04 // Scope under the columns, with All keys pressed', async () => {
+      const fixture = await render();
+      const row = el(fixture).querySelector('.start > .scope');
+      expect(row?.previousElementSibling?.classList).toContain('start__column');
+      expect(text(row?.querySelector('.kicker'))).toBe('04 // Scope');
+      const scopes = [button(fixture, 'All keys'), button(fixture, 'Chosen keys')];
+      expect(scopes.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false']);
+      expect(scopes.map((b) => b.classList.contains('btn--primary'))).toEqual([true, false]);
+      expect(text(row?.querySelector('.scope__end'))).toBe(
+        'Every letter, digit and punctuation key, 10 presses in each of 3 rounds. Choose keys ' +
+          'instead when you already know which ones misbehave.',
+      );
+      expect(all(fixture, 'app-key-picker')).toHaveLength(0);
+    });
+
+    it('swaps the columns for the picker and back, focusing the pressed scope', async () => {
+      const fixture = await render();
+      await click(fixture, button(fixture, 'Chosen keys'));
+      expect(all(fixture, '.start__column')).toHaveLength(0);
+      expect(textOf(fixture, '.choose > .scope .kicker')).toBe('04 // Scope');
+      const scopes = [button(fixture, 'All keys'), button(fixture, 'Chosen keys')];
+      expect(scopes.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+      expect(scopes.map((b) => b.classList.contains('btn--primary'))).toEqual([false, true]);
+      expect(document.activeElement).toBe(scopes[1]);
+      // The header's date and time, repeated as the design does.
+      expect(textOf(fixture, '.choose .scope__end')).toBe(textOf(fixture, '.header__context'));
+      expect(textOf(fixture, '#choose-title')).toBe('Click the keys to test.');
+      const picker = el(fixture).querySelector('app-key-picker');
+      expect(picker?.getAttribute('aria-labelledby')).toBe('choose-title');
+      expect(all(fixture, '.pick')).toHaveLength(keyCount('75%', 'ANSI'));
+      expect(textOf(fixture, '.choose__lead')).toBe(FOOTNOTE);
+      expect(summary(fixture)).toBe('None chosen');
+      expect(shown(fixture, 'Clear')).toBe(false);
+      expect(button(fixture, 'Begin test').disabled).toBe(true);
+
+      await click(fixture, button(fixture, 'All keys'));
+      expect(all(fixture, '.start__column')).toHaveLength(3);
+      expect(all(fixture, 'app-key-picker')).toHaveLength(0);
+      expect(document.activeElement).toBe(button(fixture, 'All keys'));
+      expect(button(fixture, 'Begin test').disabled).toBe(false);
+    });
+
+    it("toggles a key per single click, keeps reading order and drops a double click's second", async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, T, E, R);
+      expect(summary(fixture)).toBe('3 chosen · E R T');
+      const pressed = () =>
+        all(fixture, '.pick[aria-pressed="true"]').map((b) => Number(b.getAttribute('data-scan')));
+      expect(pressed()).toEqual([E, R, T]);
+      await pickKey(fixture, E);
+      expect(summary(fixture)).toBe('2 chosen · R T');
+      const e = el(fixture).querySelector(`.pick[data-scan="${E}"]`) as HTMLElement;
+      await nthClick(fixture, e, 2);
+      expect(summary(fixture)).toBe('2 chosen · R T');
+      // Space or Enter on a focused key clicks it with no count.
+      await nthClick(fixture, e, 0);
+      expect(summary(fixture)).toBe('3 chosen · E R T');
+    });
+
+    it('asks for a neighboring key while one key is chosen', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E);
+      expect([summary(fixture), hint(fixture)]).toEqual(['1 chosen · E', NEIGHBOR]);
+      await pickKey(fixture, R);
+      expect([summary(fixture), hint(fixture)]).toEqual(['2 chosen · E R', '']);
+      await click(fixture, button(fixture, 'Clear'));
+      expect([summary(fixture), hint(fixture)]).toEqual(['None chosen', '']);
+    });
+
+    it('names keys whose label is blank or shared as the design does', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, 0x39, 0xe038, 0x38, 0x1d);
+      expect(summary(fixture)).toBe('4 chosen · LCtrl LAlt Space RAlt');
+    });
+
+    it('clears the keys chosen, then hides Clear and focuses Chosen keys', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E, R);
+      expect(button(fixture, 'Clear').classList).toContain('btn--ghost');
+      await click(fixture, button(fixture, 'Clear'));
+      expect(summary(fixture)).toBe('None chosen');
+      expect(shown(fixture, 'Clear')).toBe(false);
+      expect(document.activeElement).toBe(button(fixture, 'Chosen keys'));
+      expect(button(fixture, 'Begin test').disabled).toBe(true);
+      await TestBed.inject(TestRun).begin();
+      expect(started()).toEqual([]);
+    });
+
+    it("does nothing for a key the test can't prompt", async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E);
+      const fixed = all(fixture, '.pick--fixed');
+      expect(fixed.map(text)).toEqual(['Prt', 'Shft', 'Shft', 'Win', 'Fn']);
+      for (const drawn of fixed) await nthClick(fixture, drawn, 1);
+      expect(summary(fixture)).toBe('1 chosen · E');
+      // The run refuses them too, whatever asks.
+      const run = TestBed.inject(TestRun);
+      for (const scan of [0xe05b, 0xe037, 0x2a, 0x36, 0xe11d]) run.toggleKey(scan);
+      run.toggleKey(R);
+      await settle(fixture);
+      expect(summary(fixture)).toBe('2 chosen · E R');
+      expect([...run.chosen()]).toEqual([E, R]);
+    });
+
+    it('tests the chosen keys in reading order at 3 × 30, and again from the findings', async () => {
+      const fixture = await render();
+      await click(fixture, all(fixture, '.start__devices .row')[3]);
+      await chooseKeys(fixture, E);
+      expect(button(fixture, 'Test 1 key').disabled).toBe(false);
+      await pickKey(fixture, T);
+      await pickKey(fixture, R);
+      await click(fixture, button(fixture, 'Test 3 keys'));
+      const plan = { keyboard: [21, 22, 23], keys: [E, R, T], rounds: 3, presses: 30 };
+      expect(started()).toEqual([{ ...plan, board: 'hot-swap' }]);
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'Test again'));
+      expect(started()).toEqual([plan, plan].map((p) => ({ ...p, board: 'hot-swap' })));
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'New test'));
+      expect(summary(fixture)).toBe('3 chosen · E R T');
+    });
+
+    it('leaves out a chosen key the layout lacks, and brings it back', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E, HOME);
+      expect(summary(fixture)).toBe('2 chosen · Home E');
+      const pick = async (size: number) => {
+        await click(fixture, button(fixture, 'All keys'));
+        await click(fixture, all(fixture, '.row--size')[size]);
+        await click(fixture, button(fixture, 'Chosen keys'));
+      };
+      await pick(3);
+      expect(summary(fixture)).toBe('1 chosen · E');
+      await click(fixture, button(fixture, 'Test 1 key'));
+      expect(started().map((plan) => plan.keys)).toEqual([[E]]);
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'New test'));
+      await pick(2);
+      expect(summary(fixture)).toBe('2 chosen · Home E');
+    });
+
+    it('holds the choice while a test starts', async () => {
+      inApp((cmd) => (cmd === 'start_test' ? new Promise(() => undefined) : null));
+      const fixture = await render();
+      await chooseKeys(fixture, E, R);
+      await click(fixture, button(fixture, 'Test 2 keys'));
+      await pickKey(fixture, T);
+      expect(summary(fixture)).toBe('2 chosen · E R');
+      expect(started().map((plan) => plan.keys)).toEqual([[E, R]]);
+    });
+
+    it('still asks for every plain key at 3 × 10 under All keys', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E, R);
+      await click(fixture, button(fixture, 'All keys'));
+      await click(fixture, button(fixture, 'Begin test'));
+      const [plan] = started();
+      expect(plan.keys).toEqual(plainKeys(layout('75%', 'ANSI')));
       expect([plan.rounds, plan.presses]).toEqual([3, 10]);
     });
   });

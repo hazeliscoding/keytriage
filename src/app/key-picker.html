@@ -1,0 +1,35 @@
+@for (key of keys(); track key.cap) {
+  @if (key.scan !== null) {
+    <button
+      type="button"
+      class="pick"
+      [class.pick--chosen]="chosen().has(key.scan)"
+      [attr.aria-pressed]="chosen().has(key.scan)"
+      [attr.aria-label]="key.cap.name"
+      [attr.data-scan]="key.scan"
+      [style.left.%]="key.left"
+      [style.top.%]="key.top"
+      [style.width.%]="key.width"
+      [style.height.%]="key.height"
+      (click)="toggled.emit({ scan: key.scan, clicks: $event.detail })"
+    >
+      <span class="pick__face">
+        <span class="pick__label">{{ key.label }}</span>
+      </span>
+    </button>
+  } @else {
+    <div
+      class="pick pick--fixed"
+      aria-hidden="true"
+      [attr.data-scan]="key.cap.scan"
+      [style.left.%]="key.left"
+      [style.top.%]="key.top"
+      [style.width.%]="key.width"
+      [style.height.%]="key.height"
+    >
+      <span class="pick__face">
+        <span class="pick__label">{{ key.label }}</span>
+      </span>
+    </div>
+  }
+}

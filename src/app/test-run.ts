@@ -13,10 +13,21 @@ import {
   type TestResult,
 } from './ipc';
 import { cancelKeys, dropFocus } from './keys';
-import { capLabel, labelsFor, layout, type Layout, type Size, type Std } from './layout';
-import { PLAN } from './plan';
+import {
+  capLabel,
+  chosenKeys,
+  labelsFor,
+  layout,
+  pickable,
+  type Layout,
+  type Size,
+  type Std,
+} from './layout';
+import { PLAN, chosenPlan } from './plan';
 
 export type Screen = 'start' | 'starting' | 'test' | 'findings' | 'swap' | 'swap-result';
+
+export type Scope = 'all' | 'chosen';
 
 export interface BoardOption {
   id: Board;
@@ -100,6 +111,10 @@ export class TestRun {
   readonly std = signal<Std>('ANSI');
   readonly size = signal<Size>('75%');
   readonly board = signal<Board>('hot-swap');
+  // The scope and the keys chosen live in memory only, like the theme. A layout that doesn't draw a
+  // chosen key leaves it out of its test, and a layout that does brings it back.
+  readonly scope = signal<Scope>('all');
+  readonly chosen = signal<ReadonlySet<number>>(new Set());
   // The footer's reason when a command fails.
   readonly note = signal('');
 
@@ -108,6 +123,7 @@ export class TestRun {
     return this.groups()?.find((g) => g.entries.some((e) => e.handle === picked)) ?? null;
   });
   readonly layout = computed(() => layout(this.size(), this.std()));
+  readonly chosenKeys = computed(() => chosenKeys(this.layout(), this.chosen()));
   readonly boardName = computed(() => BOARDS.find((b) => b.id === this.board())?.name ?? '');
 
   // The live list, newest first. It is the only ordered record on the page, so it stays in memory
@@ -181,17 +197,36 @@ export class TestRun {
     }
   }
 
+  // A scope switch can put the picker under the pointer, so a key drops a double click's second
+  // click. Keys the Guide refuses can't be chosen, and the choice holds while a test starts,
+  // because Start stays on view until Rust answers.
+  toggleKey(scan: number, clicks = 1): void {
+    const cap = this.layout().byScan.get(scan);
+    if (clicks > 1 || this.screen() !== 'start' || !cap || !pickable(cap)) return;
+    const chosen = new Set(this.chosen());
+    if (!chosen.delete(scan)) chosen.add(scan);
+    this.chosen.set(chosen);
+  }
+
+  clearKeys(): void {
+    this.chosen.set(new Set());
+  }
+
   // Rust ends a test well within a double click, so the second click on End test lands on the
-  // findings' Test again and is dropped here: it would start a test and replace them.
+  // findings' Test again and is dropped here: it would start a test and replace them. Test again
+  // repeats the scope and the keys chosen.
   async begin(clicks = 1): Promise<void> {
     const group = this.group();
     const screen = this.screen();
     if (!group || clicks > 1 || screen === 'starting' || screen === 'test') return;
+    const asked = this.scope() === 'chosen' ? chosenPlan(this.chosen()) : this.plan;
+    const keys = asked.keys(this.layout());
+    if (!keys.length) return;
     const plan: PlanArgs = {
       keyboard: group.entries.map((e) => e.handle),
-      keys: this.plan.keys(this.layout()),
-      rounds: this.plan.rounds,
-      presses: this.plan.presses,
+      keys,
+      rounds: asked.rounds,
+      presses: asked.presses,
       board: this.board(),
     };
     this.swapping.set(false);

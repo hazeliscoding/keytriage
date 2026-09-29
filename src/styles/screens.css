@@ -115,11 +115,85 @@
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 1fr);
-  /* One row as tall as the screen, so a long device list scrolls inside its box. */
-  grid-template-rows: minmax(0, 1fr);
+  /* The columns fill the screen above the Scope row, so a long device list scrolls in its box. */
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 20px;
   min-height: 0;
   padding: 20px;
+  overflow: hidden;
+}
+
+.start > .scope {
+  grid-column: 1 / -1;
+}
+
+.scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scope .kicker {
+  margin-right: 8px;
+}
+
+.scope__end {
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choose {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.choose > .scope,
+.choose > .title {
+  flex: none;
+}
+
+/* A size container, so the picker can fit its height as well as its width. */
+.choose__area {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  container-type: size;
+}
+
+.choose__foot {
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.choose__lead {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.choose__end {
+  flex: 0 1 auto;
+  max-width: 40%;
+  min-width: 0;
+  text-align: right;
+}
+
+.choose__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .start__column {

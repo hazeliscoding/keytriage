@@ -5,13 +5,17 @@ import {
   GOLDEN_PLAN,
   all,
   button,
+  chooseKeys,
   click,
+  el,
   inApp,
   key,
   leaveApp,
+  pickKey,
   render,
   replay,
   sent,
+  started,
   swapRun,
   text,
   textOf,
@@ -167,6 +171,15 @@ describe('privacy', () => {
       expect(dispatchKeys()).toEqual({ prevented: [false, false, false], read: [] });
     });
 
+    it('reads no key while keys are chosen, and leaves Space and Enter to the button', async () => {
+      const fixture = await render();
+      await chooseKeys(fixture, E, G);
+      const focused = el(fixture).querySelector<HTMLButtonElement>(`.pick[data-scan="${E}"]`);
+      focused?.focus();
+      expect(document.activeElement).toBe(focused);
+      expect(dispatchKeys()).toEqual({ prevented: [false, false, false], read: [] });
+    });
+
     it('catches a listener that reads the key', async () => {
       const fixture = await render();
       await click(fixture, button(fixture, 'Begin test'));
@@ -210,6 +223,32 @@ describe('privacy', () => {
 
     it('stores, logs and adds no history entries through a pause and foreign input', async () => {
       expect(await throughout(SCRIPT)).toEqual([]);
+    });
+
+    it('stores, logs and adds no history entries while keys are chosen and tested', async () => {
+      inApp((cmd) => {
+        if (cmd === 'end_test') return RESULT;
+        if (cmd === 'export_report') return 'keytriage-2026.09.28-1412.json';
+        return null;
+      });
+      const stop = watchWrites();
+      let seen: string[];
+      try {
+        const fixture = await render();
+        await chooseKeys(fixture, E, G);
+        await click(fixture, button(fixture, 'Clear'));
+        await pickKey(fixture, G);
+        await click(fixture, button(fixture, 'All keys'));
+        await click(fixture, button(fixture, 'Chosen keys'));
+        await click(fixture, button(fixture, 'Test 1 key'));
+        await click(fixture, button(fixture, 'End test'));
+        await click(fixture, button(fixture, 'Export report'));
+      } finally {
+        seen = stop();
+      }
+      expect(started().map((plan) => plan.keys)).toEqual([[G]]);
+      expect(sent('export_report')).toHaveLength(1);
+      expect(seen).toEqual([]);
     });
 
     it('stores, logs and adds no history entries through the swap test to its export', async () => {

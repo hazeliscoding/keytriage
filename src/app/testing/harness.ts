@@ -137,6 +137,23 @@ export async function nthClick(
   await settle(fixture);
 }
 
+// A single click on a key of the Start screen's picker, which may be a drawn key that can't be
+// chosen.
+export async function pickKey(fixture: ComponentFixture<App>, scan: number): Promise<void> {
+  const found = el(fixture).querySelector<HTMLElement>(`.pick[data-scan="${scan}"]`);
+  if (!found) throw new Error(`no picker key for ${scan}`);
+  await nthClick(fixture, found, 1);
+}
+
+// Switches Start to Chosen keys and clicks each key once.
+export async function chooseKeys(
+  fixture: ComponentFixture<App>,
+  ...scans: number[]
+): Promise<void> {
+  await click(fixture, button(fixture, 'Chosen keys'));
+  for (const scan of scans) await pickKey(fixture, scan);
+}
+
 export function started(): PlanArgs[] {
   return sent('start_test').map((args) => (args as { plan: PlanArgs }).plan);
 }
