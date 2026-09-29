@@ -158,6 +158,22 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/check-installer.ps1 -Installer $env:INSTALLER -PositiveControl DataFile
           if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
+      # Before the connections check, which runs the exe without its marker and leaves the data in
+      # %LOCALAPPDATA%, where the portable check must find nothing.
+      - name: Portable check
+        run: pwsh -NoProfile -File scripts/check-portable.ps1 -Zip $env:ZIP
+      - name: Portable check's NoMarker control
+        run: |
+          pwsh -NoProfile -File scripts/check-portable.ps1 -Zip $env:ZIP -PositiveControl NoMarker
+          if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
+      - name: Portable check's DataFile control
+        run: |
+          pwsh -NoProfile -File scripts/check-portable.ps1 -Zip $env:ZIP -PositiveControl DataFile
+          if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
+      - name: Portable check's Leftovers control
+        run: |
+          pwsh -NoProfile -File scripts/check-portable.ps1 -Zip $env:ZIP -PositiveControl Leftovers
+          if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
       - name: Connections check
         run: pwsh -NoProfile -File scripts/check-connections.ps1 -Exe target/release/keytriage.exe -Out dist/connections/connections.json
       - name: Connections check's positive control
