@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "keytriage"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "keytriage-diagnostics",
  "keytriage-input",
@@ -1664,11 +1664,11 @@ dependencies = [
 
 [[package]]
 name = "keytriage-diagnostics"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "keytriage-input"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "windows",
 ]

@@ -62,7 +62,7 @@ body:
     attributes:
       label: keytriage version
       description: The zip's or the installer's file name shows it, and so do Installed apps and the Details tab of keytriage.exe's properties.
-      placeholder: 0.1.0
+      placeholder: 0.1.1
     validations:
       required: true
   - type: input

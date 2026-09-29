@@ -9,7 +9,7 @@
 
 A key that double-types, drops presses or sticks could be the switch, the socket or solder joint, the PCB or the firmware. Keyboard testers show that something is wrong, but not what to do about it. So people replace the wrong part, or the whole keyboard.
 
-> **Status:** v0.1.0 for Windows 11 (x64). Windows 10 should work but is untested. See [Install](#install) and [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.1 for Windows 11 (x64). Windows 10 should work but is untested. See [Install](#install) and [ROADMAP.md](ROADMAP.md).
 
 ## What a finding looks like
 
@@ -62,7 +62,7 @@ These are from a real run on 2026.09.29, a hot-swap keyboard with X and C chosen
 
 ## Install
 
-The portable zip is the main download: keytriage runs from its own folder and keeps what it writes there. The installer is the other option. v0.1.0 has only the installer, and the zip comes with the next release.
+The portable zip is the main download: keytriage runs from its own folder and keeps what it writes there. The installer is the other option.
 
 ### Portable
 
