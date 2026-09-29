@@ -709,7 +709,12 @@ mod tests {
     #[test]
     fn plan01_the_page_can_ask_only_for_a_test_that_fits() {
         let handles: Vec<isize> = (1..=65).collect();
-        let keys: Vec<u16> = (1..=129).collect();
+        // The most keys a page can ask for, from codes the Guide prompts: Windows answers both
+        // Shifts itself.
+        let keys: Vec<u16> = (1..=131)
+            .filter(|&k| !keytriage_diagnostics::keys::os_owned(k))
+            .collect();
+        assert_eq!(keys.len(), 129);
         for (bad, why) in [
             (args(&[], &[E], 3, 10), "No keyboard was picked."),
             (
@@ -724,6 +729,10 @@ mod tests {
             (args(&[1], &[E, G, E], 3, 10), "The test names a key twice."),
             (
                 args(&[1], &[E, 0], 3, 10),
+                "The test names a key that can't be prompted.",
+            ),
+            (
+                args(&[1], &[E, 0xE05B], 3, 30),
                 "The test names a key that can't be prompted.",
             ),
             (

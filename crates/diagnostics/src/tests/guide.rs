@@ -332,6 +332,23 @@ fn g11_plans_that_cannot_run_are_refused() {
     assert_eq!(bad(&[], 3, 10, &[1]), PlanError::NoKeys);
     assert_eq!(bad(&[E, 0], 3, 10, &[1]), PlanError::BadKey);
     assert_eq!(bad(&[crate::keys::PAUSE], 3, 10, &[1]), PlanError::BadKey);
+    use crate::keys::{LEFT_SHIFT, LEFT_WIN, PRINT_SCREEN, RIGHT_SHIFT, RIGHT_WIN};
+    for key in [LEFT_WIN, RIGHT_WIN, PRINT_SCREEN, LEFT_SHIFT, RIGHT_SHIFT] {
+        assert_eq!(bad(&[key], 3, 30, &[1]), PlanError::BadKey, "{key:04X}");
+        assert_eq!(bad(&[E, key], 3, 30, &[1]), PlanError::BadKey, "{key:04X}");
+    }
+    // Positive control: the other drawn keys that aren't plain can each be prompted alone: Esc, the
+    // F-keys, Scroll Lock, Tab, Caps Lock, Backspace, Enter, Space, both Ctrls and Alts, Menu, the
+    // arrows, the navigation block and the numpad.
+    let others = [
+        0x01, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43, 0x44, 0x57, 0x58, 0x46, 0x0F,
+        0x3A, 0x0E, ENTER, SPACE, LCTRL, 0xE01D, 0x38, 0xE038, 0xE05D, 0xE04B, 0xE050, 0xE04D,
+        0xE048, INSERT, 0xE047, 0xE049, 0xE051, 0xE04F, 0xE053, 0x45, 0xE035, 0x37, 0x4A, 0x47,
+        0x48, 0x49, 0x4E, 0x4B, 0x4C, 0x4D, 0x4F, 0x50, 0x51, 0xE01C, 0x52, 0x53,
+    ];
+    for key in others {
+        assert!(Guide::new(plan(&[key], 3, 30), &[1]).is_ok(), "{key:04X}");
+    }
     assert_eq!(bad(&[E, G, E], 3, 10, &[1]), PlanError::RepeatedKey);
     assert_eq!(bad(&[E], 0, 10, &[1]), PlanError::Rounds);
     assert_eq!(bad(&[E], MAX_ROUNDS + 1, 10, &[1]), PlanError::Rounds);

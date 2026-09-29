@@ -60,6 +60,7 @@ pub struct Guide {
 
 // A round closes on its key's release, so a key that never sends one would stall the test. The
 // engine drops media codes, rollover markers and Windows' fake shifts, so they could never count.
+// Keys Windows answers itself would pause every round of them, so no plan names them either.
 fn promptable(scan: u16) -> bool {
     let low = scan & 0xFF;
     low != 0
@@ -67,6 +68,7 @@ fn promptable(scan: u16) -> bool {
         && !keys::never_released(scan)
         && scan != keys::FAKE_LEFT_SHIFT
         && scan != keys::FAKE_RIGHT_SHIFT
+        && !keys::os_owned(scan)
 }
 
 impl Guide {

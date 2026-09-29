@@ -981,7 +981,12 @@ fn sw20_a_key_the_main_test_never_prompted_gets_no_offer() {
         // held back.
         assert_eq!(partner(&f), Some(E), "{key:04X}");
         assert_eq!(r.aggregates.keys[&key].prompted, None, "{key:04X}");
-        assert!(Guide::new(plan(&[key], 1, 1), &[1]).is_ok(), "{key:04X}");
+        // Windows answers Win and Shift itself, so the Guide refuses them too.
+        assert_eq!(
+            Guide::new(plan(&[key], 1, 1), &[1]).is_ok(),
+            ![LWIN, LSHIFT].contains(&key),
+            "{key:04X}"
+        );
         assert_eq!(Swap::offer(&r, BoardKind::HotSwap), None, "{key:04X}");
     }
 
