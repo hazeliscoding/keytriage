@@ -1,0 +1,3 @@
+With this file beside keytriage.exe, keytriage keeps its data in the keytriage-data folder next
+to it. Delete this whole folder to remove keytriage and its data. Reports you export stay where
+you save them.

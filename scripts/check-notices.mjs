@@ -1,16 +1,22 @@
 // Notices check: the installer ships THIRD-PARTY-RUST.txt, which cargo-about writes from
 // scripts/notices, and Angular's 3rdpartylicenses.txt as THIRD-PARTY-NPM.txt. This fails when
-// either leaves out code that ships, or prints a placeholder where a copyright line belongs.
+// either leaves out code that ships, or prints a placeholder where a copyright line belongs. With
+// --portable it also fails when the staged portable folder doesn't ship the installer's license
+// files byte for byte.
 //
 // Run it after `npm run build` and the cargo-about generate command in AGENTS.md.
+//
+// Usage: node scripts/check-notices.mjs [--portable <folder>] [root]
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { extname, join, relative, resolve, sep } from 'node:path';
+import { parseArgs } from 'node:util';
 
 export const RUST_NOTICES = 'target/notices/THIRD-PARTY-RUST.txt';
 export const NPM_NOTICES = 'dist/keytriage/3rdpartylicenses.txt';
 export const FONT_MEDIA = 'dist/keytriage/browser/media';
 export const TARGET = 'x86_64-pc-windows-msvc';
+export const OVERLAY = 'src-tauri/tauri.release.conf.json';
 
 // cargo-about prints these when a crate ships no file with its copyright line, and Handlebars'
 // double braces print entities into a plain-text file.
@@ -150,11 +156,32 @@ export function tauriApiProblems(npmText) {
   return [{ line: section.line, message: 'the @tauri-apps/api notice holds no license text' }];
 }
 
+// The release overlay maps each license file the installer ships, from a path relative to src-tauri,
+// to its place under licenses/. `sources` holds each source's bytes, and `shipped` each file in the
+// portable folder's licenses/, by its place.
+export function portableProblems(resources, sources, shipped) {
+  const problems = [];
+  for (const [source, target] of Object.entries(resources)) {
+    const bytes = shipped.get(target);
+    const expected = sources.get(source);
+    if (!bytes) problems.push({ file: target, message: `missing; the installer ships it from ${source}` });
+    else if (!expected) problems.push({ file: target, message: `can't be compared, because ${source} is missing` });
+    else if (!bytes.equals(expected)) {
+      problems.push({ file: target, message: `differs from ${source}, which the installer ships` });
+    }
+  }
+  const targets = new Set(Object.values(resources));
+  for (const file of [...shipped.keys()].filter((f) => !targets.has(f)).sort()) {
+    problems.push({ file, message: 'is not a license file the installer ships' });
+  }
+  return problems;
+}
+
 function cargo(root, args) {
   return spawnSync('cargo', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
 
-export function check(root) {
+export function check(root, portable) {
   const errors = [];
   const report = (file, line, message) => errors.push({ file, line, message });
   const read = (file, hint) => {
@@ -192,6 +219,20 @@ export function check(root) {
       report(NPM_NOTICES, p.line, p.message);
     }
   }
+
+  if (portable !== undefined) {
+    const resources = JSON.parse(readFileSync(join(root, OVERLAY), 'utf8')).bundle.resources;
+    const sources = new Map();
+    for (const source of Object.keys(resources)) {
+      const path = join(root, 'src-tauri', source);
+      if (existsSync(path)) sources.set(source, readFileSync(path));
+    }
+    const licenses = join(portable, 'licenses');
+    const files = existsSync(licenses) ? readdirSync(licenses, { withFileTypes: true }).filter((f) => f.isFile()) : [];
+    const shipped = new Map(files.map((f) => [`licenses/${f.name}`, readFileSync(join(licenses, f.name))]));
+    const shown = relative(root, portable).replaceAll(sep, '/');
+    for (const p of portableProblems(resources, sources, shipped)) report(`${shown}/${p.file}`, 1, p.message);
+  }
   return errors;
 }
 
@@ -199,8 +240,12 @@ export function check(root) {
 const escape = (s) => String(s).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
 
 if (import.meta.main) {
-  const root = resolve(process.argv[2] ?? '.');
-  const errors = check(root);
+  const { values, positionals } = parseArgs({
+    options: { portable: { type: 'string' } },
+    allowPositionals: true,
+  });
+  const root = resolve(positionals[0] ?? '.');
+  const errors = check(root, values.portable === undefined ? undefined : resolve(values.portable));
   for (const e of errors) {
     console.error(
       process.env.GITHUB_ACTIONS

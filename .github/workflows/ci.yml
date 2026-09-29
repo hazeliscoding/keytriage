@@ -112,23 +112,42 @@ jobs:
           cargo about generate --locked --fail -c scripts/notices/about.toml -m src-tauri/Cargo.toml -o target/notices/THIRD-PARTY-RUST.txt scripts/notices/about.hbs
       - name: Build the installer
         run: npm run tauri build -- --bundles nsis --config src-tauri/tauri.release.conf.json -- --locked
+      # The portable build is the exe the installer carries, the marker that keeps its data beside
+      # it, and the installer's license files. The notices check compares them with the overlay.
+      - name: Stage the portable folder
+        shell: bash
+        run: |
+          portable=target/portable/keytriage
+          rm -rf target/portable
+          mkdir -p "$portable/licenses"
+          cp target/release/keytriage.exe src-tauri/portable/keytriage.portable "$portable/"
+          cp LICENSE "$portable/licenses/LICENSE.txt"
+          cp dist/keytriage/3rdpartylicenses.txt "$portable/licenses/THIRD-PARTY-NPM.txt"
+          cp target/notices/THIRD-PARTY-RUST.txt "$portable/licenses/THIRD-PARTY-RUST.txt"
       - name: Notices check
-        run: node scripts/check-notices.mjs
+        run: node scripts/check-notices.mjs --portable target/portable/keytriage
       - name: Network guard on the shipped bundle
         run: node scripts/check-network.mjs --bundle
-      # Git Bash writes LF line endings, which `sha256sum -c` needs. The installer is copied by its
-      # exact name, so a stale one can't be picked up.
-      - name: Stage the installer and its checksums
+      # Git Bash writes LF line endings, which `sha256sum -c` needs. Each file is copied or zipped
+      # by its exact name, so a stale one can't be picked up. .NET writes the zip's paths with
+      # forward slashes, under the folder's own name.
+      - name: Stage the portable zip, the installer and their checksums
         shell: bash
         run: |
           v=$(node -p "require('./package.json').version")
+          zip="keytriage_${v}_x64-portable.zip"
           installer="keytriage_${v}_x64-setup.exe"
+          rm -rf dist/release
           mkdir -p dist/release
+          pwsh -NoProfile -Command "[IO.Compression.ZipFile]::CreateFromDirectory('target/portable/keytriage', 'dist/release/$zip', 'Optimal', \$true)"
           cp "target/release/bundle/nsis/$installer" dist/release/
           cd dist/release
-          sha256sum "$installer" > SHA256SUMS.txt
+          sha256sum "$zip" "$installer" > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
+          echo "ZIP=dist/release/$zip" >> "$GITHUB_ENV"
           echo "INSTALLER=dist/release/$installer" >> "$GITHUB_ENV"
+      - name: Release files check
+        run: node scripts/check-release.mjs --artifact dist/release
       - name: Installer check
         run: pwsh -NoProfile -File scripts/check-installer.ps1 -Installer $env:INSTALLER
       - name: Installer check's Leftovers control

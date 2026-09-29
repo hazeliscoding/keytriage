@@ -1,16 +1,21 @@
-// Positive controls for the release check: each drift between the versions, the tag and the
-// release config must make it fail.
+// Positive controls for the release check: each drift between the versions, the tag, the release
+// config and the staged release files must make it fail.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   FILES,
+  SUMS,
+  artifactProblems,
   configProblems,
   lockMembers,
   overlayProblems,
+  releaseFiles,
   versionProblems,
   workspaceVersion,
 } from './check-release.mjs';
@@ -182,4 +187,86 @@ test('the CLI exits 0 on the repo and 1 on a tag that does not match', () => {
     wrong.stderr,
     new RegExp(`package\\.json:\\d+ {2}tag v${OTHER.replaceAll('.', '\\.')} is not v`),
   );
+});
+
+const [ZIP, INSTALLER] = releaseFiles(version);
+const NAMES = [ZIP, INSTALLER, SUMS];
+const sha = (text) => createHash('sha256').update(text).digest('hex');
+const sumLine = (name, mode = '*') => `${sha(name)} ${mode}${name}\n`;
+const SUMS_TEXT = sumLine(ZIP) + sumLine(INSTALLER);
+const artifact = (names, sums) => messages(artifactProblems(version, names, sums, sha));
+
+test('names the zip first, then the installer', () => {
+  assert.deepEqual(releaseFiles('1.2.3'), [
+    'keytriage_1.2.3_x64-portable.zip',
+    'keytriage_1.2.3_x64-setup.exe',
+  ]);
+});
+
+test("the release files pass in either of sha256sum's modes", () => {
+  assert.deepEqual(artifact(NAMES, SUMS_TEXT), []);
+  assert.deepEqual(artifact(NAMES, sumLine(ZIP, ' ') + sumLine(INSTALLER, ' ')), []);
+});
+
+test('flags a missing zip, a missing SHA256SUMS.txt and a stray file', () => {
+  assert.deepEqual(artifact([INSTALLER, SUMS, 'keytriage.exe'], SUMS_TEXT), [
+    `${ZIP}: is missing from the release files`,
+    'keytriage.exe: is not a release file',
+  ]);
+  assert.deepEqual(artifact([ZIP, INSTALLER], null), [
+    `${SUMS}: is missing from the release files`,
+  ]);
+});
+
+test('flags checksums out of order, for another version, missing or wrong', () => {
+  assert.deepEqual(artifact(NAMES, sumLine(INSTALLER) + sumLine(ZIP)), [
+    `${SUMS}: line 1 names ${INSTALLER}, not ${ZIP}`,
+    `${SUMS}: line 2 names ${ZIP}, not ${INSTALLER}`,
+  ]);
+  const [otherZip] = releaseFiles(OTHER);
+  assert.deepEqual(artifact(NAMES, sumLine(otherZip) + sumLine(INSTALLER)), [
+    `${SUMS}: line 1 names ${otherZip}, not ${ZIP}`,
+  ]);
+  assert.deepEqual(artifact(NAMES, sumLine(ZIP)), [`${SUMS}: lists 1 files, not 2`]);
+  const zero = '0'.repeat(64);
+  assert.deepEqual(artifact(NAMES, `${zero} *${ZIP}\n${sumLine(INSTALLER)}`), [
+    `${SUMS}: ${ZIP} does not hash to ${zero}`,
+  ]);
+  assert.deepEqual(artifact(NAMES, `${sha(ZIP)}  *${ZIP}\n${sumLine(INSTALLER)}`), [
+    `${SUMS}: line 1 names *${ZIP}, not ${ZIP}`,
+  ]);
+});
+
+test('flags CR line endings and a missing final line break', () => {
+  assert.deepEqual(artifact(NAMES, SUMS_TEXT.replaceAll('\n', '\r\n')), [
+    `${SUMS}: has CR line endings`,
+  ]);
+  assert.deepEqual(artifact(NAMES, SUMS_TEXT.trimEnd()), [
+    `${SUMS}: does not end with a line break`,
+  ]);
+});
+
+test('the CLI hashes a staged release folder', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'keytriage-release-'));
+  try {
+    writeFileSync(join(dir, ZIP), 'zip');
+    writeFileSync(join(dir, INSTALLER), 'installer');
+    writeFileSync(join(dir, SUMS), `${sha('zip')} *${ZIP}\n${sha('installer')} *${INSTALLER}\n`);
+    const run = () =>
+      spawnSync(process.execPath, [script, '--artifact', dir, repo], {
+        encoding: 'utf8',
+        env: { ...process.env, GITHUB_ACTIONS: '' },
+      });
+    const clean = run();
+    assert.equal(clean.status, 0, clean.stderr);
+    writeFileSync(join(dir, ZIP), 'another zip');
+    const tampered = run();
+    assert.equal(tampered.status, 1);
+    assert.match(
+      tampered.stderr,
+      new RegExp(`SHA256SUMS\\.txt:1 {2}${ZIP.replaceAll('.', '\\.')} does not hash to`),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

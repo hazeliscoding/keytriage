@@ -2,11 +2,13 @@
 // and a release tag must name it. The Tauri config keeps the installer's publisher and WebView2
 // mode explicit, and the release overlay adds license files and nothing else. check-network.mjs
 // reads only tauri.conf.json, so an overlay that loosened the CSP or added a plugin would ship
-// unchecked.
+// unchecked. With --artifact it also checks the staged release files: the portable zip and the
+// installer for this version, and a SHA256SUMS.txt that lists them in that order with their hashes.
 //
-// Usage: node scripts/check-release.mjs [--tag vX.Y.Z] [root]
-import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+// Usage: node scripts/check-release.mjs [--tag vX.Y.Z] [--artifact <folder>] [root]
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, posix, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 export const FILES = {
@@ -185,15 +187,75 @@ export function overlayProblems(overlayText) {
   return problems;
 }
 
-export function check(root, tag) {
+export const SUMS = 'SHA256SUMS.txt';
+
+// The zip comes first, as the main download.
+export function releaseFiles(version) {
+  return [`keytriage_${version}_x64-portable.zip`, `keytriage_${version}_x64-setup.exe`];
+}
+
+// `names` lists the release folder, `sums` is SHA256SUMS.txt's text or null, and `hashOf` returns
+// a listed file's SHA-256. Git Bash's sha256sum marks each name with * for binary mode, and
+// `sha256sum -c` reads a CR as part of the name.
+export function artifactProblems(version, names, sums, hashOf) {
+  const problems = [];
+  const report = (file, line, message) => problems.push({ file, line, message });
+  const assets = releaseFiles(version);
+  const expected = [...assets, SUMS];
+  for (const name of expected.filter((n) => !names.includes(n))) {
+    report(name, 1, 'is missing from the release files');
+  }
+  for (const name of names.filter((n) => !expected.includes(n)).sort()) {
+    report(name, 1, 'is not a release file');
+  }
+  if (sums === null) return problems;
+
+  if (sums.includes('\r')) report(SUMS, 1, 'has CR line endings');
+  const lines = sums.replaceAll('\r', '').split('\n');
+  if (lines.at(-1) === '') lines.pop();
+  else report(SUMS, lines.length, 'does not end with a line break');
+  if (lines.length !== assets.length) {
+    report(SUMS, 1, `lists ${lines.length} files, not ${assets.length}`);
+  }
+  lines.forEach((line, i) => {
+    const match = /^([0-9a-f]{64}) [ *](.+)$/.exec(line);
+    if (!match) {
+      report(SUMS, i + 1, `line ${i + 1} is not a SHA-256 and a file name`);
+      return;
+    }
+    const [, hash, name] = match;
+    if (name !== assets[i]) {
+      report(SUMS, i + 1, `line ${i + 1} names ${name}, not ${assets[i] ?? 'nothing'}`);
+    } else if (names.includes(name) && hashOf(name) !== hash) {
+      report(SUMS, i + 1, `${name} does not hash to ${hash}`);
+    }
+  });
+  return problems;
+}
+
+export function check(root, tag, artifact) {
   const texts = Object.fromEntries(
     Object.entries(FILES).map(([k, f]) => [k, readFileSync(join(root, f), 'utf8')]),
   );
-  return [
+  const problems = [
     ...versionProblems(texts, tag),
     ...configProblems(texts.base),
     ...overlayProblems(texts.overlay),
   ];
+  if (artifact !== undefined) {
+    const sums = join(artifact, SUMS);
+    const found = artifactProblems(
+      JSON.parse(texts.packageJson).version,
+      existsSync(artifact) ? readdirSync(artifact) : [],
+      existsSync(sums) ? readFileSync(sums, 'utf8') : null,
+      (name) =>
+        createHash('sha256')
+          .update(readFileSync(join(artifact, name)))
+          .digest('hex'),
+    );
+    problems.push(...found.map((p) => ({ ...p, file: posix.join(artifact, p.file) })));
+  }
+  return problems;
 }
 
 // GitHub reads one workflow command per line.
@@ -202,10 +264,10 @@ const escape = (s) =>
 
 if (import.meta.main) {
   const { values, positionals } = parseArgs({
-    options: { tag: { type: 'string' } },
+    options: { tag: { type: 'string' }, artifact: { type: 'string' } },
     allowPositionals: true,
   });
-  const errors = check(resolve(positionals[0] ?? '.'), values.tag);
+  const errors = check(resolve(positionals[0] ?? '.'), values.tag, values.artifact);
   for (const e of errors) {
     console.error(
       process.env.GITHUB_ACTIONS
@@ -215,7 +277,7 @@ if (import.meta.main) {
   }
   if (errors.length) {
     console.error(
-      `\nRelease check failed: ${errors.length} problem(s). A version bump changes package.json, package-lock.json, Cargo.toml and Cargo.lock together.`,
+      `\nRelease check failed: ${errors.length} problem(s). A version bump changes package.json, package-lock.json, Cargo.toml and Cargo.lock together, and CI stages the release files under that version.`,
     );
     process.exit(1);
   }

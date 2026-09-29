@@ -7,9 +7,11 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  OVERLAY,
   fontProblems,
   linkedCrates,
   missingCrates,
+  portableProblems,
   sectionProblems,
   tauriApiProblems,
   textProblems,
@@ -135,6 +137,39 @@ test('flags an @tauri-apps/api notice that holds only LICENSE.spdx', () => {
   assert.equal(tauriApiProblems(npmNotices([npmSection('rxjs', 'Apache-2.0', APACHE)])).length, 1);
 });
 
+test("flags a portable folder that doesn't ship the installer's license files byte for byte", () => {
+  const { resources } = JSON.parse(readFileSync(join(repo, OVERLAY), 'utf8')).bundle;
+  const text = (source) => Buffer.from(`text of ${source}\n`);
+  const sources = new Map(Object.keys(resources).map((s) => [s, text(s)]));
+  const complete = () => new Map(Object.entries(resources).map(([s, t]) => [t, text(s)]));
+  assert.deepEqual(portableProblems(resources, sources, complete()), []);
+
+  const [[source, target]] = Object.entries(resources);
+  const missing = complete();
+  missing.delete(target);
+  assert.deepEqual(portableProblems(resources, sources, missing), [
+    { file: target, message: `missing; the installer ships it from ${source}` },
+  ]);
+
+  const stale = complete();
+  stale.set(target, Buffer.from(`text of ${source}\r\n`));
+  assert.deepEqual(portableProblems(resources, sources, stale).map((p) => p.message), [
+    `differs from ${source}, which the installer ships`,
+  ]);
+
+  const unbuilt = new Map(sources);
+  unbuilt.delete(source);
+  assert.deepEqual(portableProblems(resources, unbuilt, complete()).map((p) => p.message), [
+    `can't be compared, because ${source} is missing`,
+  ]);
+
+  const extra = complete();
+  extra.set('licenses/NOTICE.txt', Buffer.from('x'));
+  assert.deepEqual(portableProblems(resources, sources, extra), [
+    { file: 'licenses/NOTICE.txt', message: 'is not a license file the installer ships' },
+  ]);
+});
+
 function crate(root, dir, name, extra = '') {
   mkdirSync(join(root, dir, 'src'), { recursive: true });
   writeFileSync(join(root, dir, 'Cargo.toml'), `[package]\nname = "${name}"\nversion = "0.1.0"\nedition = "2024"\n${extra}`);
@@ -162,8 +197,8 @@ test('the CLI exits 1 on a missing crate or a planted placeholder, and 0 when co
     );
     mkdirSync(join(root, 'target/notices'), { recursive: true });
     const notices = join(root, 'target/notices/THIRD-PARTY-RUST.txt');
-    const run = () =>
-      spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: '' } });
+    const run = (...args) =>
+      spawnSync(process.execPath, [script, ...args, root], { encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: '' } });
 
     writeFileSync(notices, fixed);
     const missing = run();
@@ -173,6 +208,22 @@ test('the CLI exits 1 on a missing crate or a planted placeholder, and 0 when co
     writeFileSync(notices, `${fixed}- linked 0.1.0 (https://crates.io/crates/linked)\n\nCopyright (c) 2026 Someone\n`);
     const clean = run();
     assert.equal(clean.status, 0, clean.stderr);
+
+    writeFileSync(join(root, 'LICENSE'), 'Apache License\n');
+    const resources = { '../LICENSE': 'licenses/LICENSE.txt', '../target/notices/THIRD-PARTY-RUST.txt': 'licenses/THIRD-PARTY-RUST.txt' };
+    writeFileSync(join(root, OVERLAY), JSON.stringify({ bundle: { resources } }));
+    const portable = join(root, 'target/portable/keytriage');
+    mkdirSync(join(portable, 'licenses'), { recursive: true });
+    writeFileSync(join(portable, 'licenses/LICENSE.txt'), 'Apache License\n');
+    const unstaged = run('--portable', portable);
+    assert.equal(unstaged.status, 1);
+    assert.match(
+      unstaged.stderr,
+      /target\/portable\/keytriage\/licenses\/THIRD-PARTY-RUST\.txt:1 {2}missing; the installer ships it from \.\.\/target\/notices\/THIRD-PARTY-RUST\.txt/,
+    );
+    writeFileSync(join(portable, 'licenses/THIRD-PARTY-RUST.txt'), readFileSync(notices));
+    const staged = run('--portable', portable);
+    assert.equal(staged.status, 0, staged.stderr);
 
     writeFileSync(notices, `${fixed}- linked 0.1.0 (https://crates.io/crates/linked)\n\nCopyright (c) <year> <owner>\n`);
     const planted = run();
