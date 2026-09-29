@@ -87,6 +87,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - a test ended early lists how far it got in place of the plan ("Ended after 40 of 1 410 presses, 4 of 47 keys"), and when no key kept a round, the card reads "Nothing was tested." with no Clean badge;
     - the demo's "dropped presses" and "sticking key" findings don't exist, and "Run the swap test" shows only when Rust offers a swap (see **Swap test**);
     - the Layout list counts the drawn keys, so 75% reads 83 (84 on ISO) where the design's copy reads 84. The design's own 75% drawing has 83 keys;
+    - the Start screen's footer says "Nothing about them is written to disk until you export a report." where the design says "Nothing is written to disk", because WebView2 writes its own profile folder on every start (2026.09.28). That folder holds no key data, as `PRIVACY.md` says;
     - where the mockups and the demo differ, the demo wins, except for its stand-in findings. Where the specification and the drawn components differ, the components win.
 - **Swap test** (2026.09.28). The owner's calls:
   - **Retest size.** Both keys are tested again in 3 rounds of 30 presses (`SWAP_ROUNDS` and `SWAP_PRESSES`, the engine's retest), about 180 presses, where the design says 2 rounds of 10. 90 clean presses bound a key's rate at 3.4%, at or under the floor of a High chatter finding from 30 presses and of every Very high one, so a key that stays clean counts as evidence. At 2 × 10 the bound is 15%.
