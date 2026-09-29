@@ -11,12 +11,15 @@
 # It reads the app's debug echo (src-tauri/src/echo.rs) and the command lines of its child processes.
 #
 # Build first with `npm run tauri build -- --debug --no-bundle`. The app window opens briefly.
+# -Portable runs a copy of the exe beside the portable marker, in a fresh folder under %TEMP%, so
+# the probes read the data folder beside that copy.
 #
 # Exit codes: 0 pass, 1 the positive control saw too little, 2 inconclusive, 3 a protection is
 # missing. -PositiveControl starts the app with them off (KEYTRIAGE_CRASH_REPORTS, debug builds
 # only) and exits 3 only if every probe caught it.
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\keytriage.exe'),
+    [switch]$Portable,
     [switch]$PositiveControl,
     [int]$StartTimeoutMs = 60000,
     [int]$StepTimeoutMs = 10000
@@ -26,9 +29,21 @@ $Hosting = 'windowed'
 
 . (Join-Path $PSScriptRoot 'app-harness.ps1')
 
-# Tauri gives WebView2 the app's local data folder, which is named after the identifier.
-$identifier = (Get-Content (Join-Path $PSScriptRoot '..\src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json).identifier
-$crashpad = Join-Path $env:LOCALAPPDATA "$identifier\EBWebView\Crashpad"
+# Tauri gives WebView2 the app's local data folder, which is named after the identifier, or with the
+# marker (src-tauri/src/portable.rs) the folder beside the exe.
+if ($Portable) {
+    $copy = Join-Path ([IO.Path]::GetTempPath()) "keytriage-crash-reports-$PID"
+    if (Test-Path -LiteralPath $copy) { Stop-Inconclusive "$copy already exists" }
+    New-Item -ItemType Directory $copy | Out-Null
+    Copy-Item -LiteralPath (Resolve-Path $Exe) -Destination $copy
+    New-Item -ItemType File (Join-Path $copy 'keytriage.portable') | Out-Null
+    $Exe = Join-Path $copy 'keytriage.exe'
+    $crashpad = Join-Path $copy 'keytriage-data\EBWebView\Crashpad'
+}
+else {
+    $identifier = (Get-Content (Join-Path $PSScriptRoot '..\src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json).identifier
+    $crashpad = Join-Path $env:LOCALAPPDATA "$identifier\EBWebView\Crashpad"
+}
 $atStart = Join-Path $crashpad "reports\keytriage-check-$PID-start.dmp"
 $attachment = Join-Path $crashpad "attachments\keytriage-check-$PID"
 $atExit = Join-Path $crashpad "reports\keytriage-check-$PID-exit.dmp"
@@ -105,4 +120,14 @@ finally {
     # A throw here would replace the exit code above.
     if ($app) { try { $app.Dispose() } catch {} }
     Remove-Item -Force -Recurse -ErrorAction SilentlyContinue $atStart, $atExit, $attachment
+    if ($Portable) {
+        # WebView2's processes outlive the app for a moment and hold files in its profile.
+        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        do {
+            Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
+            $left = Test-Path -LiteralPath $copy
+            if ($left) { Start-Sleep -Milliseconds 500 }
+        } while ($left -and [DateTime]::UtcNow -lt $deadline)
+        if ($left) { Write-Host "could not remove $copy" }
+    }
 }

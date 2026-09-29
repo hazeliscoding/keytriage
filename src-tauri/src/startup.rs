@@ -1,6 +1,7 @@
 // What a failed start tells the user. A message box needs neither the app's window nor WebView2,
 // either of which may be what failed.
 use std::fmt::Display;
+use std::path::Path;
 
 use webview2_com::Microsoft::Web::WebView2::Win32::GetAvailableCoreWebView2BrowserVersionString;
 use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
@@ -15,6 +16,15 @@ pub fn failed(detail: impl Display) -> String {
     format!(
         "keytriage couldn't start. Start it again. If it keeps failing, report it in the \
          project's GitHub issues with this text. Details: {detail}"
+    )
+}
+
+pub fn cant_write(data: &Path, detail: impl Display) -> String {
+    format!(
+        "keytriage can't write to {}. The portable keytriage keeps its data in that folder, beside \
+         keytriage.exe. Move the folder that holds keytriage.exe somewhere you can write to, such \
+         as Documents, then start keytriage again. Details: {detail}",
+        data.display()
     )
 }
 
@@ -59,6 +69,20 @@ mod tests {
             "keytriage couldn't start. Start it again. If it keeps failing, report it in the \
              project's GitHub issues with this text. Details: error encountered during setup \
              hook: Access is denied. (0x80070005)"
+        );
+    }
+
+    #[test]
+    fn a_folder_it_cant_write_is_named_with_the_fix() {
+        assert_eq!(
+            cant_write(
+                Path::new(r"C:\Program Files\keytriage\keytriage-data"),
+                "Access is denied. (os error 5)"
+            ),
+            "keytriage can't write to C:\\Program Files\\keytriage\\keytriage-data. The portable \
+             keytriage keeps its data in that folder, beside keytriage.exe. Move the folder that \
+             holds keytriage.exe somewhere you can write to, such as Documents, then start \
+             keytriage again. Details: Access is denied. (os error 5)"
         );
     }
 }

@@ -12,6 +12,8 @@ mod export;
 #[cfg(all(test, windows))]
 mod golden;
 #[cfg(windows)]
+mod portable;
+#[cfg(windows)]
 mod save_dialog;
 #[cfg(windows)]
 mod session_core;
@@ -23,6 +25,8 @@ mod test_session;
 mod view;
 
 pub fn run() {
+    #[cfg_attr(not(windows), allow(unused_mut))]
+    let mut context = tauri::generate_context!();
     #[cfg(windows)]
     {
         if !positive_control("KEYTRIAGE_CRASH_REPORTS") {
@@ -31,6 +35,13 @@ pub fn run() {
         if startup::runtime_missing() {
             startup::show(startup::NO_RUNTIME);
             std::process::exit(1);
+        }
+        // Tauri resolves every app folder through this, including the webview's default data
+        // folder, which it would otherwise create in %LOCALAPPDATA% even though the window gets
+        // its own WebView2 environment.
+        if let Some(data) = portable_data() {
+            context.config_mut().app.app_directories_override =
+                Some(tauri::utils::config::AppDirectoriesOverride::Root(data));
         }
     }
     let builder = tauri::Builder::default()
@@ -56,7 +67,7 @@ pub fn run() {
     ]);
     #[cfg(all(debug_assertions, windows))]
     let builder = builder.on_page_load(echo::page_load);
-    let app = match builder.build(tauri::generate_context!()) {
+    let app = match builder.build(context) {
         Ok(app) => app,
         Err(e) => failed_to_start(e),
     };
@@ -84,6 +95,19 @@ fn failed_to_start(detail: impl std::fmt::Display) -> ! {
 #[cfg(windows)]
 struct ReportFolder(std::path::PathBuf);
 
+// This runs before Tauri builds anything, so a folder the app can't write stops it before Tauri or
+// WebView2 make a data folder anywhere.
+#[cfg(windows)]
+fn portable_data() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().unwrap_or_else(|e| failed_to_start(e));
+    let data = portable::data_folder(&exe)?;
+    if let Err(e) = portable::prove_writable(&data) {
+        startup::show(&startup::cant_write(&data, e));
+        std::process::exit(1);
+    }
+    Some(data)
+}
+
 // The app checks' positive controls leave one protection off, in debug builds only.
 #[cfg(windows)]
 pub(crate) fn positive_control(name: &str) -> bool {
@@ -105,6 +129,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let (builder, reports) = if positive_control("KEYTRIAGE_CRASH_REPORTS") {
         (builder, None)
     } else {
+        // The folder beside the exe when run() found the portable marker.
         let data_dir = app.path().app_local_data_dir()?;
         std::fs::create_dir_all(&data_dir)?;
         let environment = crash_reports::environment(&data_dir)?;
