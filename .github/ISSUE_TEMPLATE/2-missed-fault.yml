@@ -1,0 +1,100 @@
+name: Missed fault
+description: A key misbehaves, but keytriage found nothing, or not this.
+title: 'Missed fault: '
+labels: ['missed fault']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please attach the report that keytriage exported for this test. Before you do:
+
+        - The report holds per-key counts and timing histograms, never the order of keys.
+        - Its hold-time histograms describe how you press keys.
+        - Anything attached here is public.
+        - The file name holds the date and time of the test, so rename it if you like.
+        - Never attach a recording of typing, a screen recording of the live list or another tool's key log.
+
+        [PRIVACY.md](https://github.com/hazeliscoding/keytriage/blob/main/PRIVACY.md) says what a report holds.
+  - type: input
+    id: key
+    attributes:
+      label: The key, by position
+      description: Where it sits on the keyboard, in case your layout labels it differently.
+      placeholder: the key right of Tab
+    validations:
+      required: true
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Symptom
+      options:
+        - Types twice
+        - Doesn't type
+        - Stays pressed
+        - Types another key
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: when
+    attributes:
+      label: How often, and when
+      description: For example, once in 50 presses, only after the keyboard warms up, or only when pressed off-center.
+    validations:
+      required: true
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the app showed
+      description: Copy the Findings screen, or say that it found nothing.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: rounds
+    attributes:
+      label: The tests you ran
+      description: How many tests, and whether any ended early or paused.
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - Hot-swap
+        - Soldered
+        - Laptop or scissor-switch
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: keyboard
+    attributes:
+      label: Keyboard model
+    validations:
+      required: true
+  - type: input
+    id: layout
+    attributes:
+      label: Layout and size you picked
+      placeholder: ANSI, 75%
+  - type: input
+    id: version
+    attributes:
+      label: keytriage version
+      description: Installed apps shows it, and so does the installer's file name.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: upload
+    id: report
+    attributes:
+      label: The exported report
+      description: The .json file that Export report saved for this test.
+    validations:
+      required: true
+      accept: '.json'

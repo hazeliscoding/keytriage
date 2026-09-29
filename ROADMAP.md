@@ -187,7 +187,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [ ] README with install steps, a note on unsigned builds and screenshots of the live app.
 - [x] `CONTRIBUTING.md`: how to add a detector and its fixtures. Done 2026.09.28: its checklist follows a stub `Kind` and `Evidence` walked through the compiler on a throwaway branch, which stopped in `words.rs`, `swap.rs`, the words tests and `view.rs`.
 - [x] `SECURITY.md`, plus a privacy contract document that lists each promise and how it is enforced. It also names what the WebView2 runtime fetches from Microsoft on its own, such as its variations seed, outside the app's code. Done 2026.09.28: `PRIVACY.md` maps each promise to its code and check, and quotes Microsoft on WebView2's own traffic. What WebView2 contacted is measured on every push, in the Build (Windows) job's summary. `SECURITY.md` takes reports through GitHub's private vulnerability reporting only.
-- [ ] Issue templates for "Wrong diagnosis" and "Missed fault". They ask for the exported report, never a recording of typing.
+- [x] Issue templates for "Wrong diagnosis" and "Missed fault". They ask for the exported report, never a recording of typing. Done 2026.09.28: `.github/ISSUE_TEMPLATE` has both forms. Each says what a report reveals and requires the exported `.json` through an upload field. They apply the labels `wrong diagnosis` and `missed fault`, which must exist on GitHub, because a form doesn't create labels. Blank issues stay open, and the chooser links private reporting and `PRIVACY.md`.
 - [ ] Dogfooding log in `docs/dogfooding.md`.
 - [ ] CI is green, error messages are understandable, and there are no known critical bugs.
 

@@ -1,0 +1,80 @@
+name: Wrong diagnosis
+description: keytriage named a fault that wasn't there, or the wrong one.
+title: 'Wrong diagnosis: '
+labels: ['wrong diagnosis']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please attach the report that keytriage exported for this test. Before you do:
+
+        - The report holds per-key counts and timing histograms, never the order of keys.
+        - Its hold-time histograms describe how you press keys.
+        - Anything attached here is public.
+        - The file name holds the date and time of the test, so rename it if you like.
+        - Never attach a recording of typing, a screen recording of the live list or another tool's key log.
+
+        [PRIVACY.md](https://github.com/hazeliscoding/keytriage/blob/main/PRIVACY.md) says what a report holds.
+  - type: textarea
+    id: finding
+    attributes:
+      label: The finding as shown
+      description: Copy the finding from the Findings screen, with its evidence and next test.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: instead
+    attributes:
+      label: What you found instead
+      description: What was really wrong, or that nothing was, and how you found out.
+    validations:
+      required: true
+  - type: textarea
+    id: swap
+    attributes:
+      label: The swap test's outcome
+      description: If you ran the swap test, what its result said.
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - Hot-swap
+        - Soldered
+        - Laptop or scissor-switch
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: keyboard
+    attributes:
+      label: Keyboard model
+    validations:
+      required: true
+  - type: input
+    id: layout
+    attributes:
+      label: Layout and size you picked
+      placeholder: ANSI, 75%
+  - type: input
+    id: version
+    attributes:
+      label: keytriage version
+      description: Installed apps shows it, and so does the installer's file name.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: upload
+    id: report
+    attributes:
+      label: The exported report
+      description: The .json file that Export report saved for this test.
+    validations:
+      required: true
+      accept: '.json'
