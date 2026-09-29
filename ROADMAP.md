@@ -131,6 +131,9 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - **WebView2.** The installer embeds Microsoft's WebView2 bootstrapper (`embedBootstrapper`, about 1.8 MB), which the bundler fetches over HTTPS at build time. It runs only when WebView2 is missing, and then downloads the runtime from Microsoft. Windows 11 includes WebView2. This reopens the earlier `downloadBootstrapper` call, because Tauri's NSISdl plugin fetches that bootstrapper over plain HTTP and runs it without checking a signature.
   - **Security reports** go through GitHub's private vulnerability reporting, which is on. No email address is published.
   - **Clean machine.** A fresh CI runner installs, starts and uninstalls the exact release asset, and the owner installs the published build in a new standard Windows account, downloaded through a browser.
+  - **Fault run** (2026.09.29). An induced fault counts for the Done when, logged as induced. The log stays open for the first natural fault.
+
+  Defaults for the owner to review: v0.1.0 was published without immutable releases, so its assets could still be replaced; the notices list `dpi` as "Apache-2.0 AND MIT", which over-includes; and the WebView2 SDK's `NOTICE.txt` is left out, because it covers SDK tooling rather than the loader.
 
 ## M0: Placeholder (as soon as possible)
 
@@ -195,7 +198,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## M5: v0.1.0
 
-- [ ] A release workflow for Windows: an NSIS installer on GitHub Releases, unsigned, with SHA-256 checksums.
+- [x] A release workflow for Windows: an NSIS installer on GitHub Releases, unsigned, with SHA-256 checksums. Done 2026.09.29: [v0.1.0](https://github.com/hazeliscoding/keytriage/releases/tag/v0.1.0) was built from `9c46e1e` by [the tag's run](https://github.com/hazeliscoding/keytriage/actions/runs/36589064186), which reran CI, attested the installer and `SHA256SUMS.txt`, and drafted the release, and the owner published it. See **Release**.
   - Set `bundle.publisher` to the name a future code-signing certificate would carry, before the first installer ships. It defaults to "github" from the identifier, and the installer keys its registry entry on it, so changing it later loses the previous install location.
   - Decide `bundle.windows.webviewInstallMode`. The default downloads the WebView2 bootstrapper from Microsoft when WebView2 is missing.
   - Ship the third-party notices: Angular's `3rdpartylicenses.txt`, which sits outside `frontendDist`, and the Rust crates' licenses.
@@ -205,9 +208,9 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 - [x] Issue templates for "Wrong diagnosis" and "Missed fault". They ask for the exported report, never a recording of typing. Done 2026.09.28: `.github/ISSUE_TEMPLATE` has both forms. Each says what a report reveals and requires the exported `.json` through an upload field. They apply the labels `wrong diagnosis` and `missed fault`, which must exist on GitHub, because a form doesn't create labels. Blank issues stay open, and the chooser links private reporting and `PRIVACY.md`.
 - [x] Dogfooding log in `docs/dogfooding.md`. Started 2026.09.28 with the runs so far.
 - [x] Choose the keys to test, from the owner's design of 2026.09.28 (see **Choosing keys**): the Start screen's Scope row and key picker, 3 rounds of 30 for chosen keys, an untested swap partner capped at High when no tested key came out clean, and a clean card that lists up to six keys. Done 2026.09.28: `app.spec` chooses E, T and R, sends them in reading order at 3 × 30, and Test again repeats them; `sw22` and `sw24` offer an untested G and cap its swap at High; `choosing.json` pins the picker to the Guide; and the Start screen was measured against the design at 1280 × 800 and 1024 × 700 in both themes. For the owner to review under **Choosing keys**: the All keys hint, the picker that shrinks to fit, the summary's ellipsis and the no-keyboard state the design doesn't draw.
-- [ ] CI is green, error messages are understandable, and there are no known critical bugs.
+- [x] CI is green, error messages are understandable, and there are no known critical bugs. Done 2026.09.29: CI is green on `9c46e1e`, a failed start and Windows' refusals say what to try, and no issue is open. The local app checks pass in both hosting modes, and all 12 of their positive controls exit 3.
 
-**Done when:** the released installer runs on a clean Windows machine, and a real chattering or dead key is found and explained through the guided test.
+**Done when:** the released installer runs on a clean Windows machine, and a real chattering or dead key is found and explained through the guided test. Done 2026.09.29: the published installer ran in a new standard Windows account, as it does on a fresh CI runner on every push, and an induced dead key on a BY Tech keyboard was found and explained, and the swap test then showed it cleared once a switch sat in the socket again ([log](docs/dogfooding.md)). A natural fault is still to log.
 
 ## M6: Parts and prices (first in v0.2)
 

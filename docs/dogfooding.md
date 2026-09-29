@@ -48,8 +48,17 @@ Each entry gives the build (version or commit, debug or release), the keyboard (
 - **Ground truth:** induced. The fault was an empty socket, and seating a switch in it cleared it, which is what the outcome says.
 - **Follow-up:** a natural fault is still to log. The confidence shown for an induced dead key should be recorded next time.
 
+## 2026.09.29: the published installer on a clean account
+
+- **Build:** release v0.1.0, from `9c46e1e`, as published on GitHub.
+- **Machine:** the owner's PC, in a new standard Windows account.
+- **What ran:** the installer and `SHA256SUMS.txt`, downloaded through a browser, the release notes' PowerShell hash check, then the installer and the app.
+- **What Windows said:** the hash check printed True. SmartScreen showed "Windows protected your PC" and "Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.", with "App: keytriage_0.1.0_x64-setup.exe" and "Publisher: Unknown publisher" under More info, then Run anyway. The browser's own download prompt was not recorded.
+- **What the app did:** it installed with no admin prompt and opened on its Start screen.
+- **Ground truth:** the README's Unsigned builds section names the same prompt and the same way past it.
+- **Follow-up:** none.
+
 ## Still to log
 
 - A real replug during the swap test, which the unit tests cover only on a synthetic device path.
-- The clean-machine install: the published installer, downloaded through a browser into a new standard Windows account, with its SHA-256 and SmartScreen's wording.
 - A natural chattering or dead key found through the guided test, with the swap outcome and the ground truth. The intermittent C key on an Akko keyboard is a candidate.
