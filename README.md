@@ -50,6 +50,16 @@ Next test
 - **Isolates** the fault with a guided switch-swap test on hot-swap boards, and gives different next steps for soldered and laptop keyboards.
 - **Later:** identifies your keyboard, lists compatible switches with prices, tests rollover and inspects HID.
 
+These are from a real run on 2026.09.29, a hot-swap keyboard with X and C chosen.
+
+![The Start screen with X and C chosen on the drawn keyboard](docs/screenshots/start.png)
+
+![The guided test prompting C, 21 of 30 presses, with the live event list](docs/screenshots/test.png)
+
+![A clean result for X and C, with the evidence and what it doesn't rule out](docs/screenshots/findings.png)
+
+![The swap test's result after an empty socket was refilled: neither key showed the fault](docs/screenshots/swap-result.png)
+
 ## Install
 
 1. Download `keytriage_0.1.0_x64-setup.exe` and `SHA256SUMS.txt` from the [latest release](https://github.com/hazeliscoding/keytriage/releases/latest) into one folder.
