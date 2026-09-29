@@ -215,7 +215,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## M5.1: Portable build
 
-- [ ] Decide where the portable build keeps WebView2's data: next to the exe, so deleting its folder removes everything, or in `%LOCALAPPDATA%`, as the installer does. Next to the exe fails in a read-only folder such as Program Files.
+- [x] Decide where the portable build keeps WebView2's data: next to the exe, so deleting its folder removes everything, or in `%LOCALAPPDATA%`, as the installer does. Next to the exe fails in a read-only folder such as Program Files. Decided 2026.09.29 (the owner's call): next to the exe. A marker file in the zip beside `keytriage.exe` switches it on, and the data folder sits beside the exe. Where that folder can't be written, the app says so and suggests moving the folder, and it never falls back to `%LOCALAPPDATA%` without saying so. The installed build keeps `%LOCALAPPDATA%`.
 - [ ] Build a portable zip on every push: `keytriage.exe`, its three license files and a SHA-256 line, in the `release` artifact next to the installer. The release workflow attests it and adds it to the draft.
 - [ ] A portable check on a fresh runner, like the installer check: unzip, start, find the rendered Begin test button, check what the data folder holds, delete, and check that nothing else is left. Its positive control must be caught.
 - [ ] Portable first: the README's install steps, the release notes and `PRIVACY.md` section 6 lead with the zip, and the installer becomes the second option.
