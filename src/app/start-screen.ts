@@ -89,15 +89,12 @@ export class StartScreen {
   // Each scope draws its own Scope row, so the button pressed is gone once the view changes. Focus
   // moves to the new row's pressed button.
   protected setScope(scope: Scope): void {
-    if (this.run.scope() === scope) return;
-    this.run.scope.set(scope);
-    this.focusScope();
+    if (this.run.setScope(scope)) this.focusScope();
   }
 
   // Clear hides itself.
   protected clear(): void {
-    this.run.clearKeys();
-    this.focusScope();
+    if (this.run.clearKeys()) this.focusScope();
   }
 
   private focusScope(): void {

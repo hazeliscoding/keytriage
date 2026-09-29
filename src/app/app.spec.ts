@@ -6,6 +6,7 @@ import { keyCount, layout, plainKeys } from './layout';
 import { PLAN } from './plan';
 import { TestRun } from './test-run';
 import {
+  EMPTY,
   FOLLOWS,
   all,
   button,
@@ -366,14 +367,29 @@ describe('App', () => {
       expect(summary(fixture)).toBe('2 chosen · Home E');
     });
 
-    it('holds the choice while a test starts', async () => {
-      inApp((cmd) => (cmd === 'start_test' ? new Promise(() => undefined) : null));
+    it('holds the scope and the choice while a test starts, so Test again repeats it', async () => {
+      let answer = (): void => undefined;
+      inApp((cmd) => {
+        if (cmd === 'end_test') return EMPTY;
+        if (cmd !== 'start_test' || started().length > 1) return null;
+        return new Promise((done) => (answer = () => done(null)));
+      });
       const fixture = await render();
       await chooseKeys(fixture, E, R);
       await click(fixture, button(fixture, 'Test 2 keys'));
       await pickKey(fixture, T);
+      await click(fixture, button(fixture, 'Clear'));
+      await click(fixture, button(fixture, 'All keys'));
       expect(summary(fixture)).toBe('2 chosen · E R');
-      expect(started().map((plan) => plan.keys)).toEqual([[E, R]]);
+      answer();
+      await settle(fixture);
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'Test again'));
+      const plan = { keys: [E, R], rounds: 3, presses: 30 };
+      expect(started().map(({ keys, rounds, presses }) => ({ keys, rounds, presses }))).toEqual([
+        plan,
+        plan,
+      ]);
     });
 
     it('still asks for every plain key at 3 × 10 under All keys', async () => {

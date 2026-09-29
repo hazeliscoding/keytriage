@@ -197,9 +197,16 @@ export class TestRun {
     }
   }
 
+  // The scope and the choice hold while a test starts, because Start stays on view until Rust
+  // answers, and Test again repeats them. Each returns whether it changed anything.
+  setScope(scope: Scope): boolean {
+    if (this.screen() !== 'start' || this.scope() === scope) return false;
+    this.scope.set(scope);
+    return true;
+  }
+
   // A scope switch can put the picker under the pointer, so a key drops a double click's second
-  // click. Keys the Guide refuses can't be chosen, and the choice holds while a test starts,
-  // because Start stays on view until Rust answers.
+  // click. Keys the Guide refuses can't be chosen.
   toggleKey(scan: number, clicks = 1): void {
     const cap = this.layout().byScan.get(scan);
     if (clicks > 1 || this.screen() !== 'start' || !cap || !pickable(cap)) return;
@@ -208,8 +215,10 @@ export class TestRun {
     this.chosen.set(chosen);
   }
 
-  clearKeys(): void {
+  clearKeys(): boolean {
+    if (this.screen() !== 'start') return false;
     this.chosen.set(new Set());
+    return true;
   }
 
   // Rust ends a test well within a double click, so the second click on End test lands on the
