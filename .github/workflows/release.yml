@@ -1,0 +1,114 @@
+name: Release
+
+# A vX.Y.Z tag on a commit on main drafts a GitHub release. A manual run is a dry run: it runs
+# every check and prints the notes, and creates no tag, attestation or release. Publishing is the
+# owner's.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency: release-${{ github.ref }}
+
+jobs:
+  version:
+    name: Version and tag
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      # A dry run checks the tag the version would get.
+      - name: Check the versions against the tag
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then tag="$GITHUB_REF_NAME"; else tag="v$(node -p "require('./package.json').version")"; fi
+          node scripts/check-release.mjs --tag "$tag"
+      - name: Check that the commit is on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Tag a commit on main."; exit 1; }
+
+  # Tag pushes don't trigger CI, so the release reruns all of it on the tagged commit, and the
+  # installer it drafts is the one those checks passed.
+  ci:
+    name: CI
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  # The only job that can write, and it runs none of the repository's code.
+  draft:
+    name: Draft the release
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: out
+      - name: Check the installer against its checksum
+        working-directory: out
+        run: |
+          if [ "$(find . -mindepth 1 | wc -l)" -ne 2 ] || [ "$(wc -l < SHA256SUMS.txt)" -ne 1 ]; then
+            echo "::error::The release artifact must hold one installer and its SHA256SUMS.txt line, not: $(find . -mindepth 1 -printf '%P ')"
+            exit 1
+          fi
+          sha256sum -c SHA256SUMS.txt
+          installer=$(sed -E 's/^[0-9a-f]{64} [ *]//' SHA256SUMS.txt)
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$installer" != "keytriage_${GITHUB_REF_NAME#v}_x64-setup.exe" ]; then
+            echo "::error::$installer is not the installer for $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "INSTALLER=$installer" >> "$GITHUB_ENV"
+      - name: Write the release notes
+        run: |
+          repo="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          {
+            echo '**Find out why your keyboard misbehaves, and what to try next.** keytriage tests your keyboard, shows the evidence, ranks the likely causes, and walks you through the test that tells them apart.'
+            echo
+            echo 'Tested on Windows 11 x64. Windows 10 should work but is untested, and there is no ARM64 build.'
+            echo
+            echo "The installer isn't code-signed, so SmartScreen may warn before it runs. It installs for your user only, into %LOCALAPPDATA%\\keytriage, with no admin prompt. See [Install]($repo/blob/$GITHUB_SHA/README.md#install)."
+            echo
+            echo '## Check the download'
+            echo
+            echo "Compare the installer with \`SHA256SUMS.txt\` before you run it. In PowerShell this prints True:"
+            echo
+            echo '```powershell'
+            echo "(Get-FileHash .\\$INSTALLER).Hash -eq (Get-Content .\\SHA256SUMS.txt).Split(' ')[0]"
+            echo '```'
+            echo
+            echo "\`certutil -hashfile $INSTALLER SHA256\` and \`sha256sum -c SHA256SUMS.txt\` work too. To check that this repository's release workflow built the files, run \`gh attestation verify $INSTALLER --repo $GITHUB_REPOSITORY\`."
+            echo
+            echo '```text'
+            cat out/SHA256SUMS.txt
+            echo '```'
+            echo
+            echo "Built from $GITHUB_SHA by [this run]($repo/actions/runs/$GITHUB_RUN_ID)."
+            echo
+            echo "What keytriage keeps, what it never does, and what Windows' WebView2 runtime does on its own: [PRIVACY.md]($repo/blob/$GITHUB_SHA/PRIVACY.md)."
+          } > notes.md
+          cat notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+      - if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/*
+      - name: Draft the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "keytriage ${GITHUB_REF_NAME#v}" --notes-file notes.md
+      - name: Say that a dry run made nothing
+        if: github.event_name != 'push'
+        run: echo 'Dry run. No attestation or release was made.' | tee -a "$GITHUB_STEP_SUMMARY"
