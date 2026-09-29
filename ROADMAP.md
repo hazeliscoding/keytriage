@@ -134,6 +134,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - **Fault run** (2026.09.29). An induced fault counts for the Done when, logged as induced. The log stays open for the first natural fault.
 
   Defaults for the owner to review: v0.1.0 was published without immutable releases, so its assets could still be replaced; the notices list `dpi` as "Apache-2.0 AND MIT", which over-includes; and the WebView2 SDK's `NOTICE.txt` is left out, because it covers SDK tooling rather than the loader.
+- **Portable first** (2026.09.29, the owner's call): a portable zip becomes the main download and the installer the second option. keytriage is run a few times rather than kept, and nothing installed suits an app that reads keys. The cost is that WebView2 must already be there, and the app's missing-runtime dialog covers the rare Windows 10 machine without it. SmartScreen warns on an unsigned exe either way, so code signing stays in Later.
 
 ## M0: Placeholder (as soon as possible)
 
@@ -212,6 +213,16 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 **Done when:** the released installer runs on a clean Windows machine, and a real chattering or dead key is found and explained through the guided test. Done 2026.09.29: the published installer ran in a new standard Windows account, as it does on a fresh CI runner on every push, and an induced dead key on a BY Tech keyboard was found and explained, and the swap test then showed it cleared once a switch sat in the socket again ([log](docs/dogfooding.md)). A natural fault is still to log.
 
+## M5.1: Portable build
+
+- [ ] Decide where the portable build keeps WebView2's data: next to the exe, so deleting its folder removes everything, or in `%LOCALAPPDATA%`, as the installer does. Next to the exe fails in a read-only folder such as Program Files.
+- [ ] Build a portable zip on every push: `keytriage.exe`, its three license files and a SHA-256 line, in the `release` artifact next to the installer. The release workflow attests it and adds it to the draft.
+- [ ] A portable check on a fresh runner, like the installer check: unzip, start, find the rendered Begin test button, check what the data folder holds, delete, and check that nothing else is left. Its positive control must be caught.
+- [ ] Portable first: the README's install steps, the release notes and `PRIVACY.md` section 6 lead with the zip, and the installer becomes the second option.
+- [ ] The next release ships both, the zip first.
+
+**Done when:** the zip from a published release runs from a folder in Downloads in a new standard Windows account, and deleting it leaves only what `PRIVACY.md` says it leaves.
+
 ## M6: Parts and prices (first in v0.2)
 
 - [ ] Switch catalog: MX-style switches first (3-pin or 5-pin, mount type, sensing method), seeded from open switch data where the license allows. Every fact records its source.
@@ -224,7 +235,6 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## Later
 
-- A portable build: `keytriage.exe` in a zip with its license files and a SHA-256 line, built and attested by the release workflow next to the installer, and smoke-tested on the runner like the installer. It needs the WebView2 runtime already installed, because there is no bootstrapper. Decide whether its WebView2 data folder stays in `%LOCALAPPDATA%` or moves next to the exe.
 - Code signing for the installer, the uninstaller and the app, with a certificate issued to "Hazel Granados", the name `bundle.publisher` already carries. The signing key never enters the repo, and CI signs through the provider, such as Azure Trusted Signing or SignPath's program for open source. The installer check then verifies each signature, and the README's unsigned-build note changes. SmartScreen reputation still builds over time.
 - Keyboard identification from usb.ids, QMK and VIA definitions and the SonixQMK database, with the source recorded for every fact. It fills in the board type automatically.
 - Rollover, ghosting and matrix-pattern analysis, worded carefully: a missing key can be a design limit, not a fault.
