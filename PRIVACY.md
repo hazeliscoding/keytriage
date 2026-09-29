@@ -6,7 +6,7 @@ keytriage reads your keyboard to test it. This file lists each promise it makes,
 
 - **Guards** read the source and the built app. They run in CI on every push, in the Network guard, Capture guard and Dependency guard jobs.
 - **Tests** run in CI's Build (Windows) job: `cargo test --workspace` for Rust and `npm test` for the page.
-- **App checks** run the app. The installer and connections checks run in the Build (Windows) job on every push. The focus, browser keys and crash reports checks take the foreground and need a debug build, so they run locally, with the commands in [AGENTS.md](AGENTS.md).
+- **App checks** run the app. The installer and connections checks run in the Build (Windows) job on every push. The focus, browser keys and crash reports checks need a debug build, and the first two take the foreground, so they run locally, with the commands in [AGENTS.md](AGENTS.md).
 - Every check for something that must not happen has a positive control: a planted fault that the check must catch. A check that can't fail proves nothing.
 
 ## 1. Not a keylogger
