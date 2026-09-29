@@ -1,0 +1,6 @@
+{
+  "source": "Guide::new over every set-1 code, and params::SWAP_ROUNDS and SWAP_PRESSES",
+  "refused": [0,42,54,241,242,255,57344,57386,57398,57399,57435,57436,57599,57600,57629,57855],
+  "rounds": 3,
+  "presses": 30
+}

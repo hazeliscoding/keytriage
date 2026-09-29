@@ -1,16 +1,17 @@
 // The Done-when runs, from capture to report. The engine's synthetic streams go through Core as the
 // capture callback feeds them, and every payload the page gets, in order, is pinned: the chatter
 // run in src/app/testing/guided-chatter.json, and the swap test that follows it in
-// src/app/testing/swap.json. The page's own tests replay both. A change to the engine's words, a
-// payload's shape or the Guide shows up as a diff of a file, which KEYTRIAGE_BLESS=1 rewrites once
-// the change has been read.
+// src/app/testing/swap.json. The page's own tests replay both. src/app/testing/choosing.json pins
+// the keys the Guide refuses and the chosen keys' test size, which the page's key picker follows. A
+// change to the engine's words, a payload's shape or the Guide shows up as a diff of a file, which
+// KEYTRIAGE_BLESS=1 rewrites once the change has been read.
 use std::path::PathBuf;
 use std::time::Instant;
 
 use keytriage_diagnostics::fixture::{Fixture, guided_chatter, swap_chatter};
 use keytriage_diagnostics::params::{END_WAIT_US, SWAP_PRESSES, SWAP_ROUNDS};
 use keytriage_diagnostics::{
-    BoardKind, Confidence, Entry, Evidence, Kind, NextTest, Partner, Swap,
+    BoardKind, Confidence, Entry, Evidence, Guide, Kind, NextTest, Partner, Plan, Swap,
 };
 use keytriage_input::Keyboard;
 use serde::Serialize;
@@ -29,6 +30,9 @@ const SOURCE: &str = "synthetic: crates/diagnostics fixture::guided_chatter";
 const SWAP_FILE: &str = "../src/app/testing/swap.json";
 const SWAP_SOURCE: &str =
     "synthetic: crates/diagnostics fixture::swap_chatter after fixture::guided_chatter";
+const CHOOSING_FILE: &str = "../src/app/testing/choosing.json";
+const CHOOSING_SOURCE: &str =
+    "Guide::new over every set-1 code, and params::SWAP_ROUNDS and SWAP_PRESSES";
 
 // What the page sends: G, J and E on the Start screen's default board, and their drawn names.
 const PLAN: &str =
@@ -208,6 +212,32 @@ fn swap_golden(handles: &[isize], runs: &[(&str, &[String], &TestResult)]) -> St
         format!("\"runs\": {}", object(&runs, 1)),
     ];
     object(&fields, 0) + "\n"
+}
+
+// Every code the Guide refuses to prompt, from the plain codes and the 0xE0 and 0xE1 prefixes, and
+// the size of a chosen keys test, which is the swap retest's.
+fn choosing_file() -> String {
+    let refused: Vec<u16> = (0x0000..=0x00FF)
+        .chain(0xE000..=0xE0FF)
+        .chain(0xE100..=0xE1FF)
+        .filter(|&code| {
+            let plan = Plan {
+                keys: vec![code],
+                rounds: 1,
+                presses: 1,
+            };
+            Guide::new(plan, &[1]).is_err()
+        })
+        .collect();
+    let fields = [
+        format!("\"source\": \"{CHOOSING_SOURCE}\""),
+        format!("\"refused\": {}", json!(refused)),
+        format!("\"rounds\": {SWAP_ROUNDS}"),
+        format!("\"presses\": {SWAP_PRESSES}"),
+    ];
+    object(&fields, 0)
+        + "
+"
 }
 
 fn swap_file() -> String {
@@ -565,6 +595,31 @@ fn golden_is_current() {
 #[test]
 fn swap_golden_is_current() {
     current(SWAP_FILE, &swap_file());
+}
+
+#[test]
+fn choosing_golden_is_current() {
+    current(CHOOSING_FILE, &choosing_file());
+}
+
+#[test]
+fn choosing_golden_refuses_the_os_keys() {
+    let file = parsed(&choosing_file());
+    let refused: Vec<u64> = file["refused"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|code| code.as_u64().unwrap())
+        .collect();
+    // Both Win keys, Print Screen, both Shifts and Pause.
+    for code in [0xE05B, 0xE05C, 0xE037, 0x2A, 0x36, 0xE11D] {
+        assert!(refused.contains(&code), "{code:04X}");
+    }
+    // Positive control: E, Space, Menu and Num Enter can be chosen.
+    for code in [0x12, 0x39, 0xE05D, 0xE01C] {
+        assert!(!refused.contains(&code), "{code:04X}");
+    }
+    assert_eq!((&file["rounds"], &file["presses"]), (&json!(3), &json!(30)));
 }
 
 // README.md says its sample is the finding the app shows for this run, so each of the finding's

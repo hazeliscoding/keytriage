@@ -3,14 +3,20 @@ import {
   STDS,
   capLabel,
   capName,
+  capTag,
+  capWord,
+  chosenKeys,
   keyCount,
   labelsFor,
   layout,
+  pickable,
   plainKeys,
+  readingOrder,
   type Cap,
   type Layout,
 } from './layout';
-import { DEFAULT_PLAN } from './plan';
+import { CHOSEN_PRESSES, CHOSEN_ROUNDS, DEFAULT_PLAN, chosenPlan } from './plan';
+import choosing from './testing/choosing.json';
 
 const ALL: Layout[] = SIZES.flatMap((size) => STDS.map((std) => layout(size, std)));
 
@@ -142,5 +148,87 @@ describe('layout', () => {
 
   it('returns the same layout for the same choice', () => {
     expect(layout('65%', 'ISO')).toBe(layout('65%', 'ISO'));
+  });
+});
+
+describe('choosing keys', () => {
+  const inRanges = (scan: number) =>
+    scan <= 0xff || (scan >= 0xe000 && scan <= 0xe0ff) || (scan >= 0xe100 && scan <= 0xe1ff);
+
+  it('lets a key be chosen exactly when the Guide would prompt it', () => {
+    for (const drawn of ALL) {
+      for (const cap of drawn.caps) {
+        if (cap.scan === null) {
+          expect(pickable(cap)).toBe(false);
+          continue;
+        }
+        // choosing.json covers these ranges, so every drawn code is in it or prompted.
+        expect(inRanges(cap.scan)).toBe(true);
+        expect(pickable(cap), cap.name).toBe(!choosing.refused.includes(cap.scan));
+      }
+    }
+    // Positive control: full size draws each key that can't be chosen.
+    const full = layout('Full size', 'ISO');
+    const unpickable = full.caps.filter((cap) => !pickable(cap)).map((cap) => cap.name);
+    expect(unpickable.sort()).toEqual(
+      ['Fn', 'Left Shift', 'Left Win', 'Pause', 'Print Screen', 'Right Shift'].sort(),
+    );
+  });
+
+  it('offers every drawn key with a code but Win, Print Screen, Shift and Pause', () => {
+    const count = (drawn: Layout) => drawn.caps.filter(pickable).length;
+    const ansi = SIZES.map((size) => count(layout(size, 'ANSI')));
+    const iso = SIZES.map((size) => count(layout(size, 'ISO')));
+    expect(ansi).toEqual([98, 81, 78, 64, 57]);
+    expect(iso).toEqual([99, 82, 79, 65, 58]);
+  });
+
+  it('lists chosen keys in reading order and leaves out keys the layout lacks', () => {
+    const chosen = new Set([E, 0xe047, 0xe05b, 0x56]);
+    expect(chosenKeys(layout('75%', 'ANSI'), chosen)).toEqual([0xe047, E]);
+    expect(chosenKeys(layout('75%', 'ISO'), chosen)).toEqual([0xe047, E, 0x56]);
+    expect(chosenKeys(layout('75%', 'ISO'), new Set())).toEqual([]);
+    const order = readingOrder(layout('75%', 'ANSI')).map((cap) => cap.name);
+    expect(order.slice(0, 3)).toEqual(['Esc', 'F1', 'F2']);
+    expect(order.indexOf('Home')).toBeLessThan(order.indexOf('Tab'));
+    // The drawing builds Home after the bottom row.
+    const built = layout('75%', 'ANSI').caps.map((cap) => cap.name);
+    expect(built.indexOf('Home')).toBeGreaterThan(built.indexOf('Tab'));
+  });
+
+  it('names a key by its label unless another drawn key shares it', () => {
+    const tkl = layout('Tenkeyless', 'ANSI');
+    const full = layout('Full size', 'ANSI');
+    expect([E, 0x2a, 0x39, 0xe038].map((scan) => capWord(tkl, scan))).toEqual([
+      'E',
+      'Left Shift',
+      'Space',
+      'Right Alt',
+    ]);
+    expect([0x48, 0x09, 0x1c, 0xe01c, 0x37].map((scan) => capWord(full, scan))).toEqual([
+      'Num 8',
+      '8',
+      'Enter',
+      'Num Enter',
+      '*',
+    ]);
+    // Positive control: without a numpad, 8 is the only key labelled 8.
+    expect(capWord(tkl, 0x09)).toBe('8');
+    expect(capWord(tkl, 0xe05c)).toBe('E05C');
+    expect([0x2a, 0xe038, 0x48, 0xe01c, 0x39, E].map((scan) => capTag(full, scan))).toEqual([
+      'LShift',
+      'RAlt',
+      'N8',
+      'NEnter',
+      'Space',
+      'E',
+    ]);
+  });
+
+  it('tests chosen keys at the size choosing.json pins to the engine', () => {
+    expect([CHOSEN_ROUNDS, CHOSEN_PRESSES]).toEqual([choosing.rounds, choosing.presses]);
+    expect([CHOSEN_ROUNDS, CHOSEN_PRESSES]).toEqual([3, 30]);
+    const plan = chosenPlan(new Set([J, G, 0xe05b]));
+    expect([plan.keys(layout('60%', 'ANSI')), plan.rounds, plan.presses]).toEqual([[G, J], 3, 30]);
   });
 });

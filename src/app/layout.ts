@@ -143,6 +143,18 @@ const PLAIN = new Set([
   ISO_BACKSLASH[0],
 ]);
 
+// Keys the Guide refuses in every plan: Windows answers Win, Print Screen and Shift with a window of
+// its own, and Pause sends no release. Right Win (0xE05C) isn't drawn. testing/choosing.json, which
+// the Rust tests write from the Guide, pins this set.
+const UNPICKABLE = new Set([
+  LEFT_WIN[0],
+  0xe05c,
+  PRINT_SCREEN[0],
+  LEFT_SHIFT[0],
+  RIGHT_SHIFT[0],
+  PAUSE[0],
+]);
+
 // A port of layout(size, std) in docs/design/keytriage demo.dc.html.
 function build(size: Size, std: Std): Layout {
   const caps: Cap[] = [];
@@ -245,11 +257,31 @@ export function keyCount(size: Size, std: Std): number {
   return layout(size, std).caps.length;
 }
 
-// Every plain key in reading order: row by row, left to right.
+// Row by row, left to right. The caps are built in another order.
+const byReading = (a: Cap, b: Cap) => a.y - b.y || a.x - b.x;
+
+export function readingOrder(drawn: Layout): Cap[] {
+  return [...drawn.caps].sort(byReading);
+}
+
+// Every plain key in reading order.
 export function plainKeys(drawn: Layout): number[] {
   return drawn.caps
     .filter((cap): cap is Cap & { scan: number } => cap.scan !== null && PLAIN.has(cap.scan))
-    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .sort(byReading)
+    .map((cap) => cap.scan);
+}
+
+// Whether a test of chosen keys may prompt this key. Fn sends no code.
+export function pickable(cap: Cap): cap is Cap & { scan: number } {
+  return cap.scan !== null && !UNPICKABLE.has(cap.scan);
+}
+
+// The chosen keys this layout draws, in reading order. Keys it doesn't draw are left out.
+export function chosenKeys(drawn: Layout, chosen: ReadonlySet<number>): number[] {
+  return drawn.caps
+    .filter((cap): cap is Cap & { scan: number } => pickable(cap) && chosen.has(cap.scan))
+    .sort(byReading)
     .map((cap) => cap.scan);
 }
 
@@ -269,4 +301,19 @@ export function capName(drawn: Layout, scan: number): string {
 export function capLabel(drawn: Layout, scan: number): string {
   const cap = drawn.byScan.get(scan);
   return cap ? cap.label || cap.name : hex4(scan);
+}
+
+// A key in a sentence or a list of chosen keys: its label, or its name when the cap is blank or
+// another drawn key has the same label, so the two Ctrls, Enter and Num Enter, and a digit and its
+// numpad key read apart.
+export function capWord(drawn: Layout, scan: number): string {
+  const cap = drawn.byScan.get(scan);
+  if (!cap) return hex4(scan);
+  const shared = drawn.caps.some((other) => other !== cap && other.label === cap.label);
+  return cap.label && !shared ? cap.label : cap.name;
+}
+
+// capWord, short: "LShift", "RAlt", "N7", "NEnter".
+export function capTag(drawn: Layout, scan: number): string {
+  return capWord(drawn, scan).replace(/^(Left|Right|Num) (?=\S)/, (side) => side[0]);
 }
