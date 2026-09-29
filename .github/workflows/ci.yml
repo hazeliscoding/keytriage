@@ -139,6 +139,20 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/check-installer.ps1 -Installer $env:INSTALLER -PositiveControl DataFile
           if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
+      - name: Connections check
+        run: pwsh -NoProfile -File scripts/check-connections.ps1 -Exe target/release/keytriage.exe -Out dist/connections/connections.json
+      - name: Connections check's positive control
+        run: |
+          pwsh -NoProfile -File scripts/check-connections.ps1 -PositiveControl
+          if ($LASTEXITCODE -eq 3) { exit 0 } else { exit 1 }
+      # Uploaded even when the check fails, so a caught connection can be read.
+      - if: ${{ !cancelled() && hashFiles('dist/connections/connections.json') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: connections
+          path: dist/connections/connections.json
+          retention-days: 14
+          if-no-files-found: error
       - name: Record the tool versions
         run: |
           $key = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
