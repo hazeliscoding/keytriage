@@ -6,7 +6,7 @@ keytriage reads your keyboard to test it. This file lists each promise it makes,
 
 - **Guards** read the source and the built app. They run in CI on every push, in the Network guard, Capture guard and Dependency guard jobs.
 - **Tests** run in CI's Build (Windows) job: `cargo test --workspace` for Rust and `npm test` for the page.
-- **App checks** run the app. The installer and connections checks run in the Build (Windows) job on every push. The focus, browser keys and crash reports checks need a debug build, and the first two take the foreground, so they run locally, with the commands in [AGENTS.md](AGENTS.md).
+- **App checks** run the app. The installer, portable and connections checks run in the Build (Windows) job on every push. The focus, browser keys and crash reports checks need a debug build, and the first two take the foreground, so they run locally, with the commands in [AGENTS.md](AGENTS.md).
 - Every check for something that must not happen has a positive control: a planted fault that the check must catch. A check that can't fail proves nothing.
 
 ## 1. Not a keylogger
@@ -91,20 +91,33 @@ Kept by `src-tauri/src/crash_reports.rs`:
 - The app deletes WebView2's dumps at start, when WebView2 reports a failed process, and at exit.
 - `SEM_NOGPFAULTERRORBOX` keeps the app's own crashes out of Windows Error Reporting.
 
-Checked by `scripts/check-crash-reports.ps1` (local): five probes, and a control that turns all three off and must be caught by every probe.
+Checked by `scripts/check-crash-reports.ps1` (local): five probes, and a control that turns all three off and must be caught by every probe. `-Portable` runs them against a copy beside the portable marker, whose dumps land in `keytriage-data`.
 
 Limits: a dump sits on disk until the sweep, and a crash of WebView2's browser process that Crashpad misses goes to Windows Error Reporting. Hang reports, dumps someone takes on purpose, an administrator's LocalDumps setting, the page and hibernation files, and system crash dumps are outside the app. The Crash output decision in [ROADMAP.md](ROADMAP.md) has the detail.
 
 ## 6. What keytriage leaves on your computer
 
-- `%LOCALAPPDATA%\keytriage`: the app, `uninstall.exe` and the license files in `licenses\`.
-- Its entry in Installed apps, and `HKCU\Software\Hazel Granados\keytriage`, where the installer remembers its folder.
-- `%LOCALAPPDATA%\io.github.hazeliscoding.keytriage\EBWebView`: WebView2's own folder, with its browser profile, the components it downloads, such as certificate revocation lists, and Crashpad's settings. The page runs InPrivate and writes nothing there.
-- The reports you export, wherever you save them.
+The portable zip, the main download, keeps everything it writes in its own folder:
+
+- the folder you extracted, with `keytriage.exe`, the marker `keytriage.portable` and the license files in `licenses\`;
+- `keytriage-data\EBWebView` in that folder: WebView2's own folder, with its browser profile, the components it downloads, such as certificate revocation lists, and Crashpad's settings. The page runs InPrivate and writes nothing there.
+
+The marker points every folder the app uses at `keytriage-data` (`src-tauri/src/portable.rs`). Where that folder can't be written, the app says so and exits rather than writing anywhere else. Delete the folder, and the app and its data are gone.
+
+The installer leaves:
+
+- `%LOCALAPPDATA%\keytriage`: the app, `uninstall.exe` and the license files in `licenses\`;
+- its entry in Installed apps, and `HKCU\Software\Hazel Granados\keytriage`, where the installer remembers its folder;
+- `%LOCALAPPDATA%\io.github.hazeliscoding.keytriage\EBWebView`: WebView2's own folder, as above.
 
 Uninstalling removes the app. The data folder and the registry key go only when you tick "Delete the application data". A silent uninstall (`/S`) keeps them.
 
-Checked by `scripts/check-installer.ps1` (CI, on a fresh runner): it installs, starts and uninstalls the app, checks that the data folder holds only `EBWebView`, and checks that there is no roaming data folder. Its controls `Leftovers` and `DataFile` must be caught.
+Both leave the reports you export, wherever you save them. Outside the app's control, Windows keeps its own records that a program ran, such as Prefetch, for keytriage as for any other program.
+
+Checked by:
+
+- `scripts/check-portable.ps1` (CI, on a fresh runner): it unzips the zip and starts the app, checks that `keytriage-data` holds only `EBWebView` and that nothing of the app's is in `%LOCALAPPDATA%`, `%APPDATA%` or the registry, checks that a copy in a folder it can't write says so and exits, then deletes the folder and checks that nothing is left. Its controls `NoMarker`, `DataFile` and `Leftovers` must be caught.
+- `scripts/check-installer.ps1` (CI, on a fresh runner): it installs, starts and uninstalls the app, checks that the data folder holds only `EBWebView`, and checks that there is no roaming data folder. Its controls `Leftovers` and `DataFile` must be caught.
 
 ## 7. What Microsoft's components do on their own
 
@@ -115,15 +128,15 @@ keytriage draws its window with Microsoft Edge WebView2, which Windows 11 includ
 - **Updates and components.** "The WebView2 Runtime updates automatically", through Microsoft Edge Update (`msedge.api.cdp.microsoft.com`, with downloads from `*.dl.delivery.mp.microsoft.com`). `edge.microsoft.com` provides "certificate revocation lists, and other browser component updates". ([Distribution](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution), [Edge endpoints](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-security-endpoints))
 - **Bugs.** WebView2 has made background requests that Microsoft treated as bugs: [#5047](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5047) and [#5093](https://github.com/MicrosoftEdge/WebView2Feedback/issues/5093), fixed in 134, and [#2671](https://github.com/MicrosoftEdge/WebView2Feedback/issues/2671). What the runtime contacts changes between versions.
 - **Measured.** On every push, the connections check lists what WebView2's processes contacted while the app sat 30 s on its Start screen, with the runtime version and date, in the Build (Windows) job's summary and its `connections` artifact. That is one runtime on a Windows Server runner, not your PC. The first run (2026.09.29, runtime 153.0.4234.48): `keytriage.exe` made no connection. WebView2's network service reached one Microsoft address (52.123.248.23) over TCP and QUIC on port 443, the runner's DNS server, and its own machine at `[::1]:80`, and bound 13 local ports.
-- **The installer** carries Microsoft's WebView2 bootstrapper, signed by Microsoft, which CI downloads from Microsoft over HTTPS when it builds the installer. It runs only when WebView2 is missing, and then "downloads and installs the Evergreen Runtime from Microsoft servers".
-- **Windows** checks the installer you download with SmartScreen and, where it is on, Smart App Control. GitHub sees the download.
+- **The installer** carries Microsoft's WebView2 bootstrapper, signed by Microsoft, which CI downloads from Microsoft over HTTPS when it builds the installer. It runs only when WebView2 is missing, and then "downloads and installs the Evergreen Runtime from Microsoft servers". The zip carries no bootstrapper, and where WebView2 is missing the app says so and stops.
+- **Windows** checks the zip or the installer you download, and the `keytriage.exe` you extract from the zip, with SmartScreen and, where it is on, Smart App Control. GitHub sees the download.
 
 ## 8. Check it yourself
 
-- Compare the installer with the release's `SHA256SUMS.txt` (`Get-FileHash`, `certutil -hashfile` or `sha256sum -c`), and run `gh attestation verify <installer> --repo hazeliscoding/keytriage` to check that this repository's release workflow built it.
-- Rebuild the installer from the release's tag with the commands in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Compare the zip or the installer with the release's `SHA256SUMS.txt` (`Get-FileHash`, `certutil -hashfile` or `sha256sum -c`), and run `gh attestation verify <file> --repo hazeliscoding/keytriage` to check that this repository's release workflow built it.
+- Rebuild the zip and the installer from the release's tag with the commands in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Run the guards: `node scripts/check-network.mjs`, `node scripts/check-capture.mjs` and `node scripts/check-dependencies.mjs`.
-- Run `scripts/check-connections.ps1 -Exe "$env:LOCALAPPDATA\keytriage\keytriage.exe"` from an elevated pwsh, or watch `keytriage.exe` in Resource Monitor's Network tab.
+- Run `scripts/check-connections.ps1 -Exe <folder>\keytriage.exe` from an elevated pwsh, with the folder you extracted, or `"$env:LOCALAPPDATA\keytriage"` for the installed app, or watch `keytriage.exe` in Resource Monitor's Network tab.
 - Open an exported report. It is plain JSON.
 
 ## 9. Report a broken promise

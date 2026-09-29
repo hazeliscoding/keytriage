@@ -81,7 +81,7 @@ body:
     id: version
     attributes:
       label: keytriage version
-      description: Installed apps shows it, and so does the installer's file name.
+      description: The zip's or the installer's file name shows it, and so do Installed apps and the Details tab of keytriage.exe's properties.
       placeholder: 0.1.0
     validations:
       required: true

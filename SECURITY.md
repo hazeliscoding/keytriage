@@ -19,16 +19,16 @@ Anything that breaks a promise in [PRIVACY.md](PRIVACY.md), such as:
 - a network connection made by `keytriage.exe`;
 - a crash dump that leaves the machine;
 - a way around the Content Security Policy or the navigation guard;
-- the installer doing anything `PRIVACY.md` doesn't list. It carries Microsoft's WebView2 bootstrapper, which runs only when WebView2 is missing and then downloads the runtime from Microsoft.
+- the zip or the installer doing anything `PRIVACY.md` doesn't list, such as the portable app writing outside its folder. The installer carries Microsoft's WebView2 bootstrapper, which runs only when WebView2 is missing and then downloads the runtime from Microsoft.
 
 ## Out of scope
 
 - The WebView2 runtime's own traffic to Microsoft, which `PRIVACY.md` describes, unless keytriage turns something on.
-- SmartScreen's warning about the installer. The installer isn't code-signed, so the warning is expected.
+- SmartScreen's warning about the installer or the `keytriage.exe` extracted from the zip. Neither is code-signed, so the warning is expected.
 - Limits that `PRIVACY.md` already lists, such as Windows' own keys acting during a test.
 
 ## What to expect
 
 - keytriage has one maintainer, who aims to reply within a week.
 - A fix ships in a release, and the advisory is published with it. You are credited if you want to be.
-- To check that an installer is the one this repository released, see [Check it yourself](PRIVACY.md#8-check-it-yourself).
+- To check that a zip or an installer is the one this repository released, see [Check it yourself](PRIVACY.md#8-check-it-yourself).

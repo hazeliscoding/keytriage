@@ -62,31 +62,43 @@ These are from a real run on 2026.09.29, a hot-swap keyboard with X and C chosen
 
 ## Install
 
-1. Download `keytriage_0.1.0_x64-setup.exe` and `SHA256SUMS.txt` from the [latest release](https://github.com/hazeliscoding/keytriage/releases/latest) into one folder.
-2. Check the installer before you run it. In PowerShell, in that folder, this prints `True`:
+The portable zip is the main download: keytriage runs from its own folder and keeps what it writes there. The installer is the other option. v0.1.0 has only the installer, and the zip comes with the next release.
+
+### Portable
+
+1. Download `keytriage_<version>_x64-portable.zip` and `SHA256SUMS.txt` from the [latest release](https://github.com/hazeliscoding/keytriage/releases/latest) into one folder.
+2. Check the zip before you open it. In PowerShell, in that folder, this prints `True`:
 
    ```powershell
-   (Get-FileHash .\keytriage_0.1.0_x64-setup.exe).Hash -eq (Get-Content .\SHA256SUMS.txt).Split(' ')[0]
+   (Get-FileHash .\keytriage_*_x64-portable.zip).Hash -eq ((Get-Content .\SHA256SUMS.txt) -like '*portable.zip').Split(' ')[0]
    ```
 
-   `certutil -hashfile keytriage_0.1.0_x64-setup.exe SHA256` prints the hash to compare with `SHA256SUMS.txt`, and `sha256sum -c SHA256SUMS.txt` checks it in Git Bash. The release page shows each file's SHA-256 too. With the GitHub CLI, you can also check that this repository's release workflow built the file:
+   `certutil -hashfile <file> SHA256` prints the hash to compare with `SHA256SUMS.txt`, and `sha256sum -c --ignore-missing SHA256SUMS.txt` checks it in Git Bash. The release page shows each file's SHA-256 too. With the GitHub CLI, `gh attestation verify <file> --repo hazeliscoding/keytriage` also checks that this repository's release workflow built the file.
+
+3. Extract the zip (right-click it, then **Extract All**), open the `keytriage` folder and run `keytriage.exe`. It keeps WebView2's data in `keytriage-data` beside the exe, so keep the folder somewhere you can write to, such as Downloads or Documents. In a folder it can't write, such as Program Files, it says so and stops. Windows 11 includes WebView2, which draws the window. Where it is missing, keytriage says where to get it.
+
+To remove keytriage, delete its folder. Exported reports stay where you saved them.
+
+### Installer
+
+1. Download `keytriage_<version>_x64-setup.exe` and `SHA256SUMS.txt` into one folder, and check the installer as above, with this line:
 
    ```powershell
-   gh attestation verify .\keytriage_0.1.0_x64-setup.exe --repo hazeliscoding/keytriage
+   (Get-FileHash .\keytriage_*_x64-setup.exe).Hash -eq ((Get-Content .\SHA256SUMS.txt) -like '*setup.exe').Split(' ')[0]
    ```
 
-3. Run the installer. It installs for your user only, into `%LOCALAPPDATA%\keytriage`, with no admin prompt. Windows 11 includes WebView2, which draws the window. Where it is missing, the installer runs Microsoft's WebView2 bootstrapper, which downloads the runtime from Microsoft.
+2. Run the installer. It installs for your user only, into `%LOCALAPPDATA%\keytriage`, with no admin prompt. Where WebView2 is missing, the installer runs Microsoft's WebView2 bootstrapper, which downloads the runtime from Microsoft.
+
+To uninstall, open Settings, then Apps, then Installed apps, and uninstall keytriage. Tick **Delete the application data** to also remove the app's WebView2 folder (`%LOCALAPPDATA%\io.github.hazeliscoding.keytriage`) and the registry key that remembers the install folder. Exported reports stay where you saved them.
+
+[PRIVACY.md](PRIVACY.md#6-what-keytriage-leaves-on-your-computer) lists everything each build leaves on your computer.
 
 ### Unsigned builds
 
-The installer isn't code-signed, so Windows can't tell who published it.
+Neither the zip's `keytriage.exe` nor the installer is code-signed, so Windows can't tell who published them.
 
-- Your browser may warn that the file isn't commonly downloaded, and SmartScreen may show "Windows protected your PC". After checking the hash, choose **More info**, then **Run anyway**.
+- Your browser may warn that the file isn't commonly downloaded. Windows copies the zip's download mark to the files it extracts, so SmartScreen may show "Windows protected your PC" when you start the extracted `keytriage.exe`, as it may for the installer. After checking the hash, choose **More info**, then **Run anyway**.
 - Smart App Control, where it is on, blocks unsigned apps it doesn't recognize, and it has no exception for a single app. A build from source is unsigned too, so it doesn't get around this. The setting is in Windows Security, under App & browser control.
-
-### Uninstall
-
-Open Settings, then Apps, then Installed apps, and uninstall keytriage. Tick **Delete the application data** to also remove the app's WebView2 folder (`%LOCALAPPDATA%\io.github.hazeliscoding.keytriage`) and the registry key that remembers the install folder. Exported reports stay where you saved them. [PRIVACY.md](PRIVACY.md#6-what-keytriage-leaves-on-your-computer) lists everything the app leaves on your computer.
 
 ## The privacy contract
 
@@ -99,8 +111,8 @@ Open Settings, then Apps, then Installed apps, and uninstall keytriage. Tick **D
 
 ## Contributing
 
-Each detector is a small Rust module with event-stream fixtures. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add one, and how to build the installer from source.
+Each detector is a small Rust module with event-stream fixtures. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add one, and how to build the zip and the installer from source.
 
 ## License
 
-[Apache-2.0](LICENSE). The installer puts the third-party notices in the install folder's `licenses` folder.
+[Apache-2.0](LICENSE). The zip and the installer put the third-party notices in a `licenses` folder beside `keytriage.exe`.

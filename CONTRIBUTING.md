@@ -8,7 +8,7 @@ This guide covers setup, the checks a change must pass, and how to add a detecto
 - Rust stable with the MSVC toolchain, which needs Visual Studio's C++ build tools.
 - Node 24, then `npm ci`.
 - PowerShell 7 for the app checks.
-- cargo-about 0.9.2, only to build the installer: `cargo install cargo-about --locked --version 0.9.2`.
+- cargo-about 0.9.2, only to build the zip and the installer: `cargo install cargo-about --locked --version 0.9.2`.
 
 `npm run tauri dev` runs the app. `npm start` serves the page alone in a browser, without Rust.
 
@@ -64,7 +64,7 @@ A finding's card is drawn from what Rust sends, so a new kind needs no page code
 - Build each stream with `Synth` and diagnose it with `run()`. `only()` returns the one finding a stream must give, and `assert_clean()` checks that it gives none. The constants in `tests/mod.rs`, such as `E` and `G`, are scan codes.
 - Each detector needs fault fixtures, which must give their finding with the expected evidence and confidence, and clean fixtures, which must give none. The clean fixtures include fast deliberate double presses and typing that only looks like the fault.
 
-## Building the installer
+## Building the zip and the installer
 
 ```powershell
 New-Item -ItemType Directory -Force target/notices
@@ -73,4 +73,6 @@ npm run tauri build -- --bundles nsis --config src-tauri/tauri.release.conf.json
 node scripts/check-notices.mjs
 ```
 
-The installer lands in `target/release/bundle/nsis`. To rebuild a release, check out its tag first. The exe and the installer won't match the release byte for byte, because they carry build timestamps, so check a download against the release's `SHA256SUMS.txt` and its attestation instead. A local installer is never a release.
+The installer lands in `target/release/bundle/nsis`. The zip holds a `keytriage` folder with `target/release/keytriage.exe`, the marker `src-tauri/portable/keytriage.portable` and the installer's license files. The Build (Windows) job's two staging steps in `.github/workflows/ci.yml` build it.
+
+To rebuild a release, check out its tag first. The exe, the zip and the installer won't match the release byte for byte, because they carry build timestamps, so check a download against the release's `SHA256SUMS.txt` and its attestation instead. A local build is never a release.
