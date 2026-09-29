@@ -38,7 +38,7 @@ export const GROUPS: KeyboardGroup[] = [
 
 // What end_test returns for a test with nothing to report.
 export const EMPTY: TestResult = {
-  rules: 4,
+  rules: 5,
   findings: [],
   notes: [],
   clean: [],

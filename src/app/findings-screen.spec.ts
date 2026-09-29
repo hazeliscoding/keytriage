@@ -78,7 +78,7 @@ const DEAD: FindingView = {
 };
 
 const FOUND: TestResult = {
-  rules: 4,
+  rules: 5,
   findings: [CHATTER, DEAD],
   notes: ['K had been down for 0.4 s when the test paused.'],
   clean: ['G: no extra key-downs in 30 presses.'],

@@ -14,7 +14,7 @@ const PLAN: PlanArgs = {
   board: 'hot-swap',
 };
 const RESULT: TestResult = {
-  rules: 4,
+  rules: 5,
   findings: [],
   notes: [],
   clean: [],
