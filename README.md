@@ -9,7 +9,7 @@
 
 A key that double-types, drops presses or sticks could be the switch, the socket or solder joint, the PCB or the firmware. Keyboard testers show that something is wrong, but not what to do about it. So people replace the wrong part, or the whole keyboard.
 
-> **Status:** planning. There is nothing to install yet. Windows comes first. See [ROADMAP.md](ROADMAP.md).
+> **Status:** v0.1.0 for Windows 11 (x64). Windows 10 should work but is untested. See [Install](#install) and [ROADMAP.md](ROADMAP.md).
 
 ## What a finding looks like
 
@@ -50,6 +50,34 @@ Next test
 - **Isolates** the fault with a guided switch-swap test on hot-swap boards, and gives different next steps for soldered and laptop keyboards.
 - **Later:** identifies your keyboard, lists compatible switches with prices, tests rollover and inspects HID.
 
+## Install
+
+1. Download `keytriage_0.1.0_x64-setup.exe` and `SHA256SUMS.txt` from the [latest release](https://github.com/hazeliscoding/keytriage/releases/latest) into one folder.
+2. Check the installer before you run it. In PowerShell, in that folder, this prints `True`:
+
+   ```powershell
+   (Get-FileHash .\keytriage_0.1.0_x64-setup.exe).Hash -eq (Get-Content .\SHA256SUMS.txt).Split(' ')[0]
+   ```
+
+   `certutil -hashfile keytriage_0.1.0_x64-setup.exe SHA256` prints the hash to compare with `SHA256SUMS.txt`, and `sha256sum -c SHA256SUMS.txt` checks it in Git Bash. The release page shows each file's SHA-256 too. With the GitHub CLI, you can also check that this repository's release workflow built the file:
+
+   ```powershell
+   gh attestation verify .\keytriage_0.1.0_x64-setup.exe --repo hazeliscoding/keytriage
+   ```
+
+3. Run the installer. It installs for your user only, into `%LOCALAPPDATA%\keytriage`, with no admin prompt. Windows 11 includes WebView2, which draws the window. Where it is missing, the installer runs Microsoft's WebView2 bootstrapper, which downloads the runtime from Microsoft.
+
+### Unsigned builds
+
+The installer isn't code-signed, so Windows can't tell who published it.
+
+- Your browser may warn that the file isn't commonly downloaded, and SmartScreen may show "Windows protected your PC". After checking the hash, choose **More info**, then **Run anyway**.
+- Smart App Control, where it is on, blocks unsigned apps it doesn't recognize, and it has no exception for a single app. A build from source is unsigned too, so it doesn't get around this. The setting is in Windows Security, under App & browser control.
+
+### Uninstall
+
+Open Settings, then Apps, then Installed apps, and uninstall keytriage. Tick **Delete the application data** to also remove the app's WebView2 folder (`%LOCALAPPDATA%\io.github.hazeliscoding.keytriage`) and the registry key that remembers the install folder. Exported reports stay where you saved them. [PRIVACY.md](PRIVACY.md#6-what-keytriage-leaves-on-your-computer) lists everything the app leaves on your computer.
+
 ## The privacy contract
 
 - **Not a keylogger.** It reads keys only while a test runs and its window is focused. It has no background capture, and CI fails on the Windows APIs that would allow it.
@@ -57,12 +85,12 @@ Next test
 - **No network.** There is no networking code, no telemetry and no auto-updater. Windows' WebView2 runtime, which draws the window, talks to Microsoft on its own; [PRIVACY.md](PRIVACY.md) lists what it does.
 - **Open source**, so you can check all of this instead of trusting it.
 
-[PRIVACY.md](PRIVACY.md) maps each promise to the code that keeps it and the check that proves it.
+[PRIVACY.md](PRIVACY.md) maps each promise to the code that keeps it and the check that proves it. Report a broken promise privately, as [SECURITY.md](SECURITY.md) explains.
 
 ## Contributing
 
-Each detector is a small Rust module with event-stream fixtures. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add one.
+Each detector is a small Rust module with event-stream fixtures. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add one, and how to build the installer from source.
 
 ## License
 
-[Apache-2.0](LICENSE)
+[Apache-2.0](LICENSE). The installer puts the third-party notices in the install folder's `licenses` folder.
