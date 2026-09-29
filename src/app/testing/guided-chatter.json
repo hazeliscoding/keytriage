@@ -403,7 +403,8 @@
         "Refit the keycaps and continue below."
       ],
       "means": "If the fault appears on G, it moved with the switch, and the switch is the likely cause. If it stays on E, the socket, the PCB or the matrix is the likely cause.",
-      "note": "Swap test. Both keys, 3 rounds."
+      "note": "Swap test. Both keys, 3 rounds.",
+      "partnerUntested": false
     },
     "outcome": null
   }

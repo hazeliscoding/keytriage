@@ -302,6 +302,8 @@ pub struct SwapView {
     pub steps: Vec<String>,
     pub means: String,
     pub note: String,
+    // The legend names the partner's switch, which isn't known-good when the test never prompted it.
+    pub partner_untested: bool,
 }
 
 // A swap test's judgment. Unclear carries no confidence, so it shows no badge.
@@ -521,6 +523,7 @@ fn swap_view(swap: &Swap, label: Label) -> SwapView {
         steps: sentences(&steps),
         means: sentence(&means),
         note: sentence(&note),
+        partner_untested: swap.partner_untested,
     }
 }
 
@@ -995,6 +998,26 @@ mod tests {
         Fixture { board, ..f }
     }
 
+    // One chosen key, E, chattering at every 10th answer in 3 rounds of 30. No other key is tested,
+    // and a single round of the retest is too short to clear E's rate.
+    fn one_chosen() -> Fixture {
+        let plan = Plan {
+            keys: vec![E],
+            rounds: 3,
+            presses: 30,
+        };
+        guided(plan, |s, k, n| {
+            if n % 10 == 0 {
+                (
+                    s.fragments(k, &[ms(5), ms(5), ms(100)]).wait(ms(200)),
+                    false,
+                )
+            } else {
+                (normal(s, k), false)
+            }
+        })
+    }
+
     // guided_chatter on the Start screen's default board offers E with G.
     fn offered() -> Swap {
         let report = on(BoardKind::HotSwap, guided_chatter().1).diagnose();
@@ -1046,17 +1069,23 @@ mod tests {
         }
         assert!(notes > 0);
 
-        // The swap's words, for each kind the engine offers it and each outcome.
+        // The swap's words, for each kind the engine offers it and each outcome, against a tested
+        // partner and an untested one.
         let mut outcomes = BTreeSet::new();
-        for (main, kind) in [
-            (guided_chatter().1, Kind::Chatter),
-            (dead_run(), Kind::Dead),
-            (stuck_run(), Kind::Stuck),
+        for (main, kind, untested) in [
+            (guided_chatter().1, Kind::Chatter, false),
+            (dead_run(), Kind::Dead, false),
+            (stuck_run(), Kind::Stuck, false),
+            (one_chosen(), Kind::Chatter, true),
         ] {
             let report = on(BoardKind::HotSwap, main).diagnose();
             let swap = Swap::offer(&report, BoardKind::HotSwap).expect("an offer");
-            assert_eq!(swap.kind, kind);
+            assert_eq!((swap.kind, swap.partner_untested), (kind, untested));
             let (a, b, full) = (swap.suspect, swap.partner, swap.plan().rounds);
+            let lent = Swap {
+                partner_untested: true,
+                ..swap
+            };
             for (faulty, rounds, expected) in [
                 (&[b][..], full, "follows"),
                 (&[a][..], full, "stays"),
@@ -1065,9 +1094,12 @@ mod tests {
                 (&[][..], 1, "unclear"),
             ] {
                 let after = retest(&swap, faulty, rounds);
-                for named in [&labels, &BTreeMap::new()] {
+                for (named, judge) in [&labels, &BTreeMap::new()]
+                    .into_iter()
+                    .flat_map(|named| [(named, &swap), (named, &lent)])
+                {
                     let (offer, _) = ended(&report, BoardKind::HotSwap, None, named);
-                    let (judged, _) = ended(&after, BoardKind::HotSwap, Some(&swap), named);
+                    let (judged, _) = ended(&after, BoardKind::HotSwap, Some(judge), named);
                     assert!(offer.swap.is_some());
                     let outcome = judged.outcome.as_ref().expect("a judgment").outcome;
                     assert_eq!(outcome, expected, "{kind:?}");
@@ -1152,6 +1184,37 @@ mod tests {
 
     fn leaks(json: &str) -> Vec<&'static str> {
         LEAKS.into_iter().filter(|l| json.contains(l)).collect()
+    }
+
+    #[test]
+    fn swap05_an_untested_partner_reaches_the_page() {
+        let report = on(BoardKind::HotSwap, one_chosen()).diagnose();
+        let (r, offer) = ended(&report, BoardKind::HotSwap, None, &labels());
+        assert_eq!(
+            offer.map(|s| (s.suspect, s.partner, s.partner_untested)),
+            Some((E, G, true))
+        );
+        let swap = r.swap.as_ref().expect("an offer");
+        assert_eq!((swap.suspect, swap.partner), (E, G));
+        assert!(
+            !swap.known_good.contains("known-good"),
+            "{}",
+            swap.known_good
+        );
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains(r#""partnerUntested":true}"#), "{json}");
+
+        // Positive control: guided_chatter's G tested clean, and its words say known-good.
+        let report = on(BoardKind::HotSwap, guided_chatter().1).diagnose();
+        let (r, _) = ended(&report, BoardKind::HotSwap, None, &labels());
+        let swap = r.swap.as_ref().expect("an offer");
+        assert!(
+            swap.known_good.contains("known-good"),
+            "{}",
+            swap.known_good
+        );
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains(r#""partnerUntested":false}"#), "{json}");
     }
 
     #[test]

@@ -1,18 +1,21 @@
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { App } from './app';
-import type { KeyboardGroup } from './ipc';
+import type { KeyboardGroup, TestResult } from './ipc';
 import { TestRun } from './test-run';
 import {
   GOLDEN,
+  GOLDEN_PLAN,
   all,
   button,
   cap,
   click,
   el,
+  inApp,
   key,
   leaveApp,
   nthClick,
   offered,
+  render,
   send,
   sent,
   settle,
@@ -83,7 +86,22 @@ describe('Swap screen', () => {
         'Suspect switch',
         'Known-good switch',
       ]);
+      expect(OFFER.partnerUntested).toBe(false);
       expect(el(fixture).querySelector('.summary')).toBeNull();
+    });
+
+    it("names an untested partner's switch in the legend", async () => {
+      const untested: TestResult = {
+        ...GOLDEN.result,
+        swap: { ...OFFER, partnerUntested: true },
+      };
+      inApp((cmd) => (cmd === 'end_test' ? untested : null), GOLDEN.keyboards);
+      const fixture = await render([GOLDEN_PLAN]);
+      await click(fixture, button(fixture, 'Begin test'));
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'Run the swap test'));
+      expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
+      expect(all(fixture, '.legend > *').map(text)).toEqual(['Suspect switch', 'Untested switch']);
     });
 
     it('stays at step 03 with capture off, and offers only Back and the retest', async () => {

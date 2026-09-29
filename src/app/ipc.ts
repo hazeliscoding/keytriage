@@ -83,6 +83,8 @@ export interface SwapView {
   steps: string[];
   means: string;
   note: string;
+  // The test never prompted the partner, so its switch isn't known to be good.
+  partnerUntested: boolean;
 }
 
 export interface OutcomeView {
@@ -107,7 +109,7 @@ export interface TestResult {
   clean: string[];
   keys: { scan: number; count: number }[];
   resolution: string;
-  // Rust offers a swap only on a hot-swap board, for a finding with a known-good partner.
+  // Rust offers a swap only on a hot-swap board, for a finding that names a swap partner.
   swap: SwapView | null;
   // Set only after a swap test.
   outcome: OutcomeView | null;

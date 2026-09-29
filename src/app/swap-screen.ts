@@ -25,6 +25,7 @@ export class SwapScreen {
       knownGood: swap.knownGood,
       steps: swap.steps.map((text, i) => ({ num: pad2(i + 1), text })),
       means: swap.means,
+      partnerUntested: swap.partnerUntested,
     };
   });
 
