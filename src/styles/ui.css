@@ -183,8 +183,8 @@
 .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 16px;
-  padding: 10px 14px;
+  gap: 2px 16px;
+  padding: 7px 14px;
   border-bottom: 1px solid var(--line);
   border-left: 3px solid transparent;
   cursor: pointer;
@@ -348,14 +348,6 @@
 .cap--flagged .cap__label,
 .cap--flagged .cap__tag {
   color: var(--directive-red);
-}
-
-.keyboard--bare .cap {
-  padding: 1px;
-}
-
-.keyboard--bare .cap__face {
-  border-radius: 1px;
 }
 
 /* Legend under the drawing */

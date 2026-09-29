@@ -173,13 +173,20 @@ describe('App', () => {
       expect(button(fixture, 'ANSI').classList).toContain('btn--secondary');
     });
 
-    it('previews the chosen layout, outlines only', async () => {
+    it('draws no keyboard on Start', async () => {
       const fixture = await render();
-      const preview = () => all(fixture, '.keyboard--bare .cap');
-      expect(preview()).toHaveLength(keyCount('75%', 'ANSI'));
-      await click(fixture, all(fixture, '.row--size')[4]);
-      expect(preview()).toHaveLength(keyCount('60%', 'ANSI'));
-      expect(all(fixture, '.keyboard--bare .cap__label')).toHaveLength(0);
+      const drawn = () => all(fixture, 'app-start-screen app-keyboard, app-start-screen .cap');
+      for (const std of ['ANSI', 'ISO']) {
+        await click(fixture, button(fixture, std));
+        for (let i = 0; i < 5; i++) {
+          await click(fixture, all(fixture, '.row--size')[i]);
+          expect(drawn()).toHaveLength(0);
+        }
+      }
+      await click(fixture, button(fixture, 'Begin test'));
+      expect(all(fixture, 'app-test-screen app-keyboard .cap')).toHaveLength(
+        keyCount('60%', 'ISO'),
+      );
     });
 
     it('asks for every plain key of the chosen layout by default', async () => {

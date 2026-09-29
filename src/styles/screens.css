@@ -165,7 +165,8 @@
 }
 
 .row--size {
-  padding: 8px 14px;
+  gap: 4px 16px;
+  padding: 7px 14px;
 }
 
 .row__keys {
@@ -175,8 +176,8 @@
 .row--board {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 2px;
+  padding: 9px 14px;
   cursor: default;
 }
 
@@ -190,7 +191,7 @@
 
 /* Lines up with the rows' text, past their 3 px rule. */
 .rows__empty {
-  padding: 10px 14px 10px 17px;
+  padding: 7px 14px 7px 17px;
 }
 
 /* Test */

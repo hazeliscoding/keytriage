@@ -1,5 +1,4 @@
 import { Component, computed, inject } from '@angular/core';
-import { KeyboardDrawing } from './keyboard';
 import { SIZES, STDS, keyCount } from './layout';
 import { BOARDS, TestRun } from './test-run';
 
@@ -14,7 +13,6 @@ interface EntryRow {
 @Component({
   selector: 'app-start-screen',
   templateUrl: './start-screen.html',
-  imports: [KeyboardDrawing],
   host: { class: 'screen' },
 })
 export class StartScreen {

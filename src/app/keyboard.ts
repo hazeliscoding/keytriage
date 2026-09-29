@@ -15,16 +15,12 @@ export interface CapMark {
   templateUrl: './keyboard.html',
   host: {
     class: 'keyboard',
-    '[class.keyboard--bare]': 'bare()',
     '[style.aspect-ratio]': 'ratio()',
-    '[style.max-width]': 'bare() ? null : fit()',
-    '[attr.aria-hidden]': "bare() ? 'true' : null",
+    '[style.max-width]': 'fit()',
   },
 })
 export class KeyboardDrawing {
   readonly layout = input.required<Layout>();
-  // The Start preview: outlines only, with a finer gutter.
-  readonly bare = input(false);
   readonly marks = input<ReadonlyMap<number, CapMark>>(new Map());
 
   protected readonly ratio = computed(() => `${this.layout().w} / ${this.layout().h}`);
