@@ -75,6 +75,10 @@ jobs:
           toolchain: stable
       - name: Notices check's positive controls
         run: node --test scripts/check-notices.test.mjs
+      - name: Release check's positive controls
+        run: node --test scripts/check-release.test.mjs
+      - name: Release check
+        run: node scripts/check-release.mjs
 
   build:
     name: Build (Windows)
