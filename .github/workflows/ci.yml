@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -88,11 +89,53 @@ jobs:
         with:
           toolchain: stable
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # A tagged release compiles from scratch, never from a restored target/.
+      - if: github.ref_type != 'tag'
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: npm ci
       - run: npm test -- --watch=false
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
-      - name: Build app
-        run: npm run tauri build -- --no-bundle
+      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+        with:
+          tool: cargo-about@0.9.2
+          fallback: none
+      - name: Generate the Rust crates' notices
+        shell: bash
+        run: |
+          mkdir -p target/notices
+          cargo about generate --locked --fail -c scripts/notices/about.toml -m src-tauri/Cargo.toml -o target/notices/THIRD-PARTY-RUST.txt scripts/notices/about.hbs
+      - name: Build the installer
+        run: npm run tauri build -- --bundles nsis --config src-tauri/tauri.release.conf.json -- --locked
+      - name: Notices check
+        run: node scripts/check-notices.mjs
+      - name: Network guard on the shipped bundle
+        run: node scripts/check-network.mjs --bundle
+      # Git Bash writes LF line endings, which `sha256sum -c` needs. The installer is copied by its
+      # exact name, so a stale one can't be picked up.
+      - name: Stage the installer and its checksums
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          installer="keytriage_${v}_x64-setup.exe"
+          mkdir -p dist/release
+          cp "target/release/bundle/nsis/$installer" dist/release/
+          cd dist/release
+          sha256sum "$installer" > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - name: Record the tool versions
+        run: |
+          $key = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $webview2 = (Get-ItemProperty $key -ErrorAction SilentlyContinue).pv ?? 'not installed'
+          @(
+            '### Tool versions', '', '```text',
+            (rustc --version), (cargo --version), "node $(node --version)", "npm $(npm --version)",
+            (npx tauri --version), (cargo about --version), "WebView2 Runtime $webview2", '```'
+          ) | Add-Content $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: dist/release
+          retention-days: 14
+          if-no-files-found: error

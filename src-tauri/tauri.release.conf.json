@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": {
+      "../LICENSE": "licenses/LICENSE.txt",
+      "../dist/keytriage/3rdpartylicenses.txt": "licenses/THIRD-PARTY-NPM.txt",
+      "../target/notices/THIRD-PARTY-RUST.txt": "licenses/THIRD-PARTY-RUST.txt"
+    }
+  }
+}
