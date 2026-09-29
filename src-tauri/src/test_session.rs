@@ -68,8 +68,7 @@ pub fn running() -> bool {
 // Listing reads no keys, so it needs no test running.
 #[tauri::command]
 pub fn list_keyboards() -> Result<Vec<KeyboardGroup>, String> {
-    let keyboards = keytriage_input::keyboards().map_err(|e| e.to_string())?;
-    Ok(groups(&keyboards))
+    Ok(groups(&listed()?))
 }
 
 // Without a plan, as the debug echo starts it, the test only records.
@@ -114,7 +113,7 @@ fn start_swap(window: WebviewWindow) -> Result<Vec<isize>, String> {
 }
 
 fn listed() -> Result<Vec<Keyboard>, String> {
-    keytriage_input::keyboards().map_err(|e| e.to_string())
+    keytriage_input::keyboards().map_err(|e| view::failed(view::KEYBOARDS_UNLISTED, e))
 }
 
 // This stops any running test first, so the plan and the keyboard are checked before it.
@@ -126,7 +125,10 @@ fn launch(
     stop_test();
     let start = Instant::now();
     let core = Rc::new(RefCell::new(core(start)));
-    let hwnd = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    let hwnd = window
+        .hwnd()
+        .map_err(|e| view::failed(view::WINDOW_NOT_READY, e))?
+        .0 as isize;
     let capture = capture(hwnd, &core, &window)?;
     // A failed Test again or swap test leaves the last findings on the page, so their report and
     // swap offer stay until a new test has actually started.
@@ -159,7 +161,8 @@ fn launch(
 
 fn capture(hwnd: isize, core: &Rc<RefCell<Core>>, page: &WebviewWindow) -> Result<Capture, String> {
     let (core, page) = (core.clone(), page.clone());
-    Capture::start(hwnd, move |input| record(&core, &page, input)).map_err(|e| e.to_string())
+    Capture::start(hwnd, move |input| record(&core, &page, input))
+        .map_err(|e| view::failed(view::CAPTURE_FAILED, e))
 }
 
 // The window procedure runs this for capture. A borrow already out would mean a command pumped
@@ -314,10 +317,13 @@ pub async fn export_report(window: WebviewWindow, name: String) -> Result<Option
         .unwrap_or_else(PoisonError::into_inner)
         .clone()
         .ok_or("There is no report to export.")?;
-    let owner = window.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    let owner = window
+        .hwnd()
+        .map_err(|e| view::failed(view::WINDOW_NOT_READY, e))?
+        .0 as isize;
     tauri::async_runtime::spawn_blocking(move || save_dialog::save(owner, name, bytes))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|_| save_dialog::STOPPED.to_string())?
 }
 
 fn stop_test() {

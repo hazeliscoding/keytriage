@@ -1,6 +1,7 @@
 // What the page is sent and what it may ask for. Only these shapes cross to the page, so a device
 // path or container ID never does.
 use std::collections::BTreeMap;
+use std::fmt::Display;
 
 use keytriage_diagnostics::params::{EDGES_MS, END_WAIT_US};
 use keytriage_diagnostics::{
@@ -139,6 +140,17 @@ pub fn plan(args: PlanArgs) -> Result<(Guide, Vec<isize>, BoardKind), String> {
     };
     let guide = Guide::new(plan, &args.keyboard).map_err(refusal)?;
     Ok((guide, args.keyboard, board))
+}
+
+pub const KEYBOARDS_UNLISTED: &str =
+    "Windows didn't list the keyboards. Try again, and restart keytriage if it keeps failing.";
+pub const WINDOW_NOT_READY: &str = "The app's window wasn't ready. Try again.";
+pub const CAPTURE_FAILED: &str =
+    "The test couldn't start reading keys. Try again, and restart keytriage if it keeps failing.";
+
+// Windows' own text names what failed but not what to do, so it follows the sentence that does.
+pub fn failed(sentence: &str, detail: impl Display) -> String {
+    format!("{sentence} Details: {detail}")
 }
 
 const RECONNECTED: &str =
@@ -787,6 +799,27 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    fn err01_a_windows_error_follows_what_failed_and_what_to_try() {
+        let windows = "Access is denied. (0x80070005)";
+        for (sentence, try_next) in [
+            (KEYBOARDS_UNLISTED, "Try again"),
+            (WINDOW_NOT_READY, "Try again"),
+            (CAPTURE_FAILED, "Try again"),
+        ] {
+            assert!(sentence.contains(try_next), "{sentence}");
+            assert_eq!(
+                failed(sentence, windows),
+                format!("{sentence} Details: Access is denied. (0x80070005)")
+            );
+        }
+        assert_eq!(
+            failed(CAPTURE_FAILED, windows),
+            "The test couldn't start reading keys. Try again, and restart keytriage if it keeps \
+             failing. Details: Access is denied. (0x80070005)"
+        );
     }
 
     fn key(scan: u16, up: bool, ms: u64) -> keytriage_diagnostics::Entry {
