@@ -38,8 +38,18 @@ Each entry gives the build (version or commit, debug or release), the keyboard (
 - **Ground truth:** not recorded.
 - **Follow-up:** none.
 
+## 2026.09.29: an induced dead key and the swap test
+
+- **Build:** debug, commit `b07505c`, with the key picker.
+- **Keyboard:** BY Tech Gaming Keyboard (`258A:0062`), USB, hot-swap, 75% ANSI.
+- **What ran:** the C switch was pulled out of its socket with the keyboard unplugged, so C was dead by construction. Then Chosen keys with X and C, 3 rounds of 30 presses. C's rounds were skipped, because there was nothing to press. The findings screen offered the swap test, and the C switch went into X's socket and X's switch into C's.
+- **What the app said:** a finding on C that offered the swap test. Its title and confidence were not recorded. The first report holds C with 0 key-downs in 3 silent rounds of 30 asked, and X with 108 key-downs and no extra key-down. After the swap: "Neither key showed the fault.", Low confidence, with "Both keys registered normally after the swap. Reseating the switches may have cleared a poor contact, or the fault comes and goes and didn't show in this test." The retest's report holds C with 93 and X with 100 key-downs, none extra.
+- **Next:** nothing. The keyboard has all its switches back.
+- **Ground truth:** induced. The fault was an empty socket, and seating a switch in it cleared it, which is what the outcome says.
+- **Follow-up:** a natural fault is still to log. The confidence shown for an induced dead key should be recorded next time.
+
 ## Still to log
 
 - A real replug during the swap test, which the unit tests cover only on a synthetic device path.
 - The clean-machine install: the published installer, downloaded through a browser into a new standard Windows account, with its SHA-256 and SmartScreen's wording.
-- A real chattering or dead key found through the guided test, with the swap outcome and the ground truth. The intermittent C key on an Akko keyboard is next.
+- A natural chattering or dead key found through the guided test, with the swap outcome and the ground truth. The intermittent C key on an Akko keyboard is a candidate.
