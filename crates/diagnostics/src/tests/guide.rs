@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 use crate::fixture::{Fixture, guided, guided_chatter, label};
-use crate::params::PROMPT_MERGE_US;
+use crate::params::{SHORT_GAP_US, SHORT_HOLD_US};
 
 const H: u16 = 0x23;
 
@@ -83,7 +83,7 @@ fn g01_a_round_closes_at_the_release_of_its_last_counted_press() {
     let run = Run::new(&[E, G], 1, 10)
         .then(|s| answer(s, E, 9))
         .then(|s| s.down(E));
-    assert_eq!((run.prompt().key, run.count()), (E, 10));
+    assert_eq!((run.prompt().key, run.count(), run.tally(E)), (E, 9, 10));
     let run = run.then(|s| s.wait(ms(90)).up(E));
     let release = run.now();
     assert_eq!(run.changed, [true]);
@@ -103,19 +103,70 @@ fn g01_a_round_closes_at_the_release_of_its_last_counted_press() {
 }
 
 #[test]
-fn g02_a_key_down_close_to_a_release_adds_to_the_tally_only() {
-    let run = Run::new(&[E], 1, 10)
-        .then(|s| s.fragments(E, &[ms(80), ms(5), ms(100)]))
-        .then(|s| s.wait(PROMPT_MERGE_US - 1).press(E, ms(60)));
-    assert_eq!((run.count(), run.tally(E)), (1, 3));
+fn g02_a_press_counts_at_its_release() {
+    let run = Run::new(&[E], 1, 10).then(|s| s.down(E));
+    assert_eq!((run.count(), run.tally(E)), (0, 1));
+    assert_eq!(run.changed, [true]);
+    let run = run.then(|s| s.wait(ms(80)).up(E));
+    assert_eq!((run.count(), run.tally(E)), (1, 1));
+    assert_eq!(run.changed, [true]);
+    // A release that counts nothing changes nothing.
+    let run = run.then(|s| s.wait(ms(200)).press(E, ms(10)));
+    assert_eq!((run.count(), run.tally(E)), (1, 2));
     assert_eq!(run.changed, [true, false]);
-    let run = run.then(|s| s.wait(PROMPT_MERGE_US).press(E, ms(60)));
-    assert_eq!((run.count(), run.tally(E)), (2, 4));
+}
+
+#[test]
+fn g13_a_fast_deliberate_press_counts() {
+    // Fast pressing leaves about 95 ms between a release and the next key-down.
+    let run = Run::new(&[E], 1, 10).then(|s| s.press(E, ms(80)).wait(ms(95)).press(E, ms(80)));
+    assert_eq!((run.count(), run.tally(E)), (2, 2));
+    // The chatter limits themselves are a press.
+    let run = run.then(|s| s.wait(SHORT_GAP_US).press(E, SHORT_HOLD_US));
+    assert_eq!((run.count(), run.tally(E)), (3, 3));
+    // A round at that pace closes at its 10th release, with 10 key-downs drawn.
+    let run = Run::new(&[E, G], 1, 10).then(|s| s.taps(E, 10, (ms(60), ms(90)), (ms(90), ms(99))));
+    assert_eq!((run.prompt().key, run.tally(E)), (G, 10));
+}
+
+#[test]
+fn g14_a_phantom_press_never_counts() {
+    // A 10 ms phantom 150 ms after a real press, or 40 ms after it as release chatter.
+    for gap in [ms(150), ms(40)] {
+        let run = Run::new(&[E], 1, 10).then(|s| s.press(E, ms(80)).wait(gap).press(E, ms(10)));
+        assert_eq!((run.count(), run.tally(E)), (1, 2), "{gap}");
+        assert_eq!(run.changed, [true, true, true, false], "{gap}");
+    }
+}
+
+#[test]
+fn g15_a_bounce_before_a_real_press_leaves_the_real_press_counting() {
+    // A 10 ms bounce, 5 ms before the 80 ms press it came with.
+    let run = Run::new(&[E, G], 1, 2)
+        .then(|s| normal(s, E))
+        .then(|s| s.press(E, ms(10)));
+    assert_eq!((run.count(), run.tally(E)), (1, 2));
+    let run = run.then(|s| s.wait(ms(5)).press(E, ms(80)));
+    let release = run.now();
+    assert_eq!((run.prompt().key, run.tally(E)), (G, 3));
+    let (rounds, _) = run.finish();
+    assert_eq!((rounds[0].key, rounds[0].end_us), (E, release + 1));
+}
+
+#[test]
+fn g16_a_press_split_by_a_dropout_counts_once() {
+    // A fast press after a counted one, split into two 50 ms parts by a 10 ms dropout.
+    let run = Run::new(&[E], 1, 10)
+        .then(|s| s.press(E, ms(80)).wait(ms(95)))
+        .then(|s| s.fragments(E, &[ms(50), ms(10), ms(50)]));
+    assert_eq!((run.count(), run.tally(E)), (2, 3));
+    assert_eq!(run.changed, [true, true, true, false]);
+    // Positive control: parts the chatter gap apart are two presses.
     let run = run.then(|s| {
-        s.wait(ms(200))
-            .taps(E, 2, (ms(40), ms(100)), (ms(40), ms(80)))
+        s.wait(ms(300))
+            .fragments(E, &[ms(50), SHORT_GAP_US, ms(50)])
     });
-    assert_eq!((run.count(), run.tally(E)), (3, 6));
+    assert_eq!((run.count(), run.tally(E)), (4, 5));
 }
 
 #[test]
@@ -272,6 +323,27 @@ fn g08_ending_or_pausing_before_a_press_leaves_no_silent_round() {
         (rounds[1].key, rounds[1].asked, rounds[1].end_us),
         (E, 10, end)
     );
+
+    // So is one whose key is still down from a key-down in it, which a stuck key never releases.
+    let run = Run::new(&[G, E], 1, 10)
+        .then(|s| answer(s, G, 10))
+        .then(|s| s.wait(ms(600)).down(E).wait(ms(3_000)));
+    assert_eq!(run.count(), 0);
+    let end = run.now() + ms(200);
+    let (rounds, _) = run.finish();
+    assert_eq!((rounds[1].key, rounds[1].end_us), (E, end));
+    // Positive control: a key already down when its round opened keeps nothing.
+    let run = Run::new(&[G, E], 1, 1).then(|s| {
+        s.wait(ms(600))
+            .down(G)
+            .wait(ms(20))
+            .down(E)
+            .wait(ms(60))
+            .up(G)
+            .wait(ms(3_000))
+    });
+    assert_eq!(run.prompt().key, E);
+    assert_eq!(run.finish().0.len(), 1);
 }
 
 #[test]
@@ -504,17 +576,17 @@ fn gc02_fast_double_presses_in_a_guided_run() {
     let r = f.diagnose();
     assert_clean(&r);
     hedged_throughout(&r);
-    // Each double counts once, so each E prompt took 10 of them. The round closes at the release
-    // of the 10th double's first press, so the round holds 19 key-downs and the 20th follows it.
-    assert_eq!(answers, 30);
+    // Each press of a double counts, so each E prompt took 5 doubles, and the round closes at the
+    // release of the 5th double's second press.
+    assert_eq!(answers, 15);
     for round in f.rounds.iter().filter(|r| r.key == E) {
         let downs = f
             .entries
             .iter()
             .filter(|e| matches!(**e, Entry::Key { scan: E, up: false, micros, .. } if round.contains(micros)))
             .count();
-        assert_eq!(downs, 19);
-        assert_eq!(prompted_in(&f, round).presses, 19);
+        assert_eq!(downs, 10);
+        assert_eq!(prompted_in(&f, round).presses, 10);
     }
 }
 

@@ -8,21 +8,19 @@ use crate::report::Confidence;
 pub const COALESCED_US: u64 = 1_000;
 // Phantom presses after firmware debounce last about 5 ms (QMK eager), 5 to 20 ms (QMK defer, a
 // dropout), 9 to 15 ms (laptop firmware), or one or two polls at 125 Hz. Deliberate holds are
-// under 17 ms only 0.1% of the time.
+// under 17 ms only 0.1% of the time, so a guided press held this briefly never answers a prompt.
 pub const SHORT_HOLD_US: u64 = 20_000;
 // Chatter's release-to-press gap is about 10 ms, and 5 to 20 ms through defer debounce. The
-// fastest one-finger repeat still leaves gaps of about 30 ms.
+// fastest one-finger repeat still leaves gaps of about 30 ms, so a guided key-down this soon after
+// the same key's last counted press never answers a prompt.
 pub const SHORT_GAP_US: u64 = 20_000;
 // Covers laptop firmware's 30 ms release lock and a 30 ms human gap read at 125 Hz. Such pairs are
 // counted and shown, never counted as chatter.
 pub const BORDERLINE_US: u64 = 36_000;
 // Release chatter lands 22 to 90 ms after the release, so a short press counts only when another
-// press of the same key is this close.
+// press of the same key is this close. For the same reason a guided round's key still shows its
+// key-downs on the drawing this soon after the release that closed the round.
 pub const REACH_US: u64 = 100_000;
-// Release chatter lands up to 90 ms after a release, so a key-down this soon after the same key's
-// release may be chatter. It shows on the drawing but never moves a guided prompt on. A fast
-// deliberate double press then needs one more press, which never mislabels a fault.
-pub const PROMPT_MERGE_US: u64 = REACH_US;
 // The plan's last round closes at a release, and that press's chatter can land up to 90 ms later,
 // so capture stays open this long after the plan's last view. The margin covers the view's trip to
 // the page and the input still queued behind it.

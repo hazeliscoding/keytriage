@@ -404,8 +404,9 @@ pub fn guided(plan: Plan, mut typist: impl FnMut(Synth, u16, u32) -> (Synth, boo
     }
 }
 
-// The Done-when run: G, J and E, 3 rounds of 10. E's 5th and 10th answers in every round split
-// into a 5 ms press and a 100 ms one, 5 ms apart.
+// The Done-when run: G, J and E, 3 rounds of 10. In every round, E's 5th answer is a 5 ms press
+// 5 ms before a 100 ms one, and its 10th a 100 ms press with a 5 ms one 5 ms after it, which lands
+// after the round has closed.
 pub fn guided_chatter() -> (Plan, Fixture) {
     const E: u16 = 0x12;
     const G: u16 = 0x22;
@@ -416,18 +417,18 @@ pub fn guided_chatter() -> (Plan, Fixture) {
         presses: 10,
     };
     let fixture = guided(plan.clone(), |s, key, n| {
-        let s = if key == E && matches!(n, 5 | 10) {
-            s.fragments(E, &[ms(5), ms(5), ms(100)]).wait(ms(200))
-        } else {
-            normal(s, key)
+        let s = match (key, n) {
+            (E, 5) => s.fragments(E, &[ms(5), ms(5), ms(100)]).wait(ms(200)),
+            (E, 10) => s.fragments(E, &[ms(100), ms(5), ms(5)]).wait(ms(200)),
+            _ => normal(s, key),
         };
         (s, false)
     });
     (plan, fixture)
 }
 
-// A swap retest on a hot-swap board. Every 5th answer of a key in `faulty` in each round is
-// guided_chatter's fault, at its rate of 1 in 5.
+// A swap retest on a hot-swap board. Every 5th answer of a key in `faulty` in each round is a 5 ms
+// press 5 ms before a 100 ms one, at guided_chatter's rate of 1 in 5.
 pub fn swap_chatter(plan: Plan, faulty: &[u16]) -> Fixture {
     let fixture = guided(plan, |s, key, n| {
         let s = if faulty.contains(&key) && n % 5 == 0 {

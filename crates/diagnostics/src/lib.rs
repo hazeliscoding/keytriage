@@ -34,7 +34,7 @@ pub use words::{Label, Lines, OutcomeLines, SwapLines, code_label, criteria, hed
 
 // Bumped whenever a threshold, bin edge or rule changes, so reports are compared only under the
 // same rules.
-pub const RULES: u16 = 5;
+pub const RULES: u16 = 6;
 
 pub fn diagnose(session: &Session<'_>) -> Report {
     // A round with no length can't be answered, and would read as silent.

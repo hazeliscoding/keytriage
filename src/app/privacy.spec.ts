@@ -26,7 +26,7 @@ const G = 0x22;
 const E = 0x12;
 const OWN = 11;
 const RESULT: TestResult = {
-  rules: 5,
+  rules: 6,
   findings: [],
   notes: [],
   clean: [],

@@ -531,10 +531,11 @@ mod tests {
             (true, 1_500),
             (false, 1_800),
         ] {
-            // A release changes the view only when it closes the round.
-            assert_eq!(core.input(press(start, E, up, ms)).1.is_some(), !up);
+            // A key-down moves the drawing's tally, and a counted release the count.
+            assert!(core.input(press(start, E, up, ms)).1.is_some(), "{up} {ms}");
         }
-        assert_eq!(core.view().unwrap().count, 3);
+        let view = core.view().unwrap();
+        assert_eq!((view.count, view.tallies), (2, vec![(E, 3)]));
 
         let (entry, view) = core.input(Input::Paused(at(start, 2_000_000)));
         assert_eq!(
@@ -554,6 +555,8 @@ mod tests {
         // The interrupted key's release after the resume answers nothing.
         assert!(core.input(press(start, E, true, 3_100)).1.is_none());
         let view = core.input(press(start, E, false, 3_400)).1.unwrap();
+        assert_eq!((view.count, view.tallies), (0, vec![(E, 1)]));
+        let view = core.input(press(start, E, true, 3_500)).1.unwrap();
         assert_eq!(
             (view.key, view.count, view.round, view.index),
             (Some(E), 1, 0, 0)
@@ -760,7 +763,7 @@ mod tests {
         // The page reads these names. The result holds no times.
         let json = serde_json::to_string(&r).unwrap();
         for part in [
-            r#"{"rules":5,"findings":[{"key":18,"kind":"chatter","confidence":"very-high","title":"Possible chatter","level":"Very high","strong":true,"evidence":["6 of 30 presses"#,
+            r#"{"rules":6,"findings":[{"key":18,"kind":"chatter","confidence":"very-high","title":"Possible chatter","level":"Very high","strong":true,"evidence":["6 of 30 presses"#,
             r#"],"causes":["Switch contacts","#,
             r#"],"next":["Say whether"#,
             r#"],"gaps":[{"label":"<4","count":0},{"label":"4–12","count":6},{"label":"12–20","count":0},"#,

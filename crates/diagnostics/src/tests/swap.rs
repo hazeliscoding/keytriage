@@ -21,7 +21,7 @@ fn hot_swap(f: Fixture) -> Fixture {
     }
 }
 
-// guided_chatter's fault: a 5 ms press and a 100 ms one, 5 ms apart.
+// swap_chatter's fault: a 5 ms press and a 100 ms one, 5 ms apart.
 fn fault(s: Synth, key: u16) -> Synth {
     s.fragments(key, &[ms(5), ms(5), ms(100)]).wait(ms(200))
 }
@@ -48,6 +48,19 @@ fn typist<'a>(
             normal(s, key)
         };
         (s, false)
+    }
+}
+
+// G's first round is skipped after its 5th answer, so every other key answers 5 presses more.
+fn g_skipped_early<'a>(
+    mut rest: impl FnMut(Synth, u16, u32) -> (Synth, bool) + 'a,
+) -> impl FnMut(Synth, u16, u32) -> (Synth, bool) + 'a {
+    let mut first = true;
+    move |s, key, n| {
+        let (s, skip) = rest(s, key, n);
+        let early = key == G && first && n == 5;
+        first &= !early;
+        (s, skip || early)
     }
 }
 
@@ -93,10 +106,10 @@ fn sw01_no_clean_key_borrows_the_first_untested_key() {
 
 #[test]
 fn sw02_a_flagged_key_is_never_the_partner() {
-    // R holds through its first round, which is a stuck finding. Its double presses are clean and
-    // outnumber G's, so only its finding keeps it from being the partner.
+    // R holds through its first round, which is a stuck finding. G's first round ends early, so R's
+    // clean presses outnumber G's, and only its finding keeps it from being the partner.
     let mut first = true;
-    let mut rest = typist(&[E], 5, &[R]);
+    let mut rest = g_skipped_early(typist(&[E], 5, &[]));
     let f = guided(plan(&[G, R, E], 3, 10), |s, key, n| {
         if key == R && first {
             first = false;
@@ -113,7 +126,7 @@ fn sw02_a_flagged_key_is_never_the_partner() {
             .any(|f| (f.kind(), f.key) == (Kind::Stuck, R))
     );
     assert!(clean_presses(&r, R) > clean_presses(&r, G));
-    assert_eq!(clean_presses(&r, G), Some(30));
+    assert_eq!(clean_presses(&r, G), Some(25));
     for f in &r.findings {
         assert_eq!(partner(f), Partner::Clean(G), "{f:#?}");
     }
@@ -123,7 +136,7 @@ fn sw02_a_flagged_key_is_never_the_partner() {
 fn sw03_a_plain_key_is_preferred() {
     let r = hot_swap(guided(
         plan(&[G, SPACE, E], 3, 10),
-        typist(&[E], 5, &[SPACE]),
+        g_skipped_early(typist(&[E], 5, &[])),
     ))
     .diagnose();
     let f = only(&r, Kind::Chatter, E);
@@ -135,7 +148,11 @@ fn sw03_a_plain_key_is_preferred() {
 
 #[test]
 fn sw04_more_clean_presses_win_then_the_lower_scan_code() {
-    let r = hot_swap(guided(plan(&[G, J, E], 3, 10), typist(&[E], 5, &[J]))).diagnose();
+    let r = hot_swap(guided(
+        plan(&[G, J, E], 3, 10),
+        g_skipped_early(typist(&[E], 5, &[])),
+    ))
+    .diagnose();
     assert!(clean_presses(&r, J) > clean_presses(&r, G));
     assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(J));
 
@@ -616,7 +633,8 @@ fn sw12_fast_deliberate_double_presses_on_both_keys_read_as_gone() {
     assert_clean(&after);
     let r = offer.judge(&after);
     assert_eq!(r.outcome, Outcome::Gone);
-    assert!(r.suspect.presses > 90 && r.partner.presses > 90);
+    // Each press of a double counts, so every round holds its 30 presses as 15 doubles.
+    assert_eq!((r.suspect.presses, r.partner.presses), (90, 90));
 }
 
 // The gone stream, ended after the suspect's first round.

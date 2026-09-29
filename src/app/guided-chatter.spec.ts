@@ -79,7 +79,7 @@ interface Run {
 }
 
 // Begins the golden test on its keyboard, 75% ANSI and the preselected board, delivers `script` in
-// order and lets end_test answer with `result`. Reading the page at every view renders it 104
+// order and lets end_test answer with `result`. Reading the page at every view renders it 185
 // times, so only the run that checks the views asks for it.
 async function run(
   script: readonly Emitted[],
@@ -167,6 +167,8 @@ describe('the synthetic chatter run', () => {
     expect(views[1].newest).toEqual(['G', 'down', '600.0', '0000:0001']);
     expect(views.every((v, i) => i === 0 || v.newest[3] === '0000:0001')).toBe(true);
 
+    // A press counts at its release, and the 10th release closes the round, so each step's last
+    // view reads 9.
     const asks = ['Press G ten times.', 'Press J ten times.', 'Press E ten times.'];
     const scans = [G, J, E];
     expect(
@@ -178,7 +180,7 @@ describe('the synthetic chatter run', () => {
           ask,
           [scans[i]],
           '0 / 10',
-          '10 / 10',
+          '9 / 10',
         ]),
       ),
     );
@@ -186,20 +188,21 @@ describe('the synthetic chatter run', () => {
     expect(views.map((v) => v.count)).toEqual(PROMPTS.map((v) => `${v.count} / ${v.asked}`));
     expect(views.map((v) => v.presses)).toEqual(PROMPTS.map((v) => `${v.done} of 90 presses`));
 
-    // E's extra key-down is drawn on its cap and left out of the presses.
+    // Each key-down moves E's cap and each counted release the count. The 5th answer's 5 ms
+    // key-down is drawn on the cap and left out of the presses.
     const firstE = views.filter((v) => v.step === 'Round 1 of 3 · Key 3 of 3');
     expect(firstE.map((v) => v.count)).toEqual(
-      [0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10].map((n) => `${n} / 10`),
+      [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9].map((n) => `${n} / 10`),
     );
     expect(firstE.map((v) => v.caps[0])).toEqual(
-      ['', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(String),
+      ['', 1, 1, 2, 2, 3, 3, 4, 4, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11].map(String),
     );
 
     expect(views.at(-1)).toEqual({
       ask: 'Press E ten times.',
-      count: '10 / 10',
+      count: '9 / 10',
       step: 'Round 3 of 3 · Key 3 of 3',
-      presses: '90 of 90 presses',
+      presses: '89 of 90 presses',
       newest: ['E', 'down', '32 726.9', '0000:0001'],
       prompted: [],
       caps: ['35', '30', '30'],

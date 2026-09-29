@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::input::{Device, Entry, HeldKey, Round};
 use crate::keys;
-use crate::params::PROMPT_MERGE_US;
+use crate::params::{REACH_US, SHORT_GAP_US, SHORT_HOLD_US};
 
 // The largest plan a page may ask for. The longest test the app runs is 3 rounds of 30 presses,
 // so anything past these is a mistaken request.
@@ -40,7 +40,7 @@ pub struct Prompt {
     pub index: u16,
 }
 
-// It holds release times, so it derives Debug only in tests.
+// It holds key-down and release times, so it derives Debug only in tests.
 #[cfg_attr(test, derive(Debug))]
 pub struct Guide {
     plan: Plan,
@@ -51,8 +51,10 @@ pub struct Guide {
     paused: bool,
     ended: bool,
     rounds: Vec<Round>,
-    held: BTreeSet<u16>,
+    // Each key down, with its key-down time when that press may count at its release.
+    held: BTreeMap<u16, Option<u64>>,
     last_up: BTreeMap<u16, u64>,
+    counted_up: BTreeMap<u16, u64>,
     trailing: BTreeSet<u16>,
     tallies: BTreeMap<u16, u32>,
     open_tally: u32,
@@ -104,8 +106,9 @@ impl Guide {
             paused: false,
             ended: false,
             rounds: Vec::new(),
-            held: BTreeSet::new(),
+            held: BTreeMap::new(),
             last_up: BTreeMap::new(),
+            counted_up: BTreeMap::new(),
             trailing: BTreeSet::new(),
             tallies: BTreeMap::new(),
             open_tally: 0,
@@ -147,7 +150,7 @@ impl Guide {
         self.steps() * u32::from(self.plan.presses)
     }
 
-    // Key-downs per key for the drawing, including ones too close to count toward a prompt.
+    // Key-downs per key for the drawing, including presses that never counted toward a prompt.
     pub fn tallies(&self) -> &BTreeMap<u16, u32> {
         &self.tallies
     }
@@ -203,12 +206,13 @@ impl Guide {
         true
     }
 
-    // An open round that counted a press is kept, so a key held through its own round is still
-    // evidence. One that counted none is dropped, so ending early never leaves a silent round.
+    // An open round that counted a press, or whose key is still down from a key-down in it, is
+    // kept, so a key held through its own round is still evidence. One with neither is dropped, so
+    // ending early never leaves a silent round.
     pub fn finish(&mut self, end_us: u64) -> Vec<Round> {
         if let Some(prompt) = self.prompt()
             && !self.paused
-            && self.count > 0
+            && (self.count > 0 || self.pressing(prompt.key))
         {
             self.close(prompt.key, end_us.max(self.start_us));
         }
@@ -220,15 +224,24 @@ impl Guide {
         device != 0 && self.keyboard.contains(&device)
     }
 
+    fn pressing(&self, key: u16) -> bool {
+        self.held
+            .get(&key)
+            .copied()
+            .flatten()
+            .is_some_and(|down| down >= self.start_us)
+    }
+
     fn press(&mut self, scan: u16, at: u64) -> bool {
         // Autorepeat and duplicate key-downs belong to the press that is already down.
-        if !self.held.insert(scan) {
+        if self.held.contains_key(&scan) {
             return false;
         }
+        self.held.insert(scan, None);
         let near = self
             .last_up
             .get(&scan)
-            .is_some_and(|&up| at.saturating_sub(up) < PROMPT_MERGE_US);
+            .is_some_and(|&up| at.saturating_sub(up) < REACH_US);
         let trailing = self.trailing.remove(&scan) && near;
         let Some(prompt) = self.prompt() else {
             return false;
@@ -240,11 +253,7 @@ impl Guide {
             if at < self.start_us {
                 return false;
             }
-            // A key-down this close to the key's own release may be chatter, which must never
-            // answer a prompt, or the round would end with presses the user never made.
-            if !near && self.count < self.plan.presses {
-                self.count += 1;
-            }
+            self.held.insert(scan, Some(at));
             self.open_tally += 1;
             *self.tallies.entry(scan).or_default() += 1;
             return true;
@@ -258,17 +267,31 @@ impl Guide {
         false
     }
 
+    // A press counts at its release, once its hold is known, by the engine's own chatter limits:
+    // a phantom's short hold, or a dropout's key-down just after the part that counted, must never
+    // answer a prompt, or the round would end with presses the user never made. The gap runs from
+    // the last counted release, so a bounce just before a real press never holds that press back.
     fn release(&mut self, scan: u16, at: u64) -> bool {
-        self.held.remove(&scan);
+        let down = self.held.remove(&scan).flatten();
         self.last_up.insert(scan, at);
         if self.paused {
             return false;
         }
-        let Some(prompt) = self.prompt() else {
+        let (Some(prompt), Some(down)) = (self.prompt(), down) else {
             return false;
         };
-        if scan != prompt.key || self.count < self.plan.presses {
+        let phantom = at.saturating_sub(down) < SHORT_HOLD_US;
+        let continued = self
+            .counted_up
+            .get(&scan)
+            .is_some_and(|&up| down.saturating_sub(up) < SHORT_GAP_US);
+        if scan != prompt.key || down < self.start_us || phantom || continued {
             return false;
+        }
+        self.counted_up.insert(scan, at);
+        self.count += 1;
+        if self.count < self.plan.presses {
+            return true;
         }
         // Round::contains is half-open, and the release belongs to the round it ends.
         let end = at.saturating_add(1).max(self.start_us);
@@ -279,8 +302,8 @@ impl Guide {
     }
 
     // A pause drops the open round, because presses made while the app was away were never seen.
-    // Keys down at the pause stay held until their release, so their repeats after the resume
-    // never count, and no gap is timed across the pause.
+    // Keys down at the pause stay held until their release, so neither their repeats nor their
+    // release after the resume count, and no gap is timed across the pause.
     fn pause(&mut self, interrupted: &[HeldKey]) -> bool {
         let changed = self.count > 0 || self.open_tally > 0;
         if let Some(prompt) = self.prompt()
@@ -297,9 +320,10 @@ impl Guide {
         self.held = interrupted
             .iter()
             .filter(|h| self.accepts(h.device))
-            .map(|h| h.scan)
+            .map(|h| (h.scan, None))
             .collect();
         self.last_up.clear();
+        self.counted_up.clear();
         self.trailing.clear();
         changed
     }
