@@ -1,0 +1,65 @@
+# cargo-about's settings for THIRD-PARTY-RUST.txt, the notices for the crates linked into
+# keytriage.exe. The first accepted license that satisfies a crate's expression is the one shown.
+accepted = ["Apache-2.0", "MIT", "Unicode-3.0", "BSD-3-Clause", "Zlib", "MPL-2.0"]
+targets = ["x86_64-pc-windows-msvc"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+private = { ignore = true }
+
+# The crates below ship no file with the license text they are used under, so cargo-about would
+# print its canonical text with "<year>" and "<owner>" in place of the copyright line. Each one
+# names the file that holds the real line, with its SHA-256. A changed file only draws a warning
+# and brings the placeholder back, which scripts/check-notices.mjs fails on. Git sources are read
+# at the commit in the crate's .cargo_vcs_info.json, which needs the network.
+
+[webview2-com.clarify]
+license = "MIT"
+
+[[webview2-com.clarify.git]]
+path = "LICENSE"
+checksum = "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+
+[webview2-com-sys.clarify]
+license = "MIT"
+
+[[webview2-com-sys.clarify.git]]
+path = "LICENSE"
+checksum = "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+
+[webview2-com-macros.clarify]
+license = "MIT"
+
+[[webview2-com-macros.clarify.git]]
+path = "LICENSE"
+checksum = "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+
+# dpi's MIT part is src/libm.rs, which LICENSE-LIBM-MIT covers. The std feature leaves that file
+# out of this build, but listing it keeps the notice right for the crate as published.
+[dpi.clarify]
+license = "Apache-2.0 AND MIT"
+
+[[dpi.clarify.files]]
+path = "LICENSE"
+license = "Apache-2.0"
+checksum = "6dc0e068dcf3a5bc8e054205b85b7720e1d49265bbc64bf515d2cf79197df69a"
+
+[[dpi.clarify.files]]
+path = "LICENSE-LIBM-MIT"
+license = "MIT"
+checksum = "9eff396a99bafd208e7126602420d6864f6066c08b84485a5b032320a9c01997"
+
+# Declared "BSD-3-Clause/MIT", an OR, and the crate ships only the BSD text, so it is used under
+# that side.
+[brotli-decompressor.clarify]
+license = "BSD-3-Clause"
+
+[[brotli-decompressor.clarify.files]]
+path = "LICENSE"
+checksum = "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae"
+
+[alloc-stdlib.clarify]
+license = "BSD-3-Clause"
+
+[[alloc-stdlib.clarify.git]]
+path = "LICENSE"
+checksum = "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae"
