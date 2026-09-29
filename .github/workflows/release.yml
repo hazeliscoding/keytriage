@@ -34,7 +34,7 @@ jobs:
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Tag a commit on main."; exit 1; }
 
   # Tag pushes don't trigger CI, so the release reruns all of it on the tagged commit, and the
-  # installer it drafts is the one those checks passed.
+  # zip and the installer it drafts are the ones those checks passed.
   ci:
     name: CI
     needs: version
@@ -56,19 +56,23 @@ jobs:
         with:
           name: release
           path: out
-      - name: Check the installer against its checksum
+      # SHA256SUMS.txt lists the zip first, as the main download, then the installer.
+      - name: Check the zip and the installer against their checksums
         working-directory: out
         run: |
-          if [ "$(find . -mindepth 1 | wc -l)" -ne 2 ] || [ "$(wc -l < SHA256SUMS.txt)" -ne 1 ]; then
-            echo "::error::The release artifact must hold one installer and its SHA256SUMS.txt line, not: $(find . -mindepth 1 -printf '%P ')"
+          if [ "$(find . -mindepth 1 | wc -l)" -ne 3 ] || [ "$(wc -l < SHA256SUMS.txt)" -ne 2 ]; then
+            echo "::error::The release artifact must hold the zip, the installer and their two SHA256SUMS.txt lines, not: $(find . -mindepth 1 -printf '%P ')"
             exit 1
           fi
           sha256sum -c SHA256SUMS.txt
-          installer=$(sed -E 's/^[0-9a-f]{64} [ *]//' SHA256SUMS.txt)
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$installer" != "keytriage_${GITHUB_REF_NAME#v}_x64-setup.exe" ]; then
-            echo "::error::$installer is not the installer for $GITHUB_REF_NAME"
+          zip=$(sed -En '1s/^[0-9a-f]{64} [ *]//p' SHA256SUMS.txt)
+          installer=$(sed -En '2s/^[0-9a-f]{64} [ *]//p' SHA256SUMS.txt)
+          if [ "$GITHUB_EVENT_NAME" = push ]; then v="${GITHUB_REF_NAME#v}"; v="${v//./\\.}"; else v='[0-9]+\.[0-9]+\.[0-9]+'; fi
+          if ! [[ "$zip" =~ ^keytriage_${v}_x64-portable\.zip$ && "$installer" =~ ^keytriage_${v}_x64-setup\.exe$ ]]; then
+            echo "::error::$zip and $installer are not the zip and the installer for ${GITHUB_REF_NAME}"
             exit 1
           fi
+          echo "ZIP=$zip" >> "$GITHUB_ENV"
           echo "INSTALLER=$installer" >> "$GITHUB_ENV"
       - name: Write the release notes
         run: |
@@ -78,17 +82,23 @@ jobs:
             echo
             echo 'Tested on Windows 11 x64. Windows 10 should work but is untested, and there is no ARM64 build.'
             echo
-            echo "The installer isn't code-signed, so SmartScreen may warn before it runs. It installs for your user only, into %LOCALAPPDATA%\\keytriage, with no admin prompt. See [Install]($repo/blob/$GITHUB_SHA/README.md#install)."
+            echo "**Portable:** download \`$ZIP\`, extract it, and run \`keytriage.exe\` in its \`keytriage\` folder. It keeps its data in \`keytriage-data\` beside the exe, so deleting the folder removes everything it wrote. Keep the folder somewhere you can write to, such as Downloads or Documents. It needs the WebView2 runtime, which Windows 11 includes, and says so where it is missing."
+            echo
+            echo "**Installer:** \`$INSTALLER\` installs for your user only, into %LOCALAPPDATA%\\keytriage, with no admin prompt, and runs Microsoft's WebView2 bootstrapper where the runtime is missing."
+            echo
+            echo "Neither is code-signed, so SmartScreen may warn before keytriage runs. Windows copies the zip's download mark to the files it extracts, so the warning shows for the extracted exe too. See [Install]($repo/blob/$GITHUB_SHA/README.md#install)."
             echo
             echo '## Check the download'
             echo
-            echo "Compare the installer with \`SHA256SUMS.txt\` before you run it. In PowerShell this prints True:"
+            echo "Compare each file with \`SHA256SUMS.txt\` before you run it. In PowerShell these print True:"
             echo
             echo '```powershell'
-            echo "(Get-FileHash .\\$INSTALLER).Hash -eq (Get-Content .\\SHA256SUMS.txt).Split(' ')[0]"
+            for file in "$ZIP" "$INSTALLER"; do
+              echo "(Get-FileHash .\\$file).Hash -eq ((Get-Content .\\SHA256SUMS.txt) -like '*$file').Split(' ')[0]"
+            done
             echo '```'
             echo
-            echo "\`certutil -hashfile $INSTALLER SHA256\` and \`sha256sum -c SHA256SUMS.txt\` work too. To check that this repository's release workflow built the files, run \`gh attestation verify $INSTALLER --repo $GITHUB_REPOSITORY\`."
+            echo "\`certutil -hashfile $ZIP SHA256\` and \`sha256sum -c --ignore-missing SHA256SUMS.txt\` work too. To check that this repository's release workflow built a file, run \`gh attestation verify $ZIP --repo $GITHUB_REPOSITORY\`, or the same with the installer."
             echo
             echo '```text'
             cat out/SHA256SUMS.txt
@@ -108,7 +118,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" out/* --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "keytriage ${GITHUB_REF_NAME#v}" --notes-file notes.md
+        run: gh release create "$GITHUB_REF_NAME" "out/$ZIP" "out/$INSTALLER" out/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "keytriage ${GITHUB_REF_NAME#v}" --notes-file notes.md
       - name: Say that a dry run made nothing
         if: github.event_name != 'push'
         run: echo 'Dry run. No attestation or release was made.' | tee -a "$GITHUB_STEP_SUMMARY"
