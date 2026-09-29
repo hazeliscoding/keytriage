@@ -205,6 +205,24 @@ export class TestRun {
     return true;
   }
 
+  // Start stays on view until Rust answers, and the findings and Test again read the keyboard, the
+  // layout and the board, so they hold while a test starts, as the scope does.
+  pick(handle: number): void {
+    if (this.screen() === 'start') this.picked.set(handle);
+  }
+
+  setStd(std: Std): void {
+    if (this.screen() === 'start') this.std.set(std);
+  }
+
+  setSize(size: Size): void {
+    if (this.screen() === 'start') this.size.set(size);
+  }
+
+  setBoard(board: Board): void {
+    if (this.screen() === 'start') this.board.set(board);
+  }
+
   // A scope switch can put the picker under the pointer, so a key drops a double click's second
   // click. Keys the Guide refuses can't be chosen.
   toggleKey(scan: number, clicks = 1): void {

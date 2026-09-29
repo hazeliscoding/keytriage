@@ -63,7 +63,7 @@
             [class.row--child]="row.child"
             [class.row--selected]="row.handle === run.picked()"
             [attr.aria-pressed]="row.handle === run.picked()"
-            (click)="run.picked.set(row.handle)"
+            (click)="run.pick(row.handle)"
           >
             <span class="row__name">{{ row.name }}</span>
             <span class="meta tabular row__id">{{ row.id }}</span>
@@ -92,7 +92,7 @@
             [class.btn--primary]="std === run.std()"
             [class.btn--secondary]="std !== run.std()"
             [attr.aria-pressed]="std === run.std()"
-            (click)="run.std.set(std)"
+            (click)="run.setStd(std)"
           >
             {{ std }}
           </button>
@@ -105,7 +105,7 @@
             class="row row--size"
             [class.row--selected]="row.size === run.size()"
             [attr.aria-pressed]="row.size === run.size()"
-            (click)="run.size.set(row.size)"
+            (click)="run.setSize(row.size)"
           >
             <span class="row__name">{{ row.size }}</span>
             <span class="meta tabular row__keys">{{ row.keys }} keys</span>
@@ -129,7 +129,8 @@
                 name="board"
                 [value]="board.id"
                 [checked]="board.id === run.board()"
-                (change)="run.board.set(board.id)"
+                (click)="run.screen() === 'start' || $event.preventDefault()"
+                (change)="run.setBoard(board.id)"
               />
               <span class="radio__ring" aria-hidden="true"></span>{{ board.name }}
             </label>

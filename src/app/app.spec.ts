@@ -149,6 +149,24 @@ describe('App', () => {
       ]);
     });
 
+    it('holds the keyboard, the layout and the board while a test starts', async () => {
+      inApp((cmd) => (cmd === 'start_test' ? new Promise(() => undefined) : null));
+      const fixture = await render();
+      await click(fixture, button(fixture, 'Begin test'));
+      await click(fixture, all(fixture, '.start__devices .row')[3]);
+      await click(fixture, button(fixture, 'ISO'));
+      await click(fixture, all(fixture, '.row--size')[4]);
+      await click(fixture, all(fixture, 'input[name="board"]')[1] as HTMLInputElement);
+      const picked = all(fixture, '.row--selected').map((row) =>
+        text(row.querySelector('.row__name, .radio')),
+      );
+      expect(picked).toEqual(['HID Keyboard Device', '75%', 'Hot-swap']);
+      expect(button(fixture, 'ANSI').getAttribute('aria-pressed')).toBe('true');
+      expect(
+        (all(fixture, 'input[name="board"]') as HTMLInputElement[]).map((r) => r.checked),
+      ).toEqual([true, false, false]);
+    });
+
     it('says when there is no keyboard to test, and keeps Begin test off', async () => {
       leaveApp();
       const fixture = await render();
