@@ -123,6 +123,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - **Keyboard access.** Each key that can be chosen is a button, in reading order, with `aria-pressed` and the key's name. The others are drawings that take no hover, pointer or focus.
   - **Names.** The summary names keys as the demo does ("RAlt", "N7"). The prompt and the clean card use the full name where labels repeat ("Press Right Alt 30 times.").
   - **Design departures:** the All keys hint reads "Every letter, digit and punctuation key", because All keys prompts only those, and the picker shrinks to fit its area where the demo's would squash.
+  - **No keyboard.** In Chosen keys with no keyboard listed, "Test N keys" is disabled and nothing says why, because "No keyboard found." sits in the hidden Keyboard column and the design draws no such state. Whether the chosen view shows that line, for example where the summary sits, is the owner's call.
   - **Not yet checked:** Alt, F10, Menu and the F-keys against WebView2, and whether Right Alt on an AltGr layout brings a Left Ctrl code.
 - **Release** (2026.09.28). The owner's calls:
   - **Publisher.** `bundle.publisher` is "Hazel Granados", with the copyright "Copyright 2026 Hazel Granados" and the repo as the homepage, which Installed apps shows as the support link. The exe's version info carries the publisher and the copyright. The publisher is permanent in practice, because NSIS remembers the install folder under `HKCU\Software\Hazel Granados\keytriage`, and a new name would lose it.
