@@ -41,13 +41,43 @@
 
     <!-- START -->
     <sc-if value="{{ isStart }}" hint-placeholder-val="{{ true }}">
-      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1fr);gap:20px;padding:20px">
+      <sc-if value="{{ chosenMode }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:20px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:none">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);margin-right:8px">04 // Scope</div>
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" size="sm" onClick="{{ setScopeAll }}" hint-size="90px,28px">All keys</x-import>
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" size="sm" onClick="{{ setScopeChosen }}" hint-size="110px,28px">Chosen keys</x-import>
+          <sc-if value="{{ hasChosen }}" hint-placeholder-val="{{ false }}">
+            <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="ghost" size="sm" onClick="{{ clearChosen }}" hint-size="60px,28px">Clear</x-import>
+          </sc-if>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ctxText }}</div>
+        </div>
+        <div style="font-size:16px;font-weight:600;flex:none">Click the keys to test.</div>
+        <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center">
+          <div style="position:relative;aspect-ratio:{{ kbAspect }};width:100%;max-height:100%;max-width:{{ pickerMaxW }}px">
+            <sc-for list="{{ kbPreview }}" as="k" hint-placeholder-count="0">
+              <div onClick="{{ k.pick }}" style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:2px;box-sizing:border-box;cursor:pointer">
+                <div style="position:relative;width:100%;height:100%;box-sizing:border-box;overflow:hidden;border:{{ k.border }};background:{{ k.bg }};border-radius:2px;outline:{{ k.outline }};outline-offset:2px" style-hover="background:var(--surface-inset)">
+                  <span style="position:absolute;left:6px;top:5px;font-size:12px;font-weight:500;line-height:1;white-space:nowrap;color:{{ k.color }}">{{ k.label }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:16px;font-size:12px;color:var(--text-meta);flex:none">
+          <span>Click keys on the drawing to add or remove them. Use this when you already know which keys misbehave.</span>
+          <span style="font-variant-numeric:tabular-nums;white-space:nowrap">{{ scopeSummary }}</span>
+        </div>
+      </div>
+      </sc-if>
+      <sc-if value="{{ allMode }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:20px;padding:20px;overflow:hidden">
         <div style="display:flex;flex-direction:column;gap:12px;min-height:0">
           <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta)">01 // Keyboard</div>
           <div style="font-size:16px;font-weight:600">Pick the keyboard to test.</div>
           <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
             <sc-for list="{{ devices }}" as="d" hint-placeholder-count="5">
-              <div onClick="{{ d.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:10px 14px 10px {{ d.pad }}px;border-bottom:1px solid var(--line);border-left:3px solid {{ d.rule }};background:{{ d.bg }}" style-hover="background:var(--surface-inset)">
+              <div onClick="{{ d.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 16px;padding:7px 14px 7px {{ d.pad }}px;border-bottom:1px solid var(--line);border-left:3px solid {{ d.rule }};background:{{ d.bg }}" style-hover="background:var(--surface-inset)">
                 <div style="font-weight:500;color:{{ d.color }}">{{ d.name }}</div>
                 <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;text-align:right">{{ d.id }}</div>
                 <div style="font-size:12px;color:var(--text-meta);grid-column:1 / -1">{{ d.meta }}</div>
@@ -65,15 +95,10 @@
           </div>
           <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
             <sc-for list="{{ sizes }}" as="s" hint-placeholder-count="5">
-              <div onClick="{{ s.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:8px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ s.rule }};background:{{ s.bg }}" style-hover="background:var(--surface-inset)">
+              <div onClick="{{ s.pick }}" style="cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:7px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ s.rule }};background:{{ s.bg }}" style-hover="background:var(--surface-inset)">
                 <div style="font-weight:500">{{ s.name }}</div>
                 <div style="font-size:12px;color:var(--text-meta);font-variant-numeric:tabular-nums;white-space:nowrap">{{ s.keys }} keys</div>
               </div>
-            </sc-for>
-          </div>
-          <div style="position:relative;width:100%;aspect-ratio:{{ kbAspect }};flex:none">
-            <sc-for list="{{ kbPreview }}" as="k" hint-placeholder-count="0">
-              <div style="position:absolute;left:{{ k.l }}%;top:{{ k.t }}%;width:{{ k.w }}%;height:{{ k.h }}%;padding:1px;box-sizing:border-box"><div style="width:100%;height:100%;box-sizing:border-box;border:1px solid var(--line-strong);background:var(--surface-raised);border-radius:1px"></div></div>
             </sc-for>
           </div>
           <div style="font-size:12px;color:var(--text-meta)">Keys are tested by physical position. The layout only decides what is drawn.</div>
@@ -83,7 +108,7 @@
           <div style="font-size:16px;font-weight:600">Say what kind of board it is.</div>
           <div style="border:1px solid var(--line);background:var(--surface-card);display:flex;flex-direction:column">
             <sc-for list="{{ boards }}" as="b" hint-placeholder-count="3">
-              <div style="padding:12px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ b.rule }};background:{{ b.bg }};display:flex;flex-direction:column;gap:4px">
+              <div style="padding:9px 14px;border-bottom:1px solid var(--line);border-left:3px solid {{ b.rule }};background:{{ b.bg }};display:flex;flex-direction:column;gap:2px">
                 <x-import component-from-global-scope="Directive01DesignSystem_03c333.Radio" name="board" value="{{ b.id }}" label="{{ b.name }}" checked="{{ b.checked }}" onChange="{{ setBoard }}" hint-size="auto,22px"></x-import>
                 <div style="font-size:12px;color:var(--text-meta);padding-left:25px">{{ b.desc }}</div>
               </div>
@@ -91,11 +116,18 @@
           </div>
           <div style="font-size:12px;color:var(--text-meta)">This decides which next test the findings recommend.</div>
         </div>
+        <div style="grid-column:1 / -1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+          <div style="font-family:var(--font-directive);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-meta);margin-right:8px">04 // Scope</div>
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" size="sm" onClick="{{ setScopeAll }}" hint-size="90px,28px">All keys</x-import>
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="secondary" size="sm" onClick="{{ setScopeChosen }}" hint-size="110px,28px">Chosen keys</x-import>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ scopeHint }}</div>
+        </div>
       </div>
+      </sc-if>
       <div style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 20px;border-top:1px solid var(--line)">
         <div style="font-size:12px;color:var(--text-meta)">Keys are read only while a test runs and this window is focused. Nothing is written to disk until you export a report.</div>
         <div style="margin-left:auto;flex:none">
-          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" onClick="{{ begin }}" hint-size="120px,36px">Begin test</x-import>
+          <x-import component-from-global-scope="Directive01DesignSystem_03c333.Button" variant="primary" disabled="{{ beginDisabled }}" onClick="{{ begin }}" hint-size="120px,36px">{{ beginLabel }}</x-import>
         </div>
       </div>
     </sc-if>
@@ -396,7 +428,7 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
-  state = { screen: 'start', theme: 'light', device: 0, std: 'ANSI', size: '75%', board: 'hotswap', speed: 1, swapOutcome: 'follows', tick: 0 };
+  state = { screen: 'start', theme: 'light', device: 0, std: 'ANSI', size: '75%', board: 'hotswap', speed: 1, swapOutcome: 'follows', tick: 0, scope: 'all', chosen: [] };
   timers = [];
   t = null;
   findings = null;
@@ -534,7 +566,9 @@ class Component extends DCLogic {
   conf(frac) { return frac >= 0.3 ? 'Very high' : frac >= 0.1 ? 'High' : frac >= 0.03 ? 'Medium' : 'Low'; }
   computeFindings(t) {
     const out = [], rank = { 'Very high': 4, 'High': 3, 'Medium': 2, 'Low': 1 };
-    const cleanKey = t.keys.find(k => { const rs = t.agg[k].rounds; return rs.length && rs.every(r => r.downs === r.prompted && !r.extras.length && !r.late.length); });
+    const cleanKey = t.keys.find(k => { const rs = t.agg[k].rounds; return rs.length && rs.every(r => r.downs === r.prompted && !r.extras.length && !r.late.length); })
+      || ['G', 'F', 'J', 'B', 'N'].find(k => !t.keys.includes(k)) || 'G';
+    this.lastCleanKey = cleanKey;
     t.keys.forEach(key => {
       const rs = t.agg[key].rounds.filter(Boolean); if (!rs.length) return;
       const prompted = rs.reduce((s, r) => s + r.prompted, 0), downs = rs.reduce((s, r) => s + r.downs, 0);
@@ -569,7 +603,7 @@ class Component extends DCLogic {
   }
   bars(list) { const m = Math.max(...list.map(b => b.n), 0); return list.map(b => ({ ...b, pct: m ? Math.round(b.n / m * 100) : 0 })); }
   nextTest(kind, key, good) {
-    const b = this.state.board, g = good || 'a known-good key';
+    const b = this.state.board, g = good || 'G';
     if (b === 'hotswap') {
       if (kind === 'stuck') return 'Pull the ' + key + ' keycap and press the switch stem directly for 30 presses. If the release is on time, the keycap was catching. If it is still late, swap the ' + key + ' switch with ' + g + ' and test both.';
       return 'Swap the ' + key + ' switch with the ' + g + ' switch and test both keys again. If the fault moves to ' + g + ', the switch is the cause. If it stays on ' + key + ', look at the socket or the PCB.';
@@ -641,7 +675,18 @@ class Component extends DCLogic {
     const S = this.state, t = this.t, screen = S.screen;
     const lay = this.layout(S.size, S.std);
     const geo = (k) => ({ id: k.id, label: k.label, l: k.x / lay.W * 100, t: k.y / lay.H * 100, w: k.w / lay.W * 100, h: k.h / lay.H * 100 });
-    const kbPreview = lay.keys.map(geo);
+    const chosenMode = S.scope === 'chosen';
+    const chosenSet = new Set(S.chosen.filter(id => lay.keys.some(k => k.id === id)));
+    const kbPreview = lay.keys.map(k => {
+      const on = chosenMode && chosenSet.has(k.id);
+      const short = { Backspace: 'Bksp', PrtSc: 'Prt', ScrLk: 'ScrL', Pause: 'Pse', Home: 'Hm', PgUp: 'PgU', PgDn: 'PgD', Enter: 'Ent', Shift: 'Shft', Caps: 'Cap', Menu: 'Mnu' };
+      return { ...geo(k), label: short[k.label] || k.label, cursor: chosenMode ? 'pointer' : 'default',
+        border: on ? '1px solid var(--ink)' : '1px solid var(--line-strong)', bg: on ? 'var(--surface-card)' : 'var(--surface-raised)', outline: on ? '1px solid var(--auburn)' : 'none',
+        color: on ? 'var(--text-primary)' : 'var(--text-meta)',
+        pick: () => { if (!chosenMode) return; const next = chosenSet.has(k.id) ? S.chosen.filter(x => x !== k.id) : [...S.chosen, k.id]; this.setState({ chosen: next }); } };
+    });
+    const chosenKeys = lay.keys.filter(k => chosenSet.has(k.id)).map(k => k.id);
+
     const flagged = {};
     if (screen === 'findings' && this.findings) this.findings.forEach(f => { if (!flagged[f.key]) flagged[f.key] = f.num; });
     if (screen === 'swap' && this.swap) { flagged[this.swap.a] = 'A'; }
@@ -699,7 +744,14 @@ class Component extends DCLogic {
       devices, sizes, boards, kbPreview, kbAspect: lay.W + ' / ' + lay.H,
       ansiVariant: S.std === 'ANSI' ? 'primary' : 'secondary', isoVariant: S.std === 'ISO' ? 'primary' : 'secondary',
       setAnsi: () => this.setState({ std: 'ANSI' }), setIso: () => this.setState({ std: 'ISO' }), setBoard: (v) => this.setState({ board: v }),
-      begin: () => { this.findings = null; this.mainTest = null; this.swap = null; this.swapResult = null; this.startTest('main', TEST_KEYS, 3, { E: 'chatter', K: 'dropped', H: 'dead', D: 'stuck' }); },
+      begin: () => { if (chosenMode && !chosenKeys.length) return; this.findings = null; this.mainTest = null; this.swap = null; this.swapResult = null; this.startTest('main', chosenMode ? chosenKeys : TEST_KEYS, 3, { E: 'chatter', K: 'dropped', H: 'dead', D: 'stuck' }); },
+      allVariant: chosenMode ? 'secondary' : 'primary', chosenVariant: chosenMode ? 'primary' : 'secondary',
+      setScopeAll: () => this.setState({ scope: 'all' }), setScopeChosen: () => this.setState({ scope: 'chosen' }), clearChosen: () => this.setState({ chosen: [] }),
+      hasChosen: chosenMode && chosenKeys.length > 0, chosenMode, allMode: !chosenMode, pickerMaxW: Math.round(lay.W * 76),
+      beginDisabled: chosenMode && !chosenKeys.length,
+      beginLabel: chosenMode && chosenKeys.length ? 'Test ' + chosenKeys.length + (chosenKeys.length === 1 ? ' key' : ' keys') : 'Begin test',
+      scopeSummary: chosenMode ? (chosenKeys.length ? chosenKeys.length + ' chosen · ' + chosenKeys.join(' ') : 'None chosen') : TEST_KEYS.length + ' keys · 3 rounds',
+      scopeHint: 'Every key in the layout, 10 presses in each of 3 rounds. Choose keys instead when you already know which ones misbehave.',
       // test
       kb, paused, notPaused: !paused, promptKey, promptCount,
       promptBorder: paused ? 'var(--line-strong)' : 'var(--ink)', promptOutline: paused ? 'none' : '1px solid var(--auburn)', promptColor: paused ? 'var(--text-secondary)' : 'var(--text-primary)',
@@ -714,11 +766,11 @@ class Component extends DCLogic {
       pauseUser: () => this.pause('user'), resumeUser: () => this.resume('user'), skipKey: () => this.skipKey(), endTest: () => this.finish(),
       // findings
       findings, findingCount: findings.length, isClean: screen === 'findings' && !findings.length, findingsSub: findings.length ? 'Ordered by confidence' : '',
-      cleanEvidence: mt ? [mt.keys.length + ' keys, ' + mt.per + ' presses in each of ' + mt.rounds + ' rounds', 'Every one of ' + totalPrompted + ' prompted presses produced one key-down and one key-up', 'No extra transition within 20 ms of a release', 'No release later than 250 ms after key-down'] : [],
+      cleanEvidence: mt ? [(mt.keys.length <= 6 ? mt.keys.join(', ') : mt.keys.length + ' keys') + ', ' + mt.per + ' presses in each of ' + mt.rounds + ' rounds', 'Every one of ' + totalPrompted + ' prompted presses produced one key-down and one key-up', 'No extra transition within 20 ms of a release', 'No release later than 250 ms after key-down'] : [],
       summary, canSwap: S.board === 'hotswap' && findings.length > 0 && screen === 'findings', cannotSwap: screen === 'findings' && !(S.board === 'hotswap' && findings.length > 0),
       newTest: () => { this.clearTimers(); this.t = null; this.findings = null; this.mainTest = null; this.swap = null; this.swapResult = null; this.setState({ screen: 'start' }); },
       exportReport: () => this.exportReport(),
-      startSwap: () => { const f = findings[0]; const good = mt.keys.find(k => k !== f.key && !findings.some(x => x.key === k)) || 'G'; this.swap = { a: f.key, b: good, kind: f.kind }; this.swapResult = null; this.setState({ screen: 'swap' }); },
+      startSwap: () => { const f = findings[0]; const good = this.lastCleanKey || 'G'; this.swap = { a: f.key, b: good, kind: f.kind }; this.swapResult = null; this.setState({ screen: 'swap' }); },
       // swap
       swapA: this.swap ? this.swap.a : '', swapB: this.swap ? this.swap.b : '',
       backToFindings: () => this.setState({ screen: 'findings' }),
