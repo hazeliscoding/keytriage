@@ -110,6 +110,11 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
     - confidence follows the rules above, where the demo fixes High and Low;
     - Both, Unclear, the capped wording and the "also" and short-evidence lines use the designed card in states the design doesn't draw.
   - **For the owner to review:** those undrawn states, and a key with another kind of finding, which the result's drawing marks "Tested, no finding" while the card names the finding. A third mark needs the owner's design. Weak chatter findings, with a floor under 3.4%, and stuck keys will mostly read capped, Gone or Unclear.
+- **Release** (2026.09.28). The owner's calls:
+  - **Publisher.** `bundle.publisher` is "Hazel Granados", with the copyright "Copyright 2026 Hazel Granados" and the repo as the homepage, which Installed apps shows as the support link. The exe's version info carries the publisher and the copyright. The publisher is permanent in practice, because NSIS remembers the install folder under `HKCU\Software\Hazel Granados\keytriage`, and a new name would lose it.
+  - **WebView2.** The installer embeds Microsoft's WebView2 bootstrapper (`embedBootstrapper`, about 1.8 MB), which the bundler fetches over HTTPS at build time. It runs only when WebView2 is missing, and then downloads the runtime from Microsoft. Windows 11 includes WebView2. This reopens the earlier `downloadBootstrapper` call, because Tauri's NSISdl plugin fetches that bootstrapper over plain HTTP and runs it without checking a signature.
+  - **Security reports** go through GitHub's private vulnerability reporting, which is on. No email address is published.
+  - **Clean machine.** A fresh CI runner installs, starts and uninstalls the exact release asset, and the owner installs the published build in a new standard Windows account, downloaded through a browser.
 
 ## M0: Placeholder (as soon as possible)
 
