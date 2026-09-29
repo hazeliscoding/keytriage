@@ -293,7 +293,7 @@ describe('Findings screen', () => {
       expect(text(card.querySelector('.finding__title'))).toBe('No faults found in this test.');
       expect(text(card.querySelector('.badge--clean'))).toBe('Clean');
       expect(parts(section(card, 'Evidence'), '.finding__line')).toEqual([
-        '— 3 keys, 10 presses in each of 3 rounds',
+        '— G, J, E, 10 presses in each of 3 rounds',
         ...CLEAN.clean.map((line) => `— ${line}`),
       ]);
       expect(parts(section(card, 'What this does not rule out'), '.finding__line')).toEqual([
@@ -318,6 +318,27 @@ describe('Findings screen', () => {
         'Nothing arrived from this keyboard during the test.',
       ]);
     });
+
+    const PLANS: [string, number[], number, string][] = [
+      // Space's cap is blank, and both Alt keys print "Alt".
+      ['names a blank or shared label', [E, 0x39, 0xe038], 30, 'E, Space, Right Alt, 30'],
+      ['names six keys', [0x10, 0x11, E, 0x13, 0x14, 0x15], 10, 'Q, W, E, R, T, Y, 10'],
+      ['counts seven keys', [0x10, 0x11, E, 0x13, 0x14, 0x15, 0x16], 10, '7 keys, 10'],
+    ];
+    for (const [does, keys, presses, lead] of PLANS) {
+      it(`${does} in the plan's line`, async () => {
+        inApp((cmd) => (cmd === 'end_test' ? CLEAN : null));
+        const fixture = await testing([
+          { provide: PLAN, useValue: { keys: () => keys, rounds: 3, presses } },
+        ]);
+        await send(fixture, 'test:guide', { ...DONE, keys: keys.length });
+        await click(fixture, button(fixture, 'End test'));
+        const [card] = all(fixture, '.finding');
+        expect(parts(section(card, 'Evidence'), '.finding__line')[0]).toBe(
+          `— ${lead} presses in each of 3 rounds`,
+        );
+      });
+    }
 
     it('says how far a test that ended early got, in place of the plan', async () => {
       const fixture = await finished(CLEAN, MID);

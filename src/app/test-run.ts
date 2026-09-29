@@ -60,7 +60,8 @@ export interface Findings {
   keyboard: string;
   layout: Layout;
   board: string;
-  keys: number;
+  // The plan's keys, which the clean card lists.
+  scans: readonly number[];
   rounds: number;
   presses: number;
   started: Date;
@@ -274,7 +275,7 @@ export class TestRun {
       return;
     }
     const group = this.group();
-    const keys = this.asked?.keys.length ?? 0;
+    const scans = this.asked?.keys ?? [];
     const rounds = this.asked?.rounds ?? 0;
     const presses = this.asked?.presses ?? 0;
     this.findings.set({
@@ -282,7 +283,7 @@ export class TestRun {
       keyboard: `${group?.name ?? '—'} · ${group?.id ?? '—'}`,
       layout: drawn,
       board: this.boardName(),
-      keys,
+      scans,
       rounds,
       presses,
       started: this.startedAt() ?? new Date(),
@@ -290,7 +291,7 @@ export class TestRun {
       reached:
         view?.key === null
           ? null
-          : { done: view?.done ?? 0, total: view?.total ?? keys * rounds * presses },
+          : { done: view?.done ?? 0, total: view?.total ?? scans.length * rounds * presses },
     });
     this.leave('findings');
   }

@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { grouped, mmss, pad2, stamp } from './format';
 import { KeyboardDrawing, type CapMark } from './keyboard';
-import { capLabel } from './layout';
+import { capLabel, capWord } from './layout';
 import { TestRun, type Findings } from './test-run';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -81,15 +81,21 @@ export class FindingsScreen {
   protected readonly coverage = computed(() => {
     const record = this.run.findings();
     if (!record) return '';
+    const { scans } = record;
     if (record.reached) {
       const { done, total } = record.reached;
       return (
         `Ended after ${grouped(done)} of ${grouped(total)} presses, ` +
-        `${record.result.keys.length} of ${plural(record.keys, 'key', 'keys')}`
+        `${record.result.keys.length} of ${plural(scans.length, 'key', 'keys')}`
       );
     }
+    // A short plan is listed by name, as the design does up to six keys.
+    const keys =
+      scans.length <= 6
+        ? scans.map((scan) => capWord(record.layout, scan)).join(', ')
+        : plural(scans.length, 'key', 'keys');
     const each = record.rounds === 1 ? 'in 1 round' : `in each of ${record.rounds} rounds`;
-    return `${plural(record.keys, 'key', 'keys')}, ${plural(record.presses, 'press', 'presses')} ${each}`;
+    return `${keys}, ${plural(record.presses, 'press', 'presses')} ${each}`;
   });
 
   protected readonly cleanEvidence = computed(() => [
