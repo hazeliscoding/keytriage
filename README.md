@@ -54,8 +54,10 @@ Next test
 
 - **Not a keylogger.** It reads keys only while a test runs and its window is focused. It has no background capture, and CI fails on the Windows APIs that would allow it.
 - **No typing saved.** The order of keys stays in memory. Saved reports hold per-key counts and timings only, because an ordered list of keys is the text you typed.
-- **No network.** There is no networking code, no telemetry and no auto-updater. Price data ships inside the app, and links open in your browser.
+- **No network.** There is no networking code, no telemetry and no auto-updater. Windows' WebView2 runtime, which draws the window, talks to Microsoft on its own; [PRIVACY.md](PRIVACY.md) lists what it does.
 - **Open source**, so you can check all of this instead of trusting it.
+
+[PRIVACY.md](PRIVACY.md) maps each promise to the code that keeps it and the check that proves it.
 
 ## Contributing
 

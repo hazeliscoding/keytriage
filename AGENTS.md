@@ -5,6 +5,7 @@ These are the working rules for agents in this repo. keytriage is a local-first 
 ## Sources of truth
 
 - `README.md`: the pitch and the privacy contract.
+- `PRIVACY.md`: each privacy promise, the code that keeps it and the check that proves it. When you rename, move or remove anything it names, update it in the same change.
 - `ROADMAP.md`: decisions already made, the milestones, and what is out of scope. Check it before proposing features. Respect those decisions unless the owner reopens them.
 - Work from the next unchecked item in `ROADMAP.md`. Don't build past the current milestone without asking.
 
@@ -16,7 +17,7 @@ Software that reads a keyboard has to earn trust. Never break these rules, not e
 - **Never save the order of keys.** Ordered events stay in memory. Anything written to disk (reports, logs, settings, crash output) holds per-key aggregates only.
 - **The page writes nothing.** It never logs, stores or adds history entries, and its live rows stay in memory. During a test it cancels DOM key events without reading which key they carried. Rust writes the export from `Report::saved()`, and the page sends only the suggested file name.
 - **Keys are physical positions** (scancodes). Don't translate them to characters beyond the labels on the drawn keyboard.
-- **No networking code.** No `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection`. No Tauri HTTP, updater or shell plugins. No HTTP crates, sockets or `windows` networking features in the app. Price data is bundled, and links open in the browser. The navigation guard in `src-tauri/src/lib.rs` keeps the window on the app. Don't widen it.
+- **No networking code.** No `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `RTCPeerConnection`. No Tauri HTTP, updater or shell plugins. No HTTP crates, sockets or `windows` networking features in the app. When prices arrive (M6), their data will be bundled and links will open in the browser. v0.1 has neither. The navigation guard in `src-tauri/src/lib.rs` keeps the window on the app. Don't widen it.
 - **No remote assets.** Fonts and icons are self-hosted.
 - **No recorded typing anywhere.** Fixtures are synthetic event streams. Never commit, paste or attach a recording of real typing.
 
