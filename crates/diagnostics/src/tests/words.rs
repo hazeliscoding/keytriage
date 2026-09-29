@@ -638,3 +638,86 @@ fn w13_an_untested_partner_is_never_called_known_good() {
         assert!(tested.iter().any(|t| t.contains(claim)), "{claim}");
     }
 }
+
+#[test]
+fn w14_the_fault_on_both_keys_keeps_an_untested_switch_possible() {
+    let put_back = "Put each switch back in its own socket, then choose E and G in a new test. If \
+                    the fault shows on G, its switch or its socket may carry it too. If G comes \
+                    out clean, a new swap test can use it as a tested partner.";
+    let connection = NextTest::CheckConnection.words(&label);
+    for (kind, past, steps) in [
+        (
+            Kind::Chatter,
+            "to firmware debounce or the keyboard as a whole",
+            vec![NextTest::RaiseDebounce.words(&label)],
+        ),
+        (
+            Kind::Dead,
+            "to a keymap or the PCB",
+            vec![
+                NextTest::CheckKeymap { key: E }.words(&label),
+                connection.clone(),
+            ],
+        ),
+        (
+            Kind::Stuck,
+            "to a lost release report or software holding keys",
+            vec![connection.clone()],
+        ),
+    ] {
+        let both = |partner_untested| {
+            let side = |key| Side {
+                key,
+                status: Status::Shows(Finding {
+                    key,
+                    ..sample(kind)
+                }),
+                presses: 90,
+                rounds: 3,
+                bound_permille: 34,
+                not_assessed: 0,
+                also: vec![],
+            };
+            SwapResult {
+                swap: Swap {
+                    suspect: E,
+                    partner: G,
+                    kind,
+                    before: Confidence::High,
+                    floor_permille: 95,
+                    partner_untested,
+                },
+                outcome: Outcome::Both,
+                confidence: Some(Confidence::High),
+                capped: false,
+                suspect: side(E),
+                partner: side(G),
+            }
+            .lines(&label)
+        };
+        let l = both(true);
+        assert_eq!(
+            l.diagnosis,
+            format!(
+                "The fault showed on E with the G switch and on G with the E switch, so this swap \
+                 can't tell the switch from the socket. The G switch wasn't tested first, so both \
+                 switches may carry the fault, or the cause lies past a single switch, {past}."
+            )
+        );
+        let mut untested = vec![put_back.to_string()];
+        untested.extend(steps.iter().cloned());
+        assert_eq!(l.next, untested);
+
+        // Positive control: a tested partner's switch came out clean in its own socket first.
+        let l = both(false);
+        assert_eq!(
+            l.diagnosis,
+            format!(
+                "The fault showed on E with the known-good switch and on G with the E switch, so \
+                 this swap can't tell the switch from the socket. That points past a single \
+                 switch, {past}."
+            )
+        );
+        assert_eq!(l.next, steps);
+    }
+}

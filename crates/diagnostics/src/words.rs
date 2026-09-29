@@ -710,15 +710,27 @@ impl SwapResult {
                 };
                 format!("{found} {switch}")
             }
-            (Outcome::Both, kind) => format!(
-                "The fault showed on {a} with {the} and on {b} with the {a} switch, so this swap \
-                 can't tell the switch from the socket. That points past a single switch, {}.",
-                match kind {
+            (Outcome::Both, kind) => {
+                let past = match kind {
                     Kind::Chatter => "to firmware debounce or the keyboard as a whole",
                     Kind::Dead => "to a keymap or the PCB",
                     Kind::Stuck => "to a lost release report or software holding keys",
-                }
-            ),
+                };
+                // Only a partner that came out clean in its own socket first rules out two switches
+                // with the same fault.
+                let reading = if swap.partner_untested {
+                    format!(
+                        "The {b} switch wasn't tested first, so both switches may carry the fault, \
+                         or the cause lies past a single switch, {past}."
+                    )
+                } else {
+                    format!("That points past a single switch, {past}.")
+                };
+                format!(
+                    "The fault showed on {a} with {the} and on {b} with the {a} switch, so this \
+                     swap can't tell the switch from the socket. {reading}"
+                )
+            }
             (Outcome::Gone, kind) => {
                 let others: Vec<String> = [&self.suspect, &self.partner]
                     .into_iter()
@@ -786,12 +798,30 @@ impl SwapResult {
                 step(NextTest::InspectUnderKeycap { key: swap.suspect }),
                 step(NextTest::CheckConnection),
             ],
-            (Outcome::Both, Kind::Chatter) => vec![step(NextTest::RaiseDebounce)],
-            (Outcome::Both, Kind::Dead) => vec![
-                step(NextTest::CheckKeymap { key: swap.suspect }),
-                step(NextTest::CheckConnection),
-            ],
-            (Outcome::Both, Kind::Stuck) => vec![step(NextTest::CheckConnection)],
+            (Outcome::Both, kind) => {
+                let mut next = match kind {
+                    Kind::Chatter => vec![step(NextTest::RaiseDebounce)],
+                    Kind::Dead => vec![
+                        step(NextTest::CheckKeymap { key: swap.suspect }),
+                        step(NextTest::CheckConnection),
+                    ],
+                    Kind::Stuck => vec![step(NextTest::CheckConnection)],
+                };
+                // Each switch back home tests the partner as the first test never did, and a clean
+                // partner there is a tested one for the next swap.
+                if swap.partner_untested {
+                    next.insert(
+                        0,
+                        format!(
+                            "Put each switch back in its own socket, then choose {a} and {b} in a \
+                             new test. If the fault shows on {b}, its switch or its socket may \
+                             carry it too. If {b} comes out clean, a new swap test can use it as a \
+                             tested partner."
+                        ),
+                    );
+                }
+                next
+            }
             (Outcome::Gone, _) => vec![format!(
                 "Use the keyboard for a day. If the fault returns on {a}, repeat this swap test. \
                  If it returns on {b}, the switch that came from {a} is the likely cause."
