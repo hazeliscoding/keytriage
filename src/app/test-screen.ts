@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { countWord, grouped, mmss } from './format';
 import { KeyboardDrawing, type CapMark, type CapState } from './keyboard';
 import { dropFocus } from './keys';
-import { capLabel, capName } from './layout';
+import { capLabel, capName, capWord } from './layout';
 import { TestRun } from './test-run';
 
 const SHOWN_ROWS = 16;
@@ -32,9 +32,13 @@ export class TestScreen {
   protected readonly prompt = computed(() => {
     const view = this.run.guide();
     if (!view || view.key === null) return null;
-    const label = capLabel(this.run.layout(), view.key);
+    const drawn = this.run.layout();
+    // The tile prints the cap's label. The sentence names the key where two caps share that label,
+    // such as both Alt keys.
+    const label = capLabel(drawn, view.key);
+    const word = capWord(drawn, view.key);
     const times = view.asked === 1 ? 'once' : `${countWord(view.asked)} times`;
-    return { label, ask: `Press ${label} ${times}.`, count: view.count, asked: view.asked };
+    return { label, word, ask: `Press ${word} ${times}.`, count: view.count, asked: view.asked };
   });
 
   protected readonly progress = computed(() => {
@@ -100,7 +104,7 @@ export class TestScreen {
           ? `${names[0]} was down at that moment and is marked interrupted, not stuck.`
           : `${listed(names)} were down at that moment and are marked interrupted, not stuck.`;
     const prompt = this.prompt();
-    const repeat = prompt ? ` This round of ${prompt.label} will be repeated.` : '';
+    const repeat = prompt ? ` This round of ${prompt.word} will be repeated.` : '';
     return `${lead} ${held}${repeat}`;
   });
 

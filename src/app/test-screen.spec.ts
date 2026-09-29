@@ -275,6 +275,26 @@ describe('Test screen', () => {
       expect(textOf(fixture, '.prompt__ask')).toBe('Press E once.');
     });
 
+    it('names a key whose label is shared or blank, and keeps the label on the tile', async () => {
+      const fixture = await testing();
+      const ask = async (scan: number) => {
+        await send(fixture, 'test:guide', { ...VIEW, key: scan, asked: 30, count: 0 });
+        return [textOf(fixture, '.prompt__key'), textOf(fixture, '.prompt__ask')];
+      };
+      expect(await ask(0xe038)).toEqual(['Alt', 'Press Right Alt 30 times.']);
+      expect(await ask(0x39)).toEqual(['Space', 'Press Space 30 times.']);
+      expect(await ask(0xe049)).toEqual(['PgUp', 'Press PgUp 30 times.']);
+    });
+
+    it('names the round a pause repeats as the prompt does', async () => {
+      const fixture = await testing();
+      await send(fixture, 'test:guide', { ...VIEW, key: 0xe038, asked: 30 });
+      await send(fixture, 'test:event', PAUSED);
+      expect(textOf(fixture, '.notice__body')).toMatch(
+        / This round of Right Alt will be repeated\.$/,
+      );
+    });
+
     it('draws each counted key with its tally, and the prompted key over them', async () => {
       const fixture = await testing();
       await send(fixture, 'test:guide', { ...VIEW, key: G, tallies: [[E, 6]] });
