@@ -61,7 +61,7 @@ Next test
 
 ## Contributing
 
-Each detector is a small Rust module with event-stream fixtures. A contributor guide arrives with v0.1.
+Each detector is a small Rust module with event-stream fixtures. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to add one.
 
 ## License
 

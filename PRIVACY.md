@@ -121,6 +121,7 @@ keytriage draws its window with Microsoft Edge WebView2, which Windows 11 includ
 ## 8. Check it yourself
 
 - Compare the installer with the release's `SHA256SUMS.txt` (`Get-FileHash`, `certutil -hashfile` or `sha256sum -c`), and run `gh attestation verify <installer> --repo hazeliscoding/keytriage` to check that this repository's release workflow built it.
+- Rebuild the installer from the release's tag with the commands in [CONTRIBUTING.md](CONTRIBUTING.md).
 - Run the guards: `node scripts/check-network.mjs`, `node scripts/check-capture.mjs` and `node scripts/check-dependencies.mjs`.
 - Run `scripts/check-connections.ps1 -Exe "$env:LOCALAPPDATA\keytriage\keytriage.exe"` from an elevated pwsh, or watch `keytriage.exe` in Resource Monitor's Network tab.
 - Open an exported report. It is plain JSON.

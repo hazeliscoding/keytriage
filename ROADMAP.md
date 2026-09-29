@@ -185,7 +185,7 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
   - Decide `bundle.windows.webviewInstallMode`. The default downloads the WebView2 bootstrapper from Microsoft when WebView2 is missing.
   - Ship the third-party notices: Angular's `3rdpartylicenses.txt`, which sits outside `frontendDist`, and the Rust crates' licenses.
 - [ ] README with install steps, a note on unsigned builds and screenshots of the live app.
-- [ ] `CONTRIBUTING.md`: how to add a detector and its fixtures.
+- [x] `CONTRIBUTING.md`: how to add a detector and its fixtures. Done 2026.09.28: its checklist follows a stub `Kind` and `Evidence` walked through the compiler on a throwaway branch, which stopped in `words.rs`, `swap.rs`, the words tests and `view.rs`.
 - [x] `SECURITY.md`, plus a privacy contract document that lists each promise and how it is enforced. It also names what the WebView2 runtime fetches from Microsoft on its own, such as its variations seed, outside the app's code. Done 2026.09.28: `PRIVACY.md` maps each promise to its code and check, and quotes Microsoft on WebView2's own traffic. What WebView2 contacted is measured on every push, in the Build (Windows) job's summary. `SECURITY.md` takes reports through GitHub's private vulnerability reporting only.
 - [ ] Issue templates for "Wrong diagnosis" and "Missed fault". They ask for the exported report, never a recording of typing.
 - [ ] Dogfooding log in `docs/dogfooding.md`.
