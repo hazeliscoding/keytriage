@@ -127,4 +127,4 @@ keytriage draws its window with Microsoft Edge WebView2, which Windows 11 includ
 
 ## 9. Report a broken promise
 
-A broken promise is a security bug. Report it privately through [Report a vulnerability](https://github.com/hazeliscoding/keytriage/security/advisories/new), never in a public issue.
+A broken promise is a security bug. Report it privately through [Report a vulnerability](https://github.com/hazeliscoding/keytriage/security/advisories/new), never in a public issue. [SECURITY.md](SECURITY.md) says what is in scope and what to expect.
