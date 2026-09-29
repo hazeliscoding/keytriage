@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { pad2 } from './format';
 import { KeyboardDrawing, type CapMark } from './keyboard';
-import { capLabel } from './layout';
+import { capWord } from './layout';
 import { TestRun } from './test-run';
 
 @Component({
@@ -13,14 +13,15 @@ import { TestRun } from './test-run';
 export class SwapScreen {
   protected readonly run = inject(TestRun);
 
-  // Rust chose the pair and wrote every sentence. The page names the two keys only in its kicker.
+  // Rust chose the pair and wrote every sentence. The page names the two keys only in its kicker, by
+  // name where two caps share a label, so it names the same Alt or Ctrl as the title under it.
   protected readonly offer = computed(() => {
     const record = this.run.findings();
     const swap = record?.result.swap;
     if (!record || !swap) return null;
     return {
-      a: capLabel(record.layout, swap.suspect),
-      b: capLabel(record.layout, swap.partner),
+      a: capWord(record.layout, swap.suspect),
+      b: capWord(record.layout, swap.partner),
       title: swap.title,
       knownGood: swap.knownGood,
       steps: swap.steps.map((text, i) => ({ num: pad2(i + 1), text })),

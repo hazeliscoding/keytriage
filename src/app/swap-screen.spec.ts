@@ -27,6 +27,7 @@ import {
 const E = 0x12;
 const G = 0x22;
 const J = 0x24;
+const RIGHT_ALT = 0xe038;
 const OWN = 1;
 const OFFER = GOLDEN.result.swap!;
 const UNPLUGGED = "The keyboard isn't listed. Plug it back into the port it used, then try again.";
@@ -102,6 +103,22 @@ describe('Swap screen', () => {
       await click(fixture, button(fixture, 'Run the swap test'));
       expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // E with G');
       expect(all(fixture, '.legend > *').map(text)).toEqual(['Suspect switch', 'Untested switch']);
+    });
+
+    it('names a key by name in the kicker when another key shares its label', async () => {
+      const shared: TestResult = {
+        ...GOLDEN.result,
+        swap: { ...OFFER, suspect: RIGHT_ALT },
+      };
+      inApp((cmd) => (cmd === 'end_test' ? shared : null), GOLDEN.keyboards);
+      const fixture = await render([GOLDEN_PLAN]);
+      await click(fixture, button(fixture, 'Begin test'));
+      await click(fixture, button(fixture, 'End test'));
+      await click(fixture, button(fixture, 'Run the swap test'));
+      expect(textOf(fixture, '.findings__list > .kicker')).toBe('Swap test // Right Alt with G');
+      // The drawing keeps the cap's own label.
+      expect(caps(fixture, 'flagged')).toEqual([[RIGHT_ALT, 'A', '']]);
+      expect(text(cap(fixture, RIGHT_ALT).querySelector('.cap__label'))).toBe('Alt');
     });
 
     it('stays at step 03 with capture off, and offers only Back and the retest', async () => {
