@@ -17,7 +17,7 @@
 # Exit codes: 0 pass, 1 the settings read back wrong or a positive control saw too little, 2
 # inconclusive, 3 a browser key, the context menu or a reload acted. -PositiveControl BrowserKeys
 # leaves the settings at the runtime's defaults, must read all three back as on and must catch its
-# four probes; -PositiveControl Reloads leaves the guard off and must catch the page's reload. Each
+# four probes, three in visual hosting, where WebView2 never reloads on Browser Refresh; -PositiveControl Reloads leaves the guard off and must catch the page's reload. Each
 # exits 3 only through its own probes.
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\keytriage.exe'),
@@ -118,8 +118,14 @@ try {
     switch ($PositiveControl) {
         'BrowserKeys' {
             $setting | ForEach-Object { Write-Host "caught: $_" }
-            if ($setting.Count -lt 4) { Stop-Fail "with the browser keys setting off, only $($setting.Count) of 4 probes caught it" }
-            Write-Host 'FAIL (positive control): every browser keys probe caught its action'
+            $required = [System.Collections.Generic.List[string]]@('F5 started a reload', 'Ctrl+R started a reload', 'a right-click opened a context menu')
+            # In visual hosting WebView2 never reloads on the Browser Refresh key, even with its
+            # shortcuts on (runtime 153, 2026.09.29), so the control can't ask for it there. The
+            # navigation guard still refuses every reload during a test, which the F16 probe proves.
+            if ($Hosting -eq 'windowed') { $required.Add('the Browser Refresh key started a reload') }
+            $missed = @($required | Where-Object { $setting -notcontains $_ })
+            if ($missed.Count) { Stop-Fail "with the browser keys left on, these probes caught nothing: $($missed -join '; ')" }
+            Write-Host 'FAIL (positive control): every browser keys probe it needs caught its action'
             exit 3
         }
         'Reloads' {
