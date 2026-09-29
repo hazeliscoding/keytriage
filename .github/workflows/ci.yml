@@ -18,7 +18,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       - run: npm ci
       - name: Build the frontend for the bundle scan
         run: npm run build
@@ -35,7 +37,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       - name: Positive controls
         run: node --test scripts/check-capture.test.mjs
       - name: Capture guard
@@ -49,7 +53,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       - name: Positive controls
         run: node --test scripts/check-dependencies.test.mjs
       - name: Dependency guard
@@ -63,7 +69,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       - name: Notices check's positive controls
         run: node --test scripts/check-notices.test.mjs
 
@@ -76,10 +84,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
+          toolchain: stable
           components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: npm ci
       - run: npm test -- --watch=false
       - run: cargo fmt --all --check
