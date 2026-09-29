@@ -16,21 +16,33 @@ mod save_dialog;
 #[cfg(windows)]
 mod session_core;
 #[cfg(windows)]
+mod startup;
+#[cfg(windows)]
 mod test_session;
 #[cfg(windows)]
 mod view;
 
 pub fn run() {
     #[cfg(windows)]
-    if !positive_control("KEYTRIAGE_CRASH_REPORTS") {
-        crash_reports::keep_app_crashes_local();
+    {
+        if !positive_control("KEYTRIAGE_CRASH_REPORTS") {
+            crash_reports::keep_app_crashes_local();
+        }
+        if startup::runtime_missing() {
+            startup::show(startup::NO_RUNTIME);
+            std::process::exit(1);
+        }
     }
     let builder = tauri::Builder::default()
         // tao registers Raw Input for every keyboard at startup unless this is Always, and Never
         // would add RIDEV_INPUTSINK. Capture belongs to crates/input, and only during a test.
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(navigation_guard())
-        .setup(setup);
+        // Tauri would panic on a failed setup, and so would the build below.
+        .setup(|app| match setup(app) {
+            Ok(()) => Ok(()),
+            Err(e) => failed_to_start(e),
+        });
     #[cfg(windows)]
     let builder = builder.invoke_handler(tauri::generate_handler![
         test_session::list_keyboards,
@@ -44,19 +56,29 @@ pub fn run() {
     ]);
     #[cfg(all(debug_assertions, windows))]
     let builder = builder.on_page_load(echo::page_load);
-    builder
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|_app, _event| {
-            // A dump can come without a ProcessFailed event. WebView2 finishes shutting down after
-            // the app exits, so a dump from a crash then waits for the next start.
-            #[cfg(windows)]
-            if let tauri::RunEvent::Exit = _event
-                && let Some(reports) = _app.try_state::<ReportFolder>()
-            {
-                crash_reports::sweep(&reports.0);
-            }
-        });
+    let app = match builder.build(tauri::generate_context!()) {
+        Ok(app) => app,
+        Err(e) => failed_to_start(e),
+    };
+    app.run(|_app, _event| {
+        // A dump can come without a ProcessFailed event. WebView2 finishes shutting down after
+        // the app exits, so a dump from a crash then waits for the next start.
+        #[cfg(windows)]
+        if let tauri::RunEvent::Exit = _event
+            && let Some(reports) = _app.try_state::<ReportFolder>()
+        {
+            crash_reports::sweep(&reports.0);
+        }
+    });
+}
+
+// Release builds have no console (main.rs), so a panic would close the app without a word.
+fn failed_to_start(detail: impl std::fmt::Display) -> ! {
+    #[cfg(windows)]
+    startup::show(&startup::failed(detail));
+    #[cfg(not(windows))]
+    eprintln!("keytriage couldn't start: {detail}");
+    std::process::exit(1)
 }
 
 #[cfg(windows)]
