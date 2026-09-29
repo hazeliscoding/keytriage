@@ -224,6 +224,8 @@ keytriage is a local-first desktop app (Rust + Tauri v2 + Angular, Windows first
 
 ## Later
 
+- A portable build: `keytriage.exe` in a zip with its license files and a SHA-256 line, built and attested by the release workflow next to the installer, and smoke-tested on the runner like the installer. It needs the WebView2 runtime already installed, because there is no bootstrapper. Decide whether its WebView2 data folder stays in `%LOCALAPPDATA%` or moves next to the exe.
+- Code signing for the installer, the uninstaller and the app, with a certificate issued to "Hazel Granados", the name `bundle.publisher` already carries. The signing key never enters the repo, and CI signs through the provider, such as Azure Trusted Signing or SignPath's program for open source. The installer check then verifies each signature, and the README's unsigned-build note changes. SmartScreen reputation still builds over time.
 - Keyboard identification from usb.ids, QMK and VIA definitions and the SonixQMK database, with the source recorded for every fact. It fills in the board type automatically.
 - Rollover, ghosting and matrix-pattern analysis, worded carefully: a missing key can be a design limit, not a fault.
 - A HID descriptor inspector, behind an Advanced view.
