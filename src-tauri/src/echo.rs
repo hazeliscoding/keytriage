@@ -13,7 +13,7 @@ use tauri::{Listener, Runtime, Webview, WebviewWindow};
 
 use crate::session_core::Entry;
 use webview2_com::Microsoft::Web::WebView2::Win32::{
-    ICoreWebView2Controller, ICoreWebView2Settings3,
+    ICoreWebView2Controller, ICoreWebView2Settings3, ICoreWebView2Settings8,
 };
 use windows::Win32::Foundation::HWND;
 use windows::Win32::System::Diagnostics::Debug::GetErrorMode;
@@ -144,25 +144,31 @@ fn keep_registration(hwnd: isize) {
 
 fn settings_line(controller: &ICoreWebView2Controller) -> String {
     match browser_settings(controller) {
-        Ok((keys, menus)) => format!(
-            "kt-shell: browser-keys={} context-menus={}",
+        Ok((keys, menus, reputation)) => format!(
+            "kt-shell: browser-keys={} context-menus={} reputation-checks={}",
             u8::from(keys),
-            u8::from(menus)
+            u8::from(menus),
+            u8::from(reputation)
         ),
         Err(e) => format!("kt-shell: settings unreadable: {e}"),
     }
 }
 
-fn browser_settings(controller: &ICoreWebView2Controller) -> windows_core::Result<(bool, bool)> {
-    let (mut keys, mut menus) = (BOOL::default(), BOOL::default());
+fn browser_settings(
+    controller: &ICoreWebView2Controller,
+) -> windows_core::Result<(bool, bool, bool)> {
+    let (mut keys, mut menus, mut reputation) = (BOOL::default(), BOOL::default(), BOOL::default());
     unsafe {
         let settings = controller.CoreWebView2()?.Settings()?;
         settings.AreDefaultContextMenusEnabled(&mut menus)?;
         settings
             .cast::<ICoreWebView2Settings3>()?
             .AreBrowserAcceleratorKeysEnabled(&mut keys)?;
+        settings
+            .cast::<ICoreWebView2Settings8>()?
+            .IsReputationCheckingRequired(&mut reputation)?;
     }
-    Ok((keys.as_bool(), menus.as_bool()))
+    Ok((keys.as_bool(), menus.as_bool(), reputation.as_bool()))
 }
 
 // A closed pipe must not panic inside the window procedure.

@@ -8,6 +8,7 @@
 #    all, and a right-click must open no menu window from the app's own WebView2 processes.
 #  - The guard: F16 makes the page reload itself, which no setting stops, and the guard must refuse
 #    it.
+#  - SmartScreen: WebView2's reputation checking must read back as off.
 # Ctrl+P is covered by the setting and left out, because a print dialog is hard to close.
 #
 # Build first with `npm run tauri build -- --debug --no-bundle`. The run takes the foreground and
@@ -15,8 +16,9 @@
 #
 # Exit codes: 0 pass, 1 the settings read back wrong or a positive control saw too little, 2
 # inconclusive, 3 a browser key, the context menu or a reload acted. -PositiveControl BrowserKeys
-# leaves the setting on and must catch its four probes; -PositiveControl Reloads leaves the guard
-# off and must catch the page's reload. Each exits 3 only through its own probes.
+# leaves the settings at the runtime's defaults, must read all three back as on and must catch its
+# four probes; -PositiveControl Reloads leaves the guard off and must catch the page's reload. Each
+# exits 3 only through its own probes.
 param(
     [string]$Exe = (Join-Path $PSScriptRoot '..\target\debug\keytriage.exe'),
     [ValidateSet('windowed', 'visual')][string]$Hosting = 'windowed',
@@ -40,7 +42,7 @@ try {
         Stop-Inconclusive 'the app reported no WebView2 settings or no first page load'
     }
     Write-Host "settings: $($app.Settings)"
-    $want = if ($PositiveControl -eq 'BrowserKeys') { 'browser-keys=1 context-menus=1' } else { 'browser-keys=0 context-menus=0' }
+    $want = if ($PositiveControl -eq 'BrowserKeys') { 'browser-keys=1 context-menus=1 reputation-checks=1' } else { 'browser-keys=0 context-menus=0 reputation-checks=0' }
     if ($app.Settings -ne $want) { Stop-Fail "WebView2 reports $($app.Settings), not $want" }
 
     Enter-App $hwnd

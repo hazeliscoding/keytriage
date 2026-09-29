@@ -495,7 +495,8 @@ namespace AppHarness
         public int Downs(int key) { lock (gate) { int n; return downs.TryGetValue(key, out n) ? n : 0; } }
         public int OtherDowns { get { return Downs(Other); } }
         public int PageLoads { get { lock (gate) return pageLoads; } }
-        // "browser-keys=0 context-menus=0", "settings unreadable: ...", or null before the app reports.
+        // "browser-keys=0 context-menus=0 reputation-checks=0", "settings unreadable: ...", or null
+        // before the app reports.
         public string Settings { get { lock (gate) return settings; } }
         // The app's process error mode as it reported it, or -1 before it does.
         public long ErrorMode { get { lock (gate) return errorMode; } }
