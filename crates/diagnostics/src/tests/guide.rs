@@ -437,7 +437,7 @@ fn gc01_the_guided_chatter_run() {
             NextTest::AskBoardKind,
             NextTest::SwapSwitch {
                 suspect: E,
-                partner: Some(G)
+                partner: Partner::Clean(G)
             }
         ]
     );
@@ -462,7 +462,7 @@ fn gc01_the_guided_chatter_run() {
         [
             NextTest::SwapSwitch {
                 suspect: E,
-                partner: Some(G)
+                partner: Partner::Clean(G)
             },
             NextTest::CleanContacts { key: E },
             NextTest::RaiseDebounce

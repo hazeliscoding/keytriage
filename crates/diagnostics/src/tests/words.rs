@@ -45,12 +45,22 @@ fn w01_the_canned_finding_renders() {
     assert_eq!(
         NextTest::SwapSwitch {
             suspect: E,
-            partner: None
+            partner: Partner::Unnamed
         }
         .words(&label),
         "Swap the E switch with the switch of a key that tested clean, and test both keys again. \
          If the fault moves with the switch, the switch is the likely cause. If it stays on E, \
          look at the socket or the PCB."
+    );
+    assert_eq!(
+        NextTest::SwapSwitch {
+            suspect: E,
+            partner: Partner::Untested(G)
+        }
+        .words(&label),
+        "Swap the E switch with the G switch and test both keys. No tested key came out clean, so \
+         G wasn't tested first and its switch isn't known to be good. If the fault moves to G, the \
+         switch is the likely cause. If it stays on E, look at the socket or the PCB."
     );
 }
 
@@ -61,7 +71,7 @@ fn w01b_a_hot_swap_board_leads_with_the_swap() {
         r.findings[0].next_tests[0],
         NextTest::SwapSwitch {
             suspect: E,
-            partner: Some(G)
+            partner: Partner::Clean(G)
         }
     );
 }
@@ -349,6 +359,15 @@ fn every_branch() -> Vec<String> {
         }
     }
     out.extend(notes.iter().map(|n| n.words(&label)));
+    for partner in [Partner::Unnamed, Partner::Clean(G), Partner::Untested(G)] {
+        out.push(
+            NextTest::SwapSwitch {
+                suspect: E,
+                partner,
+            }
+            .words(&label),
+        );
+    }
     out
 }
 
@@ -433,9 +452,13 @@ fn sample(kind: Kind) -> Finding {
     }
 }
 
-// Each kind's instruct words, and every outcome, cap and side status rendered for it, with none,
-// one or both of the other kinds also found on each side.
 fn every_swap_line() -> Vec<String> {
+    [false, true].into_iter().flat_map(swap_lines).collect()
+}
+
+// Each kind's instruct words, and every outcome, cap and side status rendered for it, with none,
+// one or both of the other kinds also found on each side, against a tested or an untested partner.
+fn swap_lines(partner_untested: bool) -> Vec<String> {
     let kinds = [Kind::Chatter, Kind::Dead, Kind::Stuck];
     let mut statuses: Vec<Status> = vec![Status::Clear];
     statuses.extend(
@@ -458,6 +481,7 @@ fn every_swap_line() -> Vec<String> {
                 kind,
                 before: Confidence::High,
                 floor_permille,
+                partner_untested,
             };
             let l = swap.lines(&label);
             out.extend([l.title, l.known_good, l.means, l.note]);
@@ -536,13 +560,18 @@ fn w11_every_swap_line_is_hedged() {
 #[test]
 fn w12_a_side_with_another_finding_is_never_cleared_outright() {
     let kinds = [Kind::Chatter, Kind::Dead, Kind::Stuck];
-    for (i, &kind) in kinds.iter().enumerate() {
+    let swaps = kinds
+        .iter()
+        .enumerate()
+        .flat_map(|(i, &kind)| [(i, kind, false), (i, kind, true)]);
+    for (i, kind, partner_untested) in swaps {
         let swap = Swap {
             suspect: E,
             partner: G,
             kind,
             before: Confidence::High,
             floor_permille: 95,
+            partner_untested,
         };
         for (outcome, shown) in [
             (Outcome::Follows, Some(G)),
@@ -591,5 +620,21 @@ fn w12_a_side_with_another_finding_is_never_cleared_outright() {
                 );
             }
         }
+    }
+}
+
+// The instructions, the result and the evidence never call an untested partner's switch good.
+#[test]
+fn w13_an_untested_partner_is_never_called_known_good() {
+    let claims = ["known-good", "showed no finding", "again afterwards"];
+    for text in swap_lines(true) {
+        for claim in claims {
+            assert!(!text.contains(claim), "{claim}: {text}");
+        }
+    }
+    // Positive control: a tested partner's lines make each claim.
+    let tested = swap_lines(false);
+    for claim in claims {
+        assert!(tested.iter().any(|t| t.contains(claim)), "{claim}");
     }
 }

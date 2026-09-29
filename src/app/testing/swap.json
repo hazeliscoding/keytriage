@@ -606,7 +606,7 @@
         {"event":"test:event","payload":{"kind":"key","scan":34,"up":true,"device":1,"micros":58050943}}
       ],
       "result": {
-        "rules": 4,
+        "rules": 5,
         "findings": [],
         "notes": [],
         "clean": [],
@@ -1249,7 +1249,7 @@
         {"event":"test:guide","payload":{"key":null,"asked":30,"count":0,"round":2,"rounds":3,"index":1,"keys":2,"done":180,"total":180,"tallies":[[18,108],[34,90]],"waitMs":150}}
       ],
       "result": {
-        "rules": 4,
+        "rules": 5,
         "findings": [],
         "notes": [],
         "clean": [],

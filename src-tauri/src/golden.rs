@@ -9,7 +9,9 @@ use std::time::Instant;
 
 use keytriage_diagnostics::fixture::{Fixture, guided_chatter, swap_chatter};
 use keytriage_diagnostics::params::{END_WAIT_US, SWAP_PRESSES, SWAP_ROUNDS};
-use keytriage_diagnostics::{BoardKind, Confidence, Entry, Evidence, Kind, NextTest, Swap};
+use keytriage_diagnostics::{
+    BoardKind, Confidence, Entry, Evidence, Kind, NextTest, Partner, Swap,
+};
 use keytriage_input::Keyboard;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -260,7 +262,7 @@ fn m3_done_guided_chatter() {
         [
             NextTest::SwapSwitch {
                 suspect: E,
-                partner: Some(G)
+                partner: Partner::Clean(G)
             },
             NextTest::CleanContacts { key: E },
             NextTest::RaiseDebounce,
@@ -293,6 +295,7 @@ fn m3_done_guided_chatter() {
             kind: Kind::Chatter,
             before: Confidence::VeryHigh,
             floor_permille: 95,
+            partner_untested: false,
         })
     );
     let swap = result.swap.as_ref().expect("a swap offer");

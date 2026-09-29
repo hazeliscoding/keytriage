@@ -360,7 +360,7 @@ pub(crate) fn findings(
                 vec![
                     NextTest::SwapSwitch {
                         suspect: key,
-                        partner: None,
+                        partner: Partner::Unnamed,
                     },
                     NextTest::CleanContacts { key },
                     NextTest::RaiseDebounce,
@@ -396,7 +396,7 @@ pub(crate) fn findings(
                     NextTest::AskBoardKind,
                     NextTest::SwapSwitch {
                         suspect: key,
-                        partner: None,
+                        partner: Partner::Unnamed,
                     },
                 ],
             ),

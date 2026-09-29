@@ -101,11 +101,22 @@ pub enum Cause {
     HostSoftware,
 }
 
+// The key whose switch a swap borrows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Partner {
+    // No tested key came out clean, and each of G, F, J, B and N was tested or named.
+    Unnamed,
+    Clean(u16),
+    // A key the test never prompted, lent when no tested key came out clean. Its switch was never
+    // checked, so it isn't known to be good.
+    Untested(u16),
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NextTest {
     TestAgain { key: u16, rounds: u16, presses: u16 },
     AskBoardKind,
-    SwapSwitch { suspect: u16, partner: Option<u16> },
+    SwapSwitch { suspect: u16, partner: Partner },
     ReseatSwitch { key: u16 },
     BridgeSocket { key: u16 },
     CleanContacts { key: u16 },

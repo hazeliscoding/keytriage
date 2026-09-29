@@ -200,7 +200,7 @@ pub(crate) fn findings(
                     NextTest::BridgeSocket { key },
                     NextTest::SwapSwitch {
                         suspect: key,
-                        partner: None,
+                        partner: Partner::Unnamed,
                     },
                     NextTest::CheckKeymap { key },
                 ],

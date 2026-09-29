@@ -71,6 +71,13 @@ pub const SWAP_ROUNDS: u16 = RETEST_ROUNDS;
 pub const SWAP_PRESSES: u16 = RETEST_PRESSES;
 // A side left with too little evidence to clear it leaves both the switch and the socket possible.
 pub const SWAP_UNCLEARED: Confidence = Confidence::Medium;
+// When no tested key came out clean, the swap borrows the first of these that the test left alone:
+// G, F, J, B and N. They are plain 1u keys in the middle of every drawn layout, with no stabilizer,
+// so their switches pull most easily. G comes first, as the owner's design picks.
+pub const UNTESTED_PARTNERS: [u16; 5] = [0x22, 0x21, 0x24, 0x30, 0x31];
+// A partner the first test never checked may carry a fault of its own, in its switch or its socket,
+// so a swap against it can't rule that out (the owner's call, 2026.09.28).
+pub const SWAP_UNTESTED: Confidence = Confidence::High;
 
 // Half-open [lo, hi) bins; bin 0 is too close to time. The limits above (1, 20, 36 and 100 ms) are
 // edges, so a saved report can recount them.

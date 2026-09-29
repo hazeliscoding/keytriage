@@ -165,7 +165,7 @@ pub(crate) fn findings(
         if board == BoardKind::HotSwap {
             next.push(NextTest::SwapSwitch {
                 suspect: key,
-                partner: None,
+                partner: Partner::Unnamed,
             });
         }
         next.push(NextTest::CheckConnection);

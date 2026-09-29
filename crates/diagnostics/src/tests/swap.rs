@@ -3,6 +3,8 @@ use crate::fixture::{Fixture, guided, guided_chatter, label, swap_chatter};
 use crate::params::{SWAP_PRESSES, SWAP_ROUNDS};
 
 const H: u16 = 0x23;
+const B: u16 = 0x30;
+const N: u16 = 0x31;
 
 fn plan(keys: &[u16], rounds: u16, presses: u16) -> Plan {
     Plan {
@@ -49,7 +51,7 @@ fn typist<'a>(
     }
 }
 
-fn partner(f: &Finding) -> Option<u16> {
+fn partner(f: &Finding) -> Partner {
     f.next_tests
         .iter()
         .find_map(|t| match *t {
@@ -74,17 +76,19 @@ fn clean_presses(r: &Report, key: u16) -> Option<u32> {
 // ---- the known-good partner ----
 
 #[test]
-fn sw01_no_clean_key_leaves_the_partner_unnamed() {
+fn sw01_no_clean_key_borrows_the_first_untested_key() {
+    // G kept its rounds without enough presses to be clean, so the first key the test left alone
+    // is F.
     let r = hot_swap(guided(plan(&[G, E], 3, 3), typist(&[E], 2, &[]))).diagnose();
     let f = only(&r, Kind::Chatter, E);
     assert_eq!(clean_presses(&r, G), None);
-    assert_eq!(partner(&f), None);
+    assert_eq!(partner(&f), Partner::Untested(F));
 
     // Positive control: one more press a round takes G past TESTED_PRESSES, and it is named.
     let r = hot_swap(guided(plan(&[G, E], 3, 4), typist(&[E], 2, &[]))).diagnose();
     let f = only(&r, Kind::Chatter, E);
     assert_eq!(clean_presses(&r, G), Some(12));
-    assert_eq!(partner(&f), Some(G));
+    assert_eq!(partner(&f), Partner::Clean(G));
 }
 
 #[test]
@@ -111,7 +115,7 @@ fn sw02_a_flagged_key_is_never_the_partner() {
     assert!(clean_presses(&r, R) > clean_presses(&r, G));
     assert_eq!(clean_presses(&r, G), Some(30));
     for f in &r.findings {
-        assert_eq!(partner(f), Some(G), "{f:#?}");
+        assert_eq!(partner(f), Partner::Clean(G), "{f:#?}");
     }
 }
 
@@ -126,23 +130,23 @@ fn sw03_a_plain_key_is_preferred() {
     assert!(Guide::new(plan(&[SPACE], 1, 1), &[1]).is_ok());
     assert!(!crate::keys::is_plain(SPACE));
     assert!(clean_presses(&r, SPACE) > clean_presses(&r, G));
-    assert_eq!(partner(&f), Some(G));
+    assert_eq!(partner(&f), Partner::Clean(G));
 }
 
 #[test]
 fn sw04_more_clean_presses_win_then_the_lower_scan_code() {
     let r = hot_swap(guided(plan(&[G, J, E], 3, 10), typist(&[E], 5, &[J]))).diagnose();
     assert!(clean_presses(&r, J) > clean_presses(&r, G));
-    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Some(J));
+    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(J));
 
     let r = hot_swap(guided_chatter().1).diagnose();
     assert_eq!(clean_presses(&r, G), Some(30));
     assert_eq!(clean_presses(&r, J), Some(30));
-    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Some(G));
+    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(G));
 
     // The lower scan code wins the tie, not the key prompted first.
     let r = hot_swap(guided(plan(&[J, G, E], 3, 10), typist(&[E], 5, &[]))).diagnose();
-    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Some(G));
+    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(G));
 }
 
 #[test]
@@ -151,7 +155,7 @@ fn sw05_every_finding_names_the_same_partner() {
     let keys: Vec<(Kind, u16)> = r.findings.iter().map(|f| (f.kind(), f.key)).collect();
     assert_eq!(keys, [(Kind::Chatter, E), (Kind::Chatter, R)]);
     for f in &r.findings {
-        assert_eq!(partner(f), Some(G), "{f:#?}");
+        assert_eq!(partner(f), Partner::Clean(G), "{f:#?}");
     }
 }
 
@@ -217,7 +221,7 @@ fn sw06_soldered_and_laptop_boards_get_no_swap_step() {
         // Positive control: the same run on a hot-swap board carries the swap.
         let r = hot_swap(run()).diagnose();
         let f = only(&r, kind, key);
-        assert_eq!(partner(&f), Some(G), "{kind:?}");
+        assert_eq!(partner(&f), Partner::Clean(G), "{kind:?}");
         on_hot_swap.extend(pulls_a_switch(&f));
     }
     assert_eq!(
@@ -254,7 +258,7 @@ type Extra = fn(Synth) -> Synth;
 #[test]
 fn sw07_the_partner_skips_a_key_another_note_names() {
     let r = partner_after(|s| s);
-    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Some(J));
+    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(J));
     assert_eq!(clean_presses(&r, J), Some(60));
 
     let cases: [(&str, Extra); 6] = [
@@ -292,7 +296,7 @@ fn sw07_the_partner_skips_a_key_another_note_names() {
             r.notes
         );
         assert!(clean_presses(&r, J) > clean_presses(&r, G), "{variant}");
-        assert_eq!(partner(&f), Some(G), "{variant}");
+        assert_eq!(partner(&f), Partner::Clean(G), "{variant}");
     }
 }
 
@@ -311,7 +315,7 @@ fn sw08_the_offer_is_hot_swap_only_and_needs_a_partner() {
             .next_tests
             .contains(&NextTest::SwapSwitch {
                 suspect: E,
-                partner: Some(G)
+                partner: Partner::Clean(G)
             })
     );
     for board in [BoardKind::Unknown, BoardKind::Soldered, BoardKind::Laptop] {
@@ -328,9 +332,37 @@ fn sw08_the_offer_is_hot_swap_only_and_needs_a_partner() {
     let clean = hot_swap(guided(plan(&[G, J, E], 3, 10), typist(&[], 5, &[]))).diagnose();
     assert_clean(&clean);
     assert_eq!(Swap::offer(&clean, BoardKind::HotSwap), None);
-    let unnamed = hot_swap(guided(plan(&[G, E], 3, 3), typist(&[E], 2, &[]))).diagnose();
-    assert_eq!(partner(&only(&unnamed, Kind::Chatter, E)), None);
-    assert_eq!(Swap::offer(&unnamed, BoardKind::HotSwap), None);
+    // With no clean key, the swap borrows a key the test left alone, and says it is untested.
+    let borrowed = hot_swap(guided(plan(&[G, E], 3, 3), typist(&[E], 2, &[]))).diagnose();
+    assert_eq!(
+        Swap::offer(&borrowed, BoardKind::HotSwap).map(|s| (
+            s.suspect,
+            s.partner,
+            s.partner_untested
+        )),
+        Some((E, F, true))
+    );
+    // With G, F, J, B and N all in the test and none clean, no partner is named and nothing is
+    // offered. Positive control: leaving N out lends N.
+    let all_five = hot_swap(guided(
+        plan(&[G, F, J, B, N, E], 3, 3),
+        typist(&[E], 2, &[]),
+    ))
+    .diagnose();
+    assert_eq!(
+        partner(&only(&all_five, Kind::Chatter, E)),
+        Partner::Unnamed
+    );
+    assert_eq!(Swap::offer(&all_five, BoardKind::HotSwap), None);
+    let four = hot_swap(guided(plan(&[G, F, J, B, E], 3, 3), typist(&[E], 2, &[]))).diagnose();
+    assert_eq!(
+        partner(&only(&four, Kind::Chatter, E)),
+        Partner::Untested(N)
+    );
+    assert_eq!(
+        Swap::offer(&four, BoardKind::HotSwap).map(|s| (s.partner, s.partner_untested)),
+        Some((N, true))
+    );
 
     // R chatters in every round and E in two, so R comes first although E's code is lower.
     let mut answers = 0;
@@ -353,7 +385,7 @@ fn sw08_the_offer_is_hot_swap_only_and_needs_a_partner() {
     let order: Vec<(u16, Confidence)> =
         two.findings.iter().map(|f| (f.key, f.confidence)).collect();
     assert_eq!(order, [(R, Confidence::VeryHigh), (E, Confidence::Medium)]);
-    assert_eq!(partner(&two.findings[1]), Some(G));
+    assert_eq!(partner(&two.findings[1]), Partner::Clean(G));
     assert_eq!(
         Swap::offer(&two, BoardKind::HotSwap).map(|s| (s.suspect, s.partner)),
         Some((R, G))
@@ -368,6 +400,7 @@ fn sw08_the_offer_is_hot_swap_only_and_needs_a_partner() {
             kind: Kind::Chatter,
             before: Confidence::VeryHigh,
             floor_permille: 95,
+            partner_untested: false,
         }
     );
     assert_eq!(offer.plan(), plan(&[E, G], SWAP_ROUNDS, SWAP_PRESSES));
@@ -734,6 +767,7 @@ fn sw16_a_dead_key_follows_or_stays() {
             kind: Kind::Dead,
             before: Confidence::VeryHigh,
             floor_permille: 0,
+            partner_untested: false,
         }
     );
     assert!(offer.lines(&label).known_good.ends_with(
@@ -795,6 +829,7 @@ fn sw17_a_stuck_key_follows_or_is_gone() {
             kind: Kind::Stuck,
             before: Confidence::Medium,
             floor_permille: 0,
+            partner_untested: false,
         }
     );
     let after = holding(&offer, G, 1);
@@ -979,7 +1014,7 @@ fn sw20_a_key_the_main_test_never_prompted_gets_no_offer() {
         assert!(f.confidence >= Confidence::Medium, "{key:04X} {f:#?}");
         // The card keeps its swap step. Only the guided retest, which would prompt the key, is
         // held back.
-        assert_eq!(partner(&f), Some(E), "{key:04X}");
+        assert_eq!(partner(&f), Partner::Clean(E), "{key:04X}");
         assert_eq!(r.aggregates.keys[&key].prompted, None, "{key:04X}");
         // Windows answers Win and Shift itself, so the Guide refuses them too.
         assert_eq!(
@@ -1129,4 +1164,177 @@ fn sw21_another_finding_on_a_cleared_side_is_named_not_cleared() {
         .lines(&label)
         .diagnosis;
     assert!(clears_a_side(&control), "{control}");
+}
+
+// ---- a partner the test never prompted ----
+
+// One chosen key, E, chattering at every 5th answer on a hot-swap board, in the chosen keys' 3
+// rounds of 30. No other key is tested, so none can come out clean.
+fn one_chosen() -> Report {
+    hot_swap(guided(plan(&[E], 3, 30), typist(&[E], 5, &[]))).diagnose()
+}
+
+fn borrowed() -> Swap {
+    Swap::offer(&one_chosen(), BoardKind::HotSwap).expect("an offer")
+}
+
+#[test]
+fn sw22_one_chosen_key_borrows_g() {
+    let f = only(&one_chosen(), Kind::Chatter, E);
+    assert_eq!(partner(&f), Partner::Untested(G));
+    let offer = borrowed();
+    assert_eq!(
+        (offer.suspect, offer.partner, offer.partner_untested),
+        (E, G, true)
+    );
+    assert_eq!(offer.plan(), plan(&[E, G], SWAP_ROUNDS, SWAP_PRESSES));
+    assert!(Guide::new(offer.plan(), &[1]).is_ok());
+
+    // Positive control: G tested beside E comes out clean and is lent as tested.
+    let r = hot_swap(guided(plan(&[G, E], 3, 30), typist(&[E], 5, &[]))).diagnose();
+    assert_eq!(partner(&only(&r, Kind::Chatter, E)), Partner::Clean(G));
+    assert_eq!(
+        Swap::offer(&r, BoardKind::HotSwap).map(|s| (s.partner, s.partner_untested)),
+        Some((G, false))
+    );
+}
+
+#[test]
+fn sw23_an_untested_key_a_finding_or_note_names_is_skipped() {
+    // `extra` acts on G, which the test never prompts, just before E's first answer.
+    let with = |extra: fn(Synth) -> Synth| {
+        let mut first = true;
+        let mut rest = typist(&[E], 5, &[]);
+        hot_swap(guided(plan(&[E], 3, 30), move |s, key, n| {
+            let s = if first {
+                first = false;
+                extra(s)
+            } else {
+                s
+            };
+            rest(s, key, n)
+        }))
+        .diagnose()
+    };
+    // Positive control: G left alone is lent.
+    let e = |r: &Report| r.findings.iter().find(|f| f.key == E).cloned().unwrap();
+    assert_eq!(partner(&e(&with(|s| s))), Partner::Untested(G));
+
+    // Chatter on G in free typing is a note.
+    let r = with(|s| fault(fault(s, G), G));
+    assert!(
+        r.notes
+            .iter()
+            .any(|n| matches!(*n, Note::Unprompted { key, .. } if key == G)),
+        "{:#?}",
+        r.notes
+    );
+    assert_eq!(partner(&e(&r)), Partner::Untested(F));
+
+    // G left down to the end is a stuck finding.
+    let r = with(|s| s.down(G).wait(ms(200)));
+    assert!(
+        r.findings
+            .iter()
+            .any(|f| (f.kind(), f.key) == (Kind::Stuck, G)),
+        "{:#?}",
+        r.findings
+    );
+    assert_eq!(partner(&e(&r)), Partner::Untested(F));
+    assert_eq!(
+        Swap::offer(&r, BoardKind::HotSwap).map(|s| (s.suspect, s.partner)),
+        Some((E, F))
+    );
+}
+
+#[test]
+fn sw24_a_swap_against_an_untested_partner_is_capped_at_high() {
+    let offer = borrowed();
+    assert_eq!(offer.before, Confidence::VeryHigh);
+    let tested = Swap {
+        partner_untested: false,
+        ..offer
+    };
+    for (faulty, outcome) in [
+        (&[G][..], Outcome::Follows),
+        (&[E], Outcome::Stays),
+        (&[E, G], Outcome::Both),
+    ] {
+        let after = swap_chatter(offer.plan(), faulty).diagnose();
+        let r = offer.judge(&after);
+        assert_eq!(
+            (r.outcome, r.confidence, r.capped),
+            (outcome, Some(Confidence::High), false)
+        );
+        // Positive control: the same retest against a tested partner.
+        let r = tested.judge(&after);
+        assert_eq!(
+            (r.outcome, r.confidence),
+            (outcome, Some(Confidence::VeryHigh))
+        );
+    }
+    let gone = offer.judge(&swap_chatter(offer.plan(), &[]).diagnose());
+    assert_eq!(
+        (gone.outcome, gone.confidence),
+        (Outcome::Gone, Some(Confidence::Low))
+    );
+    let unclear = offer.judge(&first_round_of(&swap_chatter(offer.plan(), &[])));
+    assert_eq!(
+        (unclear.outcome, unclear.confidence),
+        (Outcome::Unclear, None)
+    );
+
+    // sw15's short retest still caps a side it can't clear at Medium.
+    let short_side = Swap {
+        partner_untested: true,
+        ..offered()
+    };
+    let short = Plan {
+        rounds: 2,
+        presses: 15,
+        ..short_side.plan()
+    };
+    let r = short_side.judge(&swap_chatter(short, &[G]).diagnose());
+    assert_eq!(
+        (r.outcome, r.confidence, r.capped),
+        (Outcome::Follows, Some(Confidence::Medium), true)
+    );
+}
+
+const UNTESTED: &str =
+    "G wasn't tested before the swap, so its switch and socket weren't known to be good";
+
+#[test]
+fn sw25_untested_words_never_claim_a_known_good_switch() {
+    let offer = borrowed();
+    let step = only(&one_chosen(), Kind::Chatter, E).lines(&label).next[0].clone();
+    let l = offer.lines(&label);
+    let mut lines = vec![step, l.title, l.known_good, l.means, l.note];
+    lines.extend(l.steps);
+    let retests = [
+        swap_chatter(offer.plan(), &[G]).diagnose(),
+        swap_chatter(offer.plan(), &[E]).diagnose(),
+        swap_chatter(offer.plan(), &[E, G]).diagnose(),
+        swap_chatter(offer.plan(), &[]).diagnose(),
+        first_round_of(&swap_chatter(offer.plan(), &[])),
+    ];
+    for after in &retests {
+        let l = offer.judge(after).lines(&label);
+        assert_eq!(l.evidence.last().map(String::as_str), Some(UNTESTED));
+        lines.extend(every_line(&l));
+    }
+    assert!(lines[0].starts_with("Swap the E switch with the G switch and test both keys. "));
+    for text in &lines {
+        assert!(hedged(text) && !claims_a_cure(text), "{text}");
+        for claim in ["known-good", "showed no finding", "again afterwards"] {
+            assert!(!text.contains(claim), "{claim}: {text}");
+        }
+    }
+
+    // Positive control: a tested partner's words say known-good, and its evidence stops at G.
+    let tested = offered();
+    assert!(tested.lines(&label).known_good.contains("known-good"));
+    let l = tested.judge(&stays_stream()).lines(&label);
+    assert!(l.diagnosis.contains("known-good"));
+    assert_eq!(l.evidence.last().map(String::as_str), Some(G_CLEAR));
 }

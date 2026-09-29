@@ -316,7 +316,7 @@
     {"event":"test:event","payload":{"kind":"key","scan":18,"up":true,"device":1,"micros":32836952}}
   ],
   "result": {
-    "rules": 4,
+    "rules": 5,
     "findings": [
       {
         "key": 18,

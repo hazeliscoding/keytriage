@@ -269,3 +269,31 @@ fn dc11_rounds_without_length_are_ignored() {
     let r = fixture.diagnose();
     assert!(r.findings.iter().all(|f| f.key != E), "{:#?}", r.findings);
 }
+
+// A key chosen alone that sends nothing can't be told from a keyboard that sends nothing, so it
+// reads as no input, and the picker asks for a neighbor too.
+#[test]
+fn dc12_one_chosen_key_alone_reads_as_no_input() {
+    let skipped = |keys: &[u16]| {
+        let plan = Plan {
+            keys: keys.to_vec(),
+            rounds: 3,
+            presses: 30,
+        };
+        crate::fixture::guided(plan, |s, key, _| {
+            if key == E {
+                (s.wait(ms(3_000)), true)
+            } else {
+                (normal(s, key), false)
+            }
+        })
+        .diagnose()
+    };
+    let r = skipped(&[E]);
+    assert_clean(&r);
+    assert_eq!(r.notes, vec![Note::NoInputFromKeyboard]);
+
+    // Positive control: a second key that answers shows the keyboard was there.
+    let r = skipped(&[E, R]);
+    assert_eq!(only(&r, Kind::Dead, E).confidence, Confidence::High);
+}

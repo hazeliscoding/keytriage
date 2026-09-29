@@ -34,7 +34,7 @@ pub use words::{Label, Lines, OutcomeLines, SwapLines, code_label, criteria, hed
 
 // Bumped whenever a threshold, bin edge or rule changes, so reports are compared only under the
 // same rules.
-pub const RULES: u16 = 4;
+pub const RULES: u16 = 5;
 
 pub fn diagnose(session: &Session<'_>) -> Report {
     // A round with no length can't be answered, and would read as silent.
@@ -84,7 +84,7 @@ pub fn diagnose(session: &Session<'_>) -> Report {
         .flatten()
         .map(|(key, _)| key)
         .collect();
-    let partner = notes
+    let clean = notes
         .iter()
         .filter_map(|n| match *n {
             Note::Clean { key, presses, .. }
@@ -95,7 +95,21 @@ pub fn diagnose(session: &Session<'_>) -> Report {
             _ => None,
         })
         .max_by_key(|&(key, presses)| (keys::is_plain(key), presses, Reverse(key)))
-        .map(|(key, _)| key);
+        .map(|(key, _)| Partner::Clean(key));
+    // A test of a few chosen keys can leave no clean key, so the swap borrows one the test never
+    // prompted and that nothing else names.
+    let partner = clean
+        .or_else(|| {
+            params::UNTESTED_PARTNERS
+                .into_iter()
+                .find(|key| {
+                    !rounds.iter().any(|r| r.key == *key)
+                        && !flagged.contains(key)
+                        && !noted.contains(key)
+                })
+                .map(Partner::Untested)
+        })
+        .unwrap_or(Partner::Unnamed);
     for f in &mut findings {
         for t in &mut f.next_tests {
             if let NextTest::SwapSwitch { partner: p, .. } = t {

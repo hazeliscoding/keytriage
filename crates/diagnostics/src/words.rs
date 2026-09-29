@@ -1,5 +1,5 @@
 // The fallback English. Findings describe evidence and likelihood; none says a part is broken.
-use crate::params::{SWAP_PRESSES, SWAP_ROUNDS};
+use crate::params::{SWAP_PRESSES, SWAP_ROUNDS, SWAP_UNTESTED};
 use crate::report::*;
 use crate::swap::{Gap, Outcome, Side, Status, Swap, SwapResult};
 
@@ -97,7 +97,7 @@ impl NextTest {
                 .to_string(),
             NextTest::SwapSwitch {
                 suspect,
-                partner: Some(partner),
+                partner: Partner::Clean(partner),
             } => format!(
                 "Swap the {s} switch with the {p} switch and test both keys again. If the fault \
                  moves to {p}, the switch is the likely cause. If it stays on {s}, look at the \
@@ -107,7 +107,18 @@ impl NextTest {
             ),
             NextTest::SwapSwitch {
                 suspect,
-                partner: None,
+                partner: Partner::Untested(partner),
+            } => format!(
+                "Swap the {s} switch with the {p} switch and test both keys. No tested key came \
+                 out clean, so {p} wasn't tested first and its switch isn't known to be good. If \
+                 the fault moves to {p}, the switch is the likely cause. If it stays on {s}, look \
+                 at the socket or the PCB.",
+                s = label(suspect),
+                p = label(partner)
+            ),
+            NextTest::SwapSwitch {
+                suspect,
+                partner: Partner::Unnamed,
             } => format!(
                 "Swap the {s} switch with the switch of a key that tested clean, and test both \
                  keys again. If the fault moves with the switch, the switch is the likely cause. \
@@ -466,10 +477,20 @@ pub struct OutcomeLines {
 impl Swap {
     pub fn lines(&self, label: Label) -> SwapLines {
         let (a, b) = (label(self.suspect), label(self.partner));
-        let mut known_good = format!(
-            "{b} showed no finding, so it serves as the known-good switch. Both keys are tested \
-             again afterwards, {SWAP_PRESSES} presses in each of {SWAP_ROUNDS} rounds."
-        );
+        let mut known_good = if self.partner_untested {
+            format!(
+                "No tested key came out clean, so {b}, which the test didn't prompt, lends its \
+                 switch. Its switch isn't known to be good, so the result can be no surer than \
+                 {}. Both keys are tested afterwards, {SWAP_PRESSES} presses in each of \
+                 {SWAP_ROUNDS} rounds.",
+                SWAP_UNTESTED.words()
+            )
+        } else {
+            format!(
+                "{b} showed no finding, so it serves as the known-good switch. Both keys are \
+                 tested again afterwards, {SWAP_PRESSES} presses in each of {SWAP_ROUNDS} rounds."
+            )
+        };
         // A key that sends nothing never completes its count, so only Skip ends its round.
         if self.kind == Kind::Dead {
             known_good.push_str(&format!(
@@ -577,6 +598,23 @@ fn sign_of(kind: Kind) -> &'static str {
     }
 }
 
+// The switch the suspect's socket held during the swap: "a known-good switch", or "the G switch"
+// when the partner wasn't tested first.
+fn lent(swap: &Swap, b: &str, definite: bool) -> String {
+    match (swap.partner_untested, definite) {
+        (true, _) => format!("the {b} switch"),
+        (false, true) => "the known-good switch".to_string(),
+        (false, false) => "a known-good switch".to_string(),
+    }
+}
+
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
+}
+
 // A side's findings of other kinds, which the swap doesn't clear: "G shows a possible stuck key".
 fn other_findings(side: &Side, label: Label) -> Option<String> {
     let kinds: Vec<&str> = side
@@ -611,44 +649,48 @@ impl SwapResult {
                     .map(|f| format!("{}: also {}", label(side.key), f.headline())),
             );
         }
+        if swap.partner_untested {
+            evidence.push(format!(
+                "{b} wasn't tested before the swap, so its switch and socket weren't known to be good"
+            ));
+        }
+        let (some, the) = (lent(swap, &b, false), lent(swap, &b, true));
         let diagnosis = match (self.outcome, swap.kind) {
             (Outcome::Follows, _) => format!(
                 "The {a} switch now sits in the {b} socket, and the fault appeared there. The \
                  switch is the most likely cause. {}",
                 if self.capped {
                     format!(
-                        "The {a} socket gave too little evidence with the known-good switch to \
-                         clear it, so it remains possible too."
+                        "The {a} socket gave too little evidence with {the} to clear it, so it \
+                         remains possible too."
                     )
                 } else {
                     match other_findings(&self.suspect, label) {
-                        None => format!(
-                            "The {a} socket and the PCB behaved normally with a known-good switch."
-                        ),
+                        None => format!("The {a} socket and the PCB behaved normally with {some}."),
                         Some(other) => format!(
-                            "The {a} socket and the PCB showed no sign of {} with a known-good \
-                             switch, but {other}.",
+                            "The {a} socket and the PCB showed no sign of {} with {some}, but \
+                             {other}.",
                             sign_of(swap.kind)
                         ),
                     }
                 }
             ),
             (Outcome::Stays, kind) => {
+                let held = capitalized(&some);
                 let found = match kind {
                     Kind::Chatter => format!(
-                        "A known-good switch in the {a} socket shows the same fault. The socket, \
-                         the solder joints under it, or the matrix trace is the most likely cause."
+                        "{held} in the {a} socket shows the same fault. The socket, the solder \
+                         joints under it, or the matrix trace is the most likely cause."
                     ),
                     Kind::Dead => format!(
-                        "A known-good switch in the {a} socket shows the same fault. The socket, \
-                         the solder joints under it, or the matrix trace is the most likely \
-                         cause. A keymap, layer or Windows remap for {a} would also stay with the \
-                         key."
+                        "{held} in the {a} socket shows the same fault. The socket, the solder \
+                         joints under it, or the matrix trace is the most likely cause. A keymap, \
+                         layer or Windows remap for {a} would also stay with the key."
                     ),
                     Kind::Stuck => format!(
-                        "A known-good switch in the {a} socket still stayed down. The {a} keycap, \
-                         which went back on {a}, software holding the key, or a lost release \
-                         report is more likely than the switch."
+                        "{held} in the {a} socket still stayed down. The {a} keycap, which went \
+                         back on {a}, software holding the key, or a lost release report is more \
+                         likely than the switch."
                     ),
                 };
                 let switch = if self.capped {
@@ -669,9 +711,8 @@ impl SwapResult {
                 format!("{found} {switch}")
             }
             (Outcome::Both, kind) => format!(
-                "The fault showed on {a} with the known-good switch and on {b} with the {a} \
-                 switch, so this swap can't tell the switch from the socket. That points past a \
-                 single switch, {}.",
+                "The fault showed on {a} with {the} and on {b} with the {a} switch, so this swap \
+                 can't tell the switch from the socket. That points past a single switch, {}.",
                 match kind {
                     Kind::Chatter => "to firmware debounce or the keyboard as a whole",
                     Kind::Dead => "to a keymap or the PCB",

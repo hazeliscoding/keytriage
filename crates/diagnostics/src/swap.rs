@@ -1,9 +1,9 @@
-// The swap test: the suspect switch and the known-good one trade sockets, and both keys are tested
+// The swap test: the suspect switch and its partner's trade sockets, and both keys are tested
 // again. The judgment reads the retest's own report and the kept offer, which hold no times or
 // order, and every word comes from words.rs.
 use crate::guide::Plan;
 use crate::input::BoardKind;
-use crate::params::{SWAP_PRESSES, SWAP_ROUNDS, SWAP_UNCLEARED};
+use crate::params::{SWAP_PRESSES, SWAP_ROUNDS, SWAP_UNCLEARED, SWAP_UNTESTED};
 use crate::report::*;
 use crate::stats::rule_of_three_permille;
 
@@ -15,6 +15,7 @@ pub struct Swap {
     pub before: Confidence,
     // The offered chatter finding's rate floor, and 0 for dead and stuck.
     pub floor_permille: u16,
+    pub partner_untested: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,21 +85,28 @@ impl Swap {
                 .get(&key)
                 .is_some_and(|a| a.prompted.is_some())
         };
+        let lent = |partner: Partner| match partner {
+            Partner::Clean(key) => Some((key, false)),
+            Partner::Untested(key) => Some((key, true)),
+            Partner::Unnamed => None,
+        };
         report.findings.iter().find_map(|f| {
             f.next_tests.iter().find_map(|t| match *t {
-                NextTest::SwapSwitch {
-                    suspect,
-                    partner: Some(partner),
-                } if suspect == f.key && prompted(suspect) => Some(Swap {
-                    suspect,
-                    partner,
-                    kind: f.kind(),
-                    before: f.confidence,
-                    floor_permille: match f.evidence {
-                        Evidence::Chatter(e) => e.rate_floor_permille,
-                        Evidence::Dead(_) | Evidence::Stuck(_) => 0,
-                    },
-                }),
+                NextTest::SwapSwitch { suspect, partner }
+                    if suspect == f.key && prompted(suspect) =>
+                {
+                    lent(partner).map(|(partner, partner_untested)| Swap {
+                        suspect,
+                        partner,
+                        kind: f.kind(),
+                        before: f.confidence,
+                        floor_permille: match f.evidence {
+                            Evidence::Chatter(e) => e.rate_floor_permille,
+                            Evidence::Dead(_) | Evidence::Stuck(_) => 0,
+                        },
+                        partner_untested,
+                    })
+                }
                 _ => None,
             })
         })
@@ -130,7 +138,7 @@ impl Swap {
                 (Some(level), false)
             }
         };
-        let (outcome, (confidence, capped)) = match (shows(&suspect), shows(&partner)) {
+        let (outcome, (mut confidence, capped)) = match (shows(&suspect), shows(&partner)) {
             (Some(a), Some(b)) => (Outcome::Both, (Some(self.before.min(a).min(b)), false)),
             (None, Some(b)) => (Outcome::Follows, located(b, &suspect)),
             (Some(a), None) => (Outcome::Stays, located(a, &partner)),
@@ -142,6 +150,10 @@ impl Swap {
             // Too little evidence to rank carries no confidence, as a test with nothing tested.
             (None, None) => (Outcome::Unclear, (None, false)),
         };
+        // A partner the first test never checked may carry a fault of its own.
+        if self.partner_untested {
+            confidence = confidence.map(|c| c.min(SWAP_UNTESTED));
+        }
         SwapResult {
             swap: *self,
             outcome,

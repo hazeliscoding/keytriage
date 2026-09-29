@@ -760,7 +760,7 @@ mod tests {
         // The page reads these names. The result holds no times.
         let json = serde_json::to_string(&r).unwrap();
         for part in [
-            r#"{"rules":4,"findings":[{"key":18,"kind":"chatter","confidence":"very-high","title":"Possible chatter","level":"Very high","strong":true,"evidence":["6 of 30 presses"#,
+            r#"{"rules":5,"findings":[{"key":18,"kind":"chatter","confidence":"very-high","title":"Possible chatter","level":"Very high","strong":true,"evidence":["6 of 30 presses"#,
             r#"],"causes":["Switch contacts","#,
             r#"],"next":["Say whether"#,
             r#"],"gaps":[{"label":"<4","count":0},{"label":"4–12","count":6},{"label":"12–20","count":0},"#,
