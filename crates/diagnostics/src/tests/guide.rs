@@ -170,6 +170,16 @@ fn g16_a_press_split_by_a_dropout_counts_once() {
 }
 
 #[test]
+fn g17_a_press_split_in_three_counts_once() {
+    // The engine calls the second and third parts chatter, because each follows a real-length
+    // part by 10 ms, although the third comes 70 ms after the part that counted.
+    let run = Run::new(&[E], 1, 10)
+        .then(|s| s.press(E, ms(80)).wait(ms(300)))
+        .then(|s| s.fragments(E, &[ms(50), ms(10), ms(50), ms(10), ms(50)]));
+    assert_eq!((run.count(), run.tally(E)), (2, 4));
+}
+
+#[test]
 fn g03_autorepeat_and_duplicates_count_toward_neither() {
     let run = Run::new(&[E], 1, 10)
         .then(|s| s.hold(E, ms(2_000), ms(500), ms(33)))

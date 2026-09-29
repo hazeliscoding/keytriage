@@ -12,7 +12,7 @@ pub const COALESCED_US: u64 = 1_000;
 pub const SHORT_HOLD_US: u64 = 20_000;
 // Chatter's release-to-press gap is about 10 ms, and 5 to 20 ms through defer debounce. The
 // fastest one-finger repeat still leaves gaps of about 30 ms, so a guided key-down this soon after
-// the same key's last counted press never answers a prompt.
+// the release of the same key's last press held SHORT_HOLD_US or longer never answers a prompt.
 pub const SHORT_GAP_US: u64 = 20_000;
 // Covers laptop firmware's 30 ms release lock and a 30 ms human gap read at 125 Hz. Such pairs are
 // counted and shown, never counted as chatter.

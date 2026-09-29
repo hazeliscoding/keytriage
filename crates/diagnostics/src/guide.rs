@@ -54,7 +54,7 @@ pub struct Guide {
     // Each key down, with its key-down time when that press may count at its release.
     held: BTreeMap<u16, Option<u64>>,
     last_up: BTreeMap<u16, u64>,
-    counted_up: BTreeMap<u16, u64>,
+    solid_up: BTreeMap<u16, u64>,
     trailing: BTreeSet<u16>,
     tallies: BTreeMap<u16, u32>,
     open_tally: u32,
@@ -108,7 +108,7 @@ impl Guide {
             rounds: Vec::new(),
             held: BTreeMap::new(),
             last_up: BTreeMap::new(),
-            counted_up: BTreeMap::new(),
+            solid_up: BTreeMap::new(),
             trailing: BTreeSet::new(),
             tallies: BTreeMap::new(),
             open_tally: 0,
@@ -268,9 +268,11 @@ impl Guide {
     }
 
     // A press counts at its release, once its hold is known, by the engine's own chatter limits:
-    // a phantom's short hold, or a dropout's key-down just after the part that counted, must never
-    // answer a prompt, or the round would end with presses the user never made. The gap runs from
-    // the last counted release, so a bounce just before a real press never holds that press back.
+    // a phantom's short hold, or a key-down just after a real-length part of the same press, must
+    // never answer a prompt, or the round would end with presses the user never made. The gap runs
+    // from the last release of a press held long enough to be real, counted or not, so a bounce
+    // just before a real press never holds it back, and a press split in any number of parts
+    // counts once.
     fn release(&mut self, scan: u16, at: u64) -> bool {
         let down = self.held.remove(&scan).flatten();
         self.last_up.insert(scan, at);
@@ -282,13 +284,15 @@ impl Guide {
         };
         let phantom = at.saturating_sub(down) < SHORT_HOLD_US;
         let continued = self
-            .counted_up
+            .solid_up
             .get(&scan)
             .is_some_and(|&up| down.saturating_sub(up) < SHORT_GAP_US);
+        if !phantom {
+            self.solid_up.insert(scan, at);
+        }
         if scan != prompt.key || down < self.start_us || phantom || continued {
             return false;
         }
-        self.counted_up.insert(scan, at);
         self.count += 1;
         if self.count < self.plan.presses {
             return true;
@@ -323,7 +327,7 @@ impl Guide {
             .map(|h| (h.scan, None))
             .collect();
         self.last_up.clear();
-        self.counted_up.clear();
+        self.solid_up.clear();
         self.trailing.clear();
         changed
     }
